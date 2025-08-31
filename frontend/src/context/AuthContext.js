@@ -1,27 +1,20 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useUser, useAuth as useClerkAuth } from '@clerk/clerk-react';
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [clerkAvailable, setClerkAvailable] = useState(false);
-  const [user, setUser] = useState(null);
-  const [isSignedIn, setIsSignedIn] = useState(false);
   
-  // Mock authentication for testing
-  const mockUser = {
-    email: 'suryanshsingh892@gmail.com',
-    firstName: 'Suryansh',
-    lastName: 'Singh'
-  };
-
-
-
+  // Use Clerk hooks
+  const { isSignedIn, user, isLoaded } = useUser();
+  const { signOut } = useClerkAuth();
+  
   useEffect(() => {
-    // For mock authentication, set loading to false immediately
-    setIsLoading(false);
-    setClerkAvailable(false);
-  }, []);
+    setClerkAvailable(true);
+    setIsLoading(!isLoaded);
+  }, [isLoaded]);
 
   // Password validation function
   const validatePassword = (password) => {
@@ -55,14 +48,13 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      // Mock login for testing
-      if (email === 'suryanshsingh892@gmail.com' && password === 'Admin123!') {
-        setUser(mockUser);
-        setIsSignedIn(true);
-        return { success: true };
-      } else {
-        return { success: false, error: 'Invalid email or password' };
+      if (!clerkAvailable) {
+        return { success: false, error: 'Clerk authentication is not configured' };
       }
+      
+      // For Clerk, we redirect to the sign-in page
+      window.location.href = '/sign-in';
+      return { success: true };
     } catch (error) {
       return { success: false, error: error.message || 'Login failed' };
     }
@@ -70,23 +62,13 @@ export const AuthProvider = ({ children }) => {
 
   const signup = async (email, password, firstName, lastName) => {
     try {
-      // Validate password strength
-      const passwordValidation = validatePassword(password);
-      if (!passwordValidation.isValid) {
-        return { 
-          success: false, 
-          error: passwordValidation.errors.join(', ') 
-        };
+      if (!clerkAvailable) {
+        return { success: false, error: 'Clerk authentication is not configured' };
       }
-
-      // Mock signup for testing
-      if (email === 'suryanshsingh892@gmail.com') {
-        setUser({ email, firstName, lastName });
-        setIsSignedIn(true);
-        return { success: true };
-      } else {
-        return { success: false, error: 'Signup failed' };
-      }
+      
+      // For Clerk, we redirect to the sign-up page
+      window.location.href = '/sign-up';
+      return { success: true };
     } catch (error) {
       return { success: false, error: error.message || 'Signup failed' };
     }
@@ -94,9 +76,12 @@ export const AuthProvider = ({ children }) => {
 
   const loginWithGoogle = async () => {
     try {
-      // For Clerk v4, we need to use the OAuth flow differently
-      // This will redirect to Clerk's hosted OAuth page
-      window.location.href = `${window.location.origin}/sign-in?oauth=google`;
+      if (!clerkAvailable) {
+        return { success: false, error: 'Clerk authentication is not configured' };
+      }
+      
+      // Redirect to Clerk's OAuth sign-in
+      window.location.href = '/sign-in?oauth=google';
       return { success: true };
     } catch (error) {
       console.error('Google login error:', error);
@@ -106,9 +91,12 @@ export const AuthProvider = ({ children }) => {
 
   const signupWithGoogle = async () => {
     try {
-      // For Clerk v4, we need to use the OAuth flow differently
-      // This will redirect to Clerk's hosted OAuth page
-      window.location.href = `${window.location.origin}/sign-up?oauth=google`;
+      if (!clerkAvailable) {
+        return { success: false, error: 'Clerk authentication is not configured' };
+      }
+      
+      // Redirect to Clerk's OAuth sign-up
+      window.location.href = '/sign-up?oauth=google';
       return { success: true };
     } catch (error) {
       console.error('Google signup error:', error);
@@ -118,9 +106,9 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      // Mock logout for testing
-      setUser(null);
-      setIsSignedIn(false);
+      if (clerkAvailable && signOut) {
+        await signOut();
+      }
       window.location.href = '/';
     } catch (error) {
       console.error('Logout error:', error);
@@ -129,7 +117,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const value = {
-    user: user || mockUser,
+    user: user || null,
     isSignedIn,
     isLoaded: !isLoading,
     clerkAvailable,

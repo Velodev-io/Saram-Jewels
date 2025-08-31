@@ -5,7 +5,7 @@ let transporter = null;
 
 // Only create transporter if email credentials are configured
 if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
-  transporter = nodemailer.createTransporter({
+  transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
       user: process.env.EMAIL_USER,

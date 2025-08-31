@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { ClerkProvider } from '@clerk/clerk-react';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import { SiteSettingsProvider } from './context/SiteSettingsContext';
 import Navbar from './components/layout/Navbar';
-import Login from './components/auth/Login';
-import Signup from './components/auth/Signup';
+import SignInPage from './components/auth/SignIn';
+import SignUpPage from './components/auth/SignUp';
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import { debugEnvVars, validateClerkKey } from './utils/debug';
 // ...other imports for pages/components
 
 const Home = React.lazy(() => import('./pages/Home'));
@@ -91,11 +93,33 @@ function App() {
     setNotification(prev => ({ ...prev, isVisible: false }));
   };
 
+  const clerkPublishableKey = process.env.REACT_APP_CLERK_PUBLISHABLE_KEY;
+  
+  // Debug environment variables
+  debugEnvVars();
+  
+  // Validate Clerk key
+  const isClerkKeyValid = validateClerkKey(clerkPublishableKey);
+  
+  // If no key is available, show a fallback
+  if (!isClerkKeyValid) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Configuration Error</h1>
+          <p className="text-gray-600 mb-4">Clerk publishable key is missing.</p>
+          <p className="text-sm text-gray-500">Please check your .env file and restart the application.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <AuthProvider>
-      <CartProvider>
-        <SiteSettingsProvider>
-          <Router>
+    <ClerkProvider publishableKey={clerkPublishableKey}>
+      <AuthProvider>
+        <CartProvider>
+          <SiteSettingsProvider>
+            <Router>
           <div className="min-h-screen bg-gray-50">
             <Navbar />
             <React.Suspense fallback={
@@ -104,8 +128,8 @@ function App() {
               </div>
             }>
               <Routes>
-                <Route path="/login" element={<Login />} />
-                <Route path="/signup" element={<Signup />} />
+                <Route path="/sign-in" element={<SignInPage />} />
+                <Route path="/sign-up" element={<SignUpPage />} />
                 <Route path="/" element={<Home />} />
                 <Route path="/categories" element={<Categories />} />
                 <Route path="/products" element={<ProductList />} />
@@ -147,11 +171,12 @@ function App() {
               isVisible={notification.isVisible}
               onClose={closeNotification}
             />
-          </div>
-          </Router>
-        </SiteSettingsProvider>
-      </CartProvider>
-    </AuthProvider>
+                      </div>
+            </Router>
+          </SiteSettingsProvider>
+        </CartProvider>
+      </AuthProvider>
+    </ClerkProvider>
   );
 }
 

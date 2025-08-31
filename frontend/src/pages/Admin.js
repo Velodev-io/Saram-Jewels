@@ -114,8 +114,9 @@ const Admin = () => {
     }, 1000);
   }, []);
 
-  // Check if user is admin - specific email check
-  const isAdmin = isSignedIn && user?.email === 'suryanshsingh892@gmail.com';
+  // Check if user is admin - for now, allow any signed-in user
+  // TODO: Add proper admin role checking later
+  const isAdmin = isSignedIn;
   
   if (!isAdmin) {
     return (

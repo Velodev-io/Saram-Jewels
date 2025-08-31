@@ -1,21 +1,21 @@
 import React from 'react';
-import { SignUp } from '@clerk/clerk-react';
+import { SignIn } from '@clerk/clerk-react';
 
-const SignUpPage = () => {
+const SignInPage = () => {
   return (
     <div className="min-h-screen bg-green-900 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
           <h2 className="text-3xl font-jewelry font-bold text-amber-50">
-            Create Your Account
+            Sign In to Your Account
           </h2>
           <p className="mt-2 text-sm text-amber-100">
-            Join Saram Jewels today
+            Welcome back to Saram Jewels
           </p>
         </div>
         
         <div className="bg-green-800 rounded-2xl shadow-xl p-8 border border-green-700">
-          <SignUp 
+          <SignIn 
             appearance={{
               elements: {
                 rootBox: "w-full",
@@ -34,7 +34,7 @@ const SignUpPage = () => {
               }
             }}
             redirectUrl="/"
-            signInUrl="/sign-in"
+            signUpUrl="/sign-up"
           />
         </div>
       </div>
@@ -42,4 +42,4 @@ const SignUpPage = () => {
   );
 };
 
-export default SignUpPage;
+export default SignInPage;

@@ -255,7 +255,7 @@ const Navbar = () => {
             ) : (
               <div className="flex items-center space-x-2">
                 <Link
-                  to="/login"
+                  to="/sign-in"
                   className="text-amber-100 hover:text-amber-200 transition-colors duration-200"
                 >
                   <UserIcon className="h-6 w-6" />

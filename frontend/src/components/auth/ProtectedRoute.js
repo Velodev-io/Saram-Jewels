@@ -6,9 +6,7 @@ const ProtectedRoute = ({ children }) => {
   const { isSignedIn } = useAuth();
 
   // If signed in, show the protected content
-
-  // If signed in, show the protected content
-  return isSignedIn ? children : <Navigate to="/login" />;
+  return isSignedIn ? children : <Navigate to="/sign-in" />;
 };
 
 export default ProtectedRoute;

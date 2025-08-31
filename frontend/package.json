@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "@clerk/clerk-react": "^4.30.0",
+    "@clerk/clerk-react": "^4.29.0",
     "@headlessui/react": "^1.7.17",
     "@heroicons/react": "^2.1.1",
     "@tailwindcss/forms": "^0.5.10",
@@ -47,5 +47,5 @@
     "autoprefixer": "^10.4.16",
     "postcss": "^8.4.32"
   },
-  "proxy": "http://localhost:5000"
+  "proxy": "http://localhost:5001"
 }

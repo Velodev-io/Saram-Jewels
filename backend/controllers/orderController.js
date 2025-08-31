@@ -2,11 +2,16 @@ const { Order, OrderItem, Cart, Product, User } = require('../models');
 const Razorpay = require('razorpay');
 const sequelize = require('../config/database');
 
-// Initialize Razorpay
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET
-});
+// Initialize Razorpay only if credentials are provided
+let razorpay = null;
+if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+  razorpay = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET
+  });
+} else {
+  console.log('⚠️ Razorpay credentials not configured. Payment functionality will be limited.');
+}
 
 // Create new order
 exports.createOrder = async (req, res) => {
@@ -35,13 +40,15 @@ exports.createOrder = async (req, res) => {
     
     let razorpayOrder = null;
     
-    // Create Razorpay order only if using Razorpay
-    if (payment_method === 'razorpay') {
+    // Create Razorpay order only if using Razorpay and Razorpay is configured
+    if (payment_method === 'razorpay' && razorpay) {
       razorpayOrder = await razorpay.orders.create({
         amount: Math.round(total_amount * 100), // Convert to paisa
         currency: 'INR',
         receipt: `order_${Date.now()}`
       });
+    } else if (payment_method === 'razorpay' && !razorpay) {
+      throw new Error('Razorpay is not configured. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables.');
     }
     
     // Create order in database
@@ -104,6 +111,9 @@ exports.processPayment = async (req, res) => {
     switch (payment_method) {
       case 'razorpay':
         // Verify Razorpay payment
+        if (!razorpay) {
+          throw new Error('Razorpay is not configured. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables.');
+        }
         try {
           const payment = await razorpay.payments.fetch(payment_details.payment_id);
           if (payment.status === 'captured') {

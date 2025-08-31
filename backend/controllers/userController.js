@@ -1,5 +1,30 @@
 const { User } = require('../models');
-const { Clerk } = require('@clerk/clerk-sdk-node');
+
+// Get current user profile
+exports.getCurrentUser = async (req, res) => {
+  try {
+    const clerkUserId = req.user.sub; // From Clerk JWT token
+    
+    const user = await User.findOne({ where: { clerk_user_id: clerkUserId } });
+    
+    if (!user) {
+      // Create user if doesn't exist
+      const newUser = await User.create({
+        clerk_user_id: clerkUserId,
+        email: req.user.email,
+        first_name: req.user.first_name,
+        last_name: req.user.last_name
+      });
+      
+      return res.json(newUser);
+    }
+    
+    res.json(user);
+  } catch (error) {
+    console.error('Error fetching current user:', error);
+    res.status(500).json({ message: 'Error fetching user profile', error: error.message });
+  }
+};
 
 // Get user by clerk_user_id
 exports.getUserByClerkId = async (req, res) => {
