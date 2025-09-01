@@ -32,7 +32,7 @@ const Cart = () => {
   };
 
   const calculateTax = () => {
-    return calculateSubtotal() * 0.18; // 18% GST
+    return calculateSubtotal() * 0.03; // 3% GST
   };
 
   const calculateTotal = () => {

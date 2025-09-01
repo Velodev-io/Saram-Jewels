@@ -111,7 +111,7 @@ const Checkout = ({ cartItems, totalAmount, onOrderComplete }) => {
   };
 
   const calculateTax = () => {
-    return calculateSubtotal() * 0.18; // 18% GST
+    return calculateSubtotal() * 0.03; // 3% GST
   };
 
   const calculateShipping = () => {
@@ -372,7 +372,7 @@ const Checkout = ({ cartItems, totalAmount, onOrderComplete }) => {
                 </div>
                 
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Tax (GST 18%)</span>
+                  <span className="text-gray-600">Tax (GST 3%)</span>
                   <span className="text-gray-900">₹{calculateTax().toLocaleString()}</span>
                 </div>
                 
