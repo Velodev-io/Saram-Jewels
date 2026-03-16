@@ -60,16 +60,10 @@ const cartReducer = (state, action) => {
         wishlist: state.wishlist.filter(item => item.id !== action.payload)
       };
 
-    case 'LOAD_CART':
+    case 'REMOVE_FROM_WISHLIST':
       return {
         ...state,
-        items: action.payload
-      };
-
-    case 'LOAD_WISHLIST':
-      return {
-        ...state,
-        wishlist: action.payload
+        wishlist: state.wishlist.filter(item => item.id !== action.payload)
       };
 
     default:
@@ -78,36 +72,23 @@ const cartReducer = (state, action) => {
 };
 
 export const CartProvider = ({ children }) => {
-  const [state, dispatch] = useReducer(cartReducer, {
-    items: [],
-    wishlist: []
-  });
-
-  // Load cart from localStorage on mount
-  useEffect(() => {
+  // Initialize state directly from localStorage
+  const getInitialState = () => {
     const savedCart = localStorage.getItem('cart');
     const savedWishlist = localStorage.getItem('wishlist');
-    
-    if (savedCart) {
-      const cartData = JSON.parse(savedCart);
-      dispatch({ type: 'LOAD_CART', payload: cartData });
-    }
-    
-    if (savedWishlist) {
-      const wishlistData = JSON.parse(savedWishlist);
-      dispatch({ type: 'LOAD_WISHLIST', payload: wishlistData });
-    }
-  }, []);
+    return {
+      items: savedCart ? JSON.parse(savedCart) : [],
+      wishlist: savedWishlist ? JSON.parse(savedWishlist) : []
+    };
+  };
 
-  // Save cart to localStorage whenever it changes
+  const [state, dispatch] = useReducer(cartReducer, getInitialState());
+
+  // Save cart and wishlist to localStorage whenever they change
   useEffect(() => {
     localStorage.setItem('cart', JSON.stringify(state.items));
-  }, [state.items]);
-
-  // Save wishlist to localStorage whenever it changes
-  useEffect(() => {
     localStorage.setItem('wishlist', JSON.stringify(state.wishlist));
-  }, [state.wishlist]);
+  }, [state.items, state.wishlist]);
 
   const addToCart = (product) => {
     dispatch({ type: 'ADD_TO_CART', payload: product });

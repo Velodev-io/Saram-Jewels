@@ -1,298 +1,194 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  SparklesIcon, 
+import apiService from '../services/api';
+import {
+  SparklesIcon,
   ArrowRightIcon,
   StarIcon,
-  FireIcon
+  FireIcon,
 } from '@heroicons/react/24/outline';
 
+/* ── Sparkle Component ── */
+const SparkleStar = ({ style }) => (
+  <svg className="sparkle" style={style} viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M80 0C80 0 84.5 59.5 160 80C160 80 84.5 100.5 80 160C80 160 75.5 100.5 0 80C0 80 75.5 59.5 80 0Z" fill="currentColor"/>
+  </svg>
+);
+
+// Categories will be fetched from API
+
 const Categories = () => {
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selected, setSelected] = useState('all');
+  const [categories, setCategories] = useState([]);
 
-  const categories = [
-    {
-      id: 'rings',
-      name: 'Rings',
-      description: 'Beautiful American Diamond rings that are anti-tarnish and affordable',
-      price: '₹250 - ₹1000',
-      image: '/images/rings-category.jpg',
-      count: 24,
-      featured: false
-    },
-    {
-      id: 'necklace',
-      name: 'Necklace',
-      description: 'Elegant American Diamond necklaces for all occasions',
-      price: '₹1000 - ₹4000',
-      image: '/images/necklace-category.jpg',
-      count: 18,
-      featured: false
-    },
-    {
-      id: 'earrings',
-      name: 'Earrings',
-      description: 'Stunning American Diamond earrings that sparkle like real diamonds',
-      price: '₹300 - ₹1500',
-      image: '/images/earrings-category.jpg',
-      count: 32,
-      featured: false
-    },
-    {
-      id: 'chains',
-      name: 'Chains',
-      description: 'Anti-tarnish American Diamond chains for everyday wear',
-      price: '₹500 - ₹2000',
-      image: '/images/chains-category.jpg',
-      count: 15,
-      featured: false
-    },
-    {
-      id: 'bracelets',
-      name: 'Bracelets',
-      description: 'Elegant American Diamond bracelets that add a touch of luxury',
-      price: '₹400 - ₹1200',
-      image: '/images/bracelets-category.jpg',
-      count: 12,
-      featured: false
-    },
-    {
-      id: 'necklace-set',
-      name: 'Necklace Set',
-      description: 'Complete American Diamond necklace sets for special occasions',
-      price: '₹1500 - ₹5000',
-      image: '/images/necklace-set-category.jpg',
-      count: 8,
-      featured: false
-    },
-    {
-      id: 'gift-box-set',
-      name: 'Gift Box Set',
-      description: 'Special Gift Box Sets including Necklace + Earring combo at ₹1000',
-      price: '₹1000',
-      image: '/images/gift-box-category.jpg',
-      count: 6,
-      featured: true
-    }
-  ];
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await apiService.getCategories();
+        const formatted = (response?.data || []).map(c => ({
+          id: c.attributes?.slug || c.id,
+          name: c.attributes?.name || `Category ${c.id}`,
+          description: c.attributes?.description || '',
+          image: apiService.getImageUrl(c.attributes?.image?.data?.attributes) || '',
+          count: c.attributes?.products?.data?.length || 0,
+          featured: false, // You can add logic for featured/tag if needed
+          tag: 'Classic'
+        }));
+        setCategories(formatted);
+      } catch (err) {
+        console.error("Error fetching categories:", err);
+      }
+    };
+    fetchCategories();
+  }, []);
 
-  const filteredCategories = selectedCategory === 'all' 
-    ? categories 
-    : categories.filter(cat => cat.id === selectedCategory);
+  const filtered = selected === 'all' ? categories : categories.filter((c) => c.id === selected);
 
   return (
-    <div className="min-h-screen bg-green-900">
-      {/* Hero Section */}
-      <section className="relative py-20 md:py-32">
-        {/* Background Image */}
-        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=1920&h=1080&fit=crop')] bg-cover bg-center opacity-15"></div>
-        {/* Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-br from-green-900/95 via-green-900/90 to-green-900/95"></div>
-        
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h1 className="text-5xl md:text-6xl font-jewelry font-bold text-amber-50 mb-8">
-              Our Collections
-            </h1>
-            <p className="text-xl md:text-2xl text-amber-100 mb-8 max-w-3xl mx-auto">
-              Explore our complete collection of American Diamond jewelry
-            </p>
-            <div className="flex items-center justify-center space-x-4">
-              <SparklesIcon className="h-8 w-8 text-amber-200" />
-              <span className="text-lg text-amber-100">Anti-tarnish • Affordable • Elegant</span>
-              <SparklesIcon className="h-8 w-8 text-amber-200" />
-            </div>
+    <div className="min-h-screen bg-[#020617]">
+
+      {/* ── Hero ── */}
+      <section className="relative pt-36 pb-20 px-6 overflow-hidden">
+        <div
+          className="absolute inset-0 bg-cover bg-center opacity-10"
+          style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=1920&h=800&fit=crop)' }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#020617]/70 to-[#020617]" />
+        <div className="relative text-center max-w-4xl mx-auto">
+          <div className="section-label justify-center mb-6">Collections</div>
+          <h1 className="font-display text-6xl md:text-7xl font-bold text-[#ffffff] mb-5 leading-tight">
+            Our <span className="text-silver-gradient">Collections</span>
+          </h1>
+          <p className="text-[#94a3b8] text-lg max-w-xl mx-auto">
+            Explore every category — rings, necklaces, earrings and more. Anti-tarnish. Affordable. Timeless.
+          </p>
+          <div className="flex items-center justify-center gap-3 mt-8 text-[#64748b] text-sm group relative">
+            <SparklesIcon className="h-4 w-4 text-[#e2e8f0]" />
+            <span>Anti-tarnish</span>
+            <span className="text-[#334155]">·</span>
+            <span>Affordable</span>
+            <span className="text-[#334155]">·</span>
+            <span>Elegant</span>
+            <SparklesIcon className="h-4 w-4 text-[#e2e8f0]" />
+            
+            {/* Sparkles */}
+            <SparkleStar style={{ top: '-20px', left: '10%', width: '12px', height: '12px' }} />
+            <SparkleStar style={{ bottom: '-15px', right: '15%', width: '10px', height: '10px', animationDelay: '1s' }} />
           </div>
         </div>
       </section>
 
-      {/* Filter Section */}
-      <section className="py-12 bg-green-900 border-b border-green-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-wrap items-center justify-center gap-4">
+      {/* ── Filter Pills ── */}
+      <div className="border-y border-[rgba(226,232,240,0.08)] bg-[#020617]/80 backdrop-blur-md sticky top-[72px] z-40 px-6 py-4">
+        <div className="max-w-7xl mx-auto flex gap-2 overflow-x-auto no-scrollbar">
+          <button
+            onClick={() => setSelected('all')}
+            className={`flex-shrink-0 px-5 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+              selected === 'all'
+                ? 'bg-[#e2e8f0] text-[#020617] shadow-[0_0_16px_rgba(226,232,240,0.3)]'
+                : 'bg-[#1e293b] border border-[#334155] text-[#94a3b8] hover:border-[rgba(226,232,240,0.3)] hover:text-[#e2e8f0]'
+            }`}
+          >
+            All Collections
+          </button>
+          {categories.map((c) => (
             <button
-              onClick={() => setSelectedCategory('all')}
-              className={`px-6 py-3 rounded-full font-medium transition-all duration-300 ${
-                selectedCategory === 'all'
-                  ? 'bg-amber-200 text-green-900 shadow-lg'
-                  : 'bg-green-800 text-amber-100 hover:bg-green-700'
+              key={c.id}
+              onClick={() => setSelected(c.id)}
+              className={`flex-shrink-0 px-5 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+                selected === c.id
+                  ? 'bg-[#e2e8f0] text-[#020617] shadow-[0_0_16px_rgba(226,232,240,0.3)]'
+                  : 'bg-[#1e293b] border border-[#334155] text-[#94a3b8] hover:border-[rgba(226,232,240,0.3)] hover:text-[#e2e8f0]'
               }`}
             >
-              All Categories
+              {c.name}
             </button>
-            {categories.map((category) => (
-              <button
-                key={category.id}
-                onClick={() => setSelectedCategory(category.id)}
-                className={`px-6 py-3 rounded-full font-medium transition-all duration-300 ${
-                  selectedCategory === category.id
-                    ? 'bg-amber-200 text-green-900 shadow-lg'
-                    : 'bg-green-800 text-amber-100 hover:bg-green-700'
-                }`}
-              >
-                {category.name}
-              </button>
-            ))}
-          </div>
+          ))}
         </div>
-      </section>
+      </div>
 
-      {/* Categories Grid */}
-      <section className="py-20 bg-green-900">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-            {filteredCategories.map((category, index) => (
-              <Link
-                key={category.id}
-                to={`/products?category=${category.id}`}
-                className={`group relative overflow-hidden rounded-xl shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 ${
-                  category.featured ? 'ring-2 ring-amber-300 ring-offset-2' : ''
-                }`}
-                style={{ animationDelay: `${index * 0.1}s` }}
-              >
-                {/* Featured Badge */}
-                {category.featured && (
-                  <div className="absolute top-4 left-4 z-10">
-                    <div className="bg-gradient-to-r from-amber-300 to-amber-400 text-green-900 px-3 py-1 rounded-full text-sm font-semibold flex items-center">
-                      <FireIcon className="h-4 w-4 mr-1" />
-                      Featured
-                    </div>
-                  </div>
-                )}
+      {/* ── Categories Grid ── */}
+      <section className="py-16 px-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {filtered.map((cat) => (
+              <div key={cat.id} className={`card-3d ${cat.featured ? 'sm:col-span-2 sm:row-span-1' : ''}`}>
+                <Link
+                  to={`/products?category=${cat.id}`}
+                  className="group card relative overflow-hidden aspect-[3/4] block card-3d-inner w-full h-full"
+                >
+                {/* Background image */}
+                <img
+                  src={cat.image}
+                  alt={cat.name}
+                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#020617] via-[#020617]/30 to-transparent" />
+                <div className="absolute inset-0 ring-0 group-hover:ring-1 ring-[#e2e8f0]/50 rounded-[20px] transition-all duration-300" />
 
-                {/* Category Image */}
-                <div className="aspect-square bg-gradient-to-br from-green-800 to-green-700 relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-t from-green-900/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                  
-                  {/* Placeholder for category image */}
-                  <div className="w-full h-full flex items-center justify-center">
-                    <div className="text-center p-6">
-                      <div className="w-16 h-16 bg-gradient-to-r from-amber-200 to-amber-300 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300">
-                        <SparklesIcon className="h-8 w-8 text-green-900" />
-                      </div>
-                    </div>
-                  </div>
+                {/* Tags */}
+                <div className="absolute top-4 left-4 flex flex-wrap gap-2">
+                  <span className="badge-silver text-[10px]">{cat.tag}</span>
+                  {cat.featured && (
+                    <span className="bg-red-500/20 border border-red-500/30 text-red-400 text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <FireIcon className="h-3 w-3" /> Featured
+                    </span>
+                  )}
                 </div>
 
-                {/* Category Info */}
-                <div className="p-6 bg-green-800">
-                  <div className="flex items-start justify-between mb-3">
-                    <h3 className="text-xl font-semibold text-amber-50 group-hover:text-amber-200 transition-colors">
-                      {category.name}
-                    </h3>
-                    {category.featured && (
-                      <StarIcon className="h-5 w-5 text-amber-300 flex-shrink-0 ml-2" />
-                    )}
-                  </div>
-                  
-                  <p className="text-amber-100 text-sm mb-4 line-clamp-2">
-                    {category.description}
+                {/* Count badge */}
+                <div className="absolute top-4 right-4">
+                  <span className="bg-[#020617]/60 text-[#94a3b8] text-[10px] px-3 py-1 rounded-full">
+                    {cat.count} pieces
+                  </span>
+                </div>
+
+                {/* Content */}
+                <div className="absolute bottom-0 left-0 right-0 p-6 transform translate-z-10 translate-y-3 group-hover:translate-y-0 transition-transform duration-500">
+                  <h3 className="font-display text-2xl font-bold text-[#ffffff] mb-1 drop-shadow-lg">
+                    {cat.name}
+                  </h3>
+                  <p className="text-[#e2e8f0] text-sm font-medium mb-2 drop-shadow-md">{cat.price}</p>
+                  <p className="text-[#64748b] text-xs leading-relaxed line-clamp-2 mb-4">
+                    {cat.description}
                   </p>
-                  
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-amber-200 font-bold text-lg">
-                        {category.price}
-                      </p>
-                      <p className="text-amber-100 text-sm">
-                        {category.count} items
-                      </p>
-                    </div>
-                    
-                    <div className="flex items-center text-amber-300 group-hover:text-amber-400 transition-colors">
-                      <span className="text-sm font-medium mr-1">Explore</span>
-                      <ArrowRightIcon className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                    </div>
+                  <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-[#e2e8f0] opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
+                    Explore <ArrowRightIcon className="h-3 w-3" />
                   </div>
                 </div>
-
-                {/* Hover Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-amber-300/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
-              </Link>
+                </Link>
+              </div>
             ))}
           </div>
+        </div>
+      </section>
 
-          {/* Special Offer Section */}
-                        <div className="mt-16 bg-gradient-to-r from-amber-300 to-amber-400 rounded-2xl p-8 text-green-900">
-            <div className="text-center">
-              <h2 className="text-3xl md:text-4xl font-jewelry font-bold mb-4">
-                Special Gift Box Sets
-              </h2>
-              <p className="text-xl mb-6 max-w-2xl mx-auto">
-                Perfect combination of Necklace + Earring combo at just ₹1000
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link
-                  to="/products?category=gift-box-set"
-                  className="bg-white text-green-900 font-semibold py-3 px-8 rounded-lg hover:bg-gray-100 transition-colors inline-flex items-center"
-                >
-                  Shop Gift Sets
-                  <ArrowRightIcon className="ml-2 h-5 w-5" />
-                </Link>
-                <Link
-                  to="/contact"
-                  className="border-2 border-white text-white font-semibold py-3 px-8 rounded-lg hover:bg-white hover:text-green-900 transition-colors inline-flex items-center"
-                >
-                  Contact Us
-                  <ArrowRightIcon className="ml-2 h-5 w-5" />
-                </Link>
-              </div>
-            </div>
+      {/* ── Gift Set Highlight ── */}
+      <section className="py-16 px-6 bg-[#0f172a] border-y border-[rgba(226,232,240,0.08)]">
+        <div className="max-w-4xl mx-auto text-center">
+          <div className="section-label justify-center mb-6">
+            <FireIcon className="h-4 w-4 mr-1 text-[#e2e8f0]" />
+            Special Offer
+          </div>
+          <h2 className="font-display text-5xl font-bold text-[#ffffff] mb-4">
+            Gift Box Sets at <span className="text-silver-gradient">₹1000</span>
+          </h2>
+          <p className="text-[#94a3b8] text-lg mb-10 max-w-xl mx-auto">
+            The perfect combo — a beautiful Necklace + Matching Earrings in our signature gift box. 
+            Ready to gift, ready to love.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link to="/products?category=gift-box-set" className="btn-silver">
+              Shop Gift Sets
+              <ArrowRightIcon className="h-4 w-4" />
+            </Link>
+            <Link to="/contact" className="btn-outline">
+              Contact Us
+            </Link>
           </div>
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="py-16 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-jewelry font-bold text-gray-800 mb-4">
-              Why Choose Our Jewelry?
-            </h2>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Experience the perfect blend of elegance, quality, and affordability
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="text-center p-6">
-              <div className="w-16 h-16 bg-gradient-to-r from-amber-200 to-amber-300 rounded-full flex items-center justify-center mx-auto mb-4">
-                <SparklesIcon className="h-8 w-8 text-green-900" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-800 mb-2">
-                Anti-Tarnish
-              </h3>
-              <p className="text-gray-600">
-                Long-lasting shine that never fades, perfect for everyday wear
-              </p>
-            </div>
-            
-            <div className="text-center p-6">
-              <div className="w-16 h-16 bg-gradient-to-r from-amber-200 to-amber-300 rounded-full flex items-center justify-center mx-auto mb-4">
-                <StarIcon className="h-8 w-8 text-green-900" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-800 mb-2">
-                Premium Quality
-              </h3>
-              <p className="text-gray-600">
-                Handcrafted with attention to detail and premium materials
-              </p>
-            </div>
-            
-            <div className="text-center p-6">
-              <div className="w-16 h-16 bg-gradient-to-r from-amber-200 to-amber-300 rounded-full flex items-center justify-center mx-auto mb-4">
-                <FireIcon className="h-8 w-8 text-green-900" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-800 mb-2">
-                Affordable Luxury
-              </h3>
-              <p className="text-gray-600">
-                Beautiful jewelry at prices that won't break the bank
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
     </div>
   );
 };

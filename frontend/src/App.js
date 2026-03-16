@@ -6,7 +6,7 @@ import { CartProvider } from './context/CartContext';
 import { SiteSettingsProvider } from './context/SiteSettingsContext';
 import Navbar from './components/layout/Navbar';
 import SignInPage from './components/auth/SignIn';
-import SignUpPage from './components/auth/SignUp';
+import SignUpPage from './components/auth/Signup';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import { debugEnvVars, validateClerkKey } from './utils/debug';
 // ...other imports for pages/components
@@ -26,31 +26,28 @@ const Payment = React.lazy(() => import('./components/payment/PaymentGateway'));
 const Notification = ({ message, type, isVisible, onClose }) => {
   if (!isVisible) return null;
 
-  const bgColor = {
-    success: 'bg-green-500',
-    error: 'bg-red-500',
-    warning: 'bg-yellow-500',
-    info: 'bg-blue-500'
-  }[type] || 'bg-gray-500';
-
-  const iconColor = {
-    success: 'text-green-500',
-    error: 'text-red-500',
-    warning: 'text-yellow-500',
-    info: 'text-blue-500'
-  }[type] || 'text-gray-500';
+  const borderColor = {
+    success: 'border-[#e2e8f0]',
+    error: 'border-red-500',
+    warning: 'border-amber-400',
+    info: 'border-blue-500'
+  }[type] || 'border-[#334155]';
 
   return (
-    <div className="fixed top-4 right-4 z-50 animate-slide-in">
-      <div className={`${bgColor} text-white px-6 py-4 rounded-lg shadow-lg max-w-sm`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <div className={`w-2 h-2 rounded-full ${iconColor} bg-white mr-3`}></div>
-            <span className="font-medium">{message}</span>
+    <div className="fixed top-24 right-4 z-[200] animate-slide-down">
+      <div className={`glass border ${borderColor} text-[#ffffff] px-6 py-4 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.8)] max-w-sm min-w-[260px]`}>
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+              type === 'success' ? 'bg-[#e2e8f0]' :
+              type === 'error' ? 'bg-red-400' :
+              type === 'warning' ? 'bg-amber-400' : 'bg-blue-400'
+            }`} />
+            <span className="text-sm font-medium">{message}</span>
           </div>
           <button
             onClick={onClose}
-            className="ml-4 text-white hover:text-gray-200 transition-colors"
+            className="text-[#64748b] hover:text-[#e2e8f0] transition-colors text-lg leading-none flex-shrink-0"
           >
             ×
           </button>
@@ -104,11 +101,11 @@ function App() {
   // If no key is available, show a fallback
   if (!isClerkKeyValid) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[#020617] flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-red-600 mb-4">Configuration Error</h1>
-          <p className="text-gray-600 mb-4">Clerk publishable key is missing.</p>
-          <p className="text-sm text-gray-500">Please check your .env file and restart the application.</p>
+          <h1 className="font-display text-2xl font-bold text-red-400 mb-4">Configuration Error</h1>
+          <p className="text-[#94a3b8] mb-4">Clerk publishable key is missing.</p>
+          <p className="text-sm text-[#64748b]">Please check your .env file and restart the application.</p>
         </div>
       </div>
     );
@@ -120,11 +117,11 @@ function App() {
         <CartProvider>
           <SiteSettingsProvider>
             <Router>
-          <div className="min-h-screen bg-gray-50">
+          <div className="min-h-screen bg-[#020617]">
             <Navbar />
             <React.Suspense fallback={
-              <div className="flex items-center justify-center min-h-screen">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-300"></div>
+              <div className="flex items-center justify-center min-h-screen bg-[#020617]">
+                <div className="w-10 h-10 border-2 border-[#334155] border-t-[#e2e8f0] rounded-full animate-spin" />
               </div>
             }>
               <Routes>

@@ -16,6 +16,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 import { useSiteSettings } from '../context/SiteSettingsContext';
+import apiService from '../services/api';
 
 const Admin = () => {
   const { user, isSignedIn } = useAuth();
@@ -44,74 +45,52 @@ const Admin = () => {
   });
 
 
-  // Mock data
   useEffect(() => {
-    setTimeout(() => {
-      setProducts([
-        {
-          id: 1,
-          name: 'Elegant American Diamond Ring',
-          category: 'Rings',
-          price: 899,
-          originalPrice: 1299,
-          stock: 12,
-          sku: 'RING-AD-001',
-          status: 'active',
-          rating: 4.8,
-          reviews: 127,
-          image: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=600&h=600&fit=crop'
-        },
-        {
-          id: 2,
-          name: 'Diamond Stud Earrings',
-          category: 'Earrings',
-          price: 599,
-          originalPrice: 799,
-          stock: 18,
-          sku: 'EARR-DS-002',
-          status: 'active',
-          rating: 4.7,
-          reviews: 95,
-          image: 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=300&h=300&fit=crop'
-        }
-      ]);
-
-      setOrders([
-        {
-          id: 'ORD-001',
-          customer: 'Priya Sharma',
-          total: 25000,
-          status: 'Delivered',
-          date: '2024-01-15'
-        },
-        {
-          id: 'ORD-002',
-          customer: 'Anjali Mehta',
-          total: 18000,
-          status: 'In Transit',
-          date: '2024-01-10'
-        }
-      ]);
-
-      setCustomers([
-        {
-          id: 1,
-          name: 'Priya Sharma',
-          email: 'priya@example.com',
-          orders: 5,
-          totalSpent: 85000
-        },
-        {
-          id: 2,
-          name: 'Anjali Mehta',
-          email: 'anjali@example.com',
-          orders: 3,
-          totalSpent: 45000
-        }
-      ]);
-
-      setLoading(false);
-    }, 1000);
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const [productsRes, ordersRes] = await Promise.all([
+          apiService.getProducts(),
+          apiService.getUserOrders('all') // Adjust if you have an admin-level orders API
+        ]);
+        
+        const formattedProducts = (productsRes?.data || []).map(p => ({
+          id: p.id,
+          name: p.attributes?.name || 'Unknown Product',
+          category: p.attributes?.category?.data?.attributes?.name || 'Unassigned',
+          price: p.attributes?.price || 0,
+          originalPrice: p.attributes?.originalPrice || p.attributes?.price || 0,
+          stock: p.attributes?.stock || 0,
+          sku: p.attributes?.sku || `SKU-${Math.floor(Math.random() * 10000)}`,
+          status: p.attributes?.stock > 0 ? 'active' : 'inactive',
+          rating: p.attributes?.rating || 0,
+          reviews: p.attributes?.reviews || 0,
+          image: p.attributes?.images?.data ? apiService.getImageUrl(p.attributes.images.data[0]?.attributes) : 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=600&h=600&fit=crop'
+        }));
+        
+        const formattedOrders = (ordersRes?.data || []).map(o => ({
+          id: o.attributes?.order_number || `ORD-${o.id}`,
+          customer: o.attributes?.user?.data?.attributes?.first_name || 'Guest',
+          total: o.attributes?.total_amount || 0,
+          status: o.attributes?.status || 'Processing',
+          date: new Date(o.attributes?.createdAt).toISOString().split('T')[0]
+        }));
+        
+        setProducts(formattedProducts);
+        setOrders(formattedOrders);
+        setCustomers([]); // Can fetch users later if needed
+      } catch (err) {
+        console.error("Error fetching admin data:", err);
+        // Fallback or empty state on error
+        setProducts([]);
+        setOrders([]);
+        setCustomers([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchData();
   }, []);
 
   // Check if user is admin - for now, allow any signed-in user

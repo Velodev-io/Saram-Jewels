@@ -17,7 +17,12 @@ strapiApi.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('clerk-token');
     if (token) {
-      config.headers['Authorization'] = `Bearer ${token}`;
+      config.headers['X-Clerk-Token'] = `Bearer ${token}`; // Prevent overwriting Strapi API token
+    }
+    
+    // Ensure Strapi API Token is always present if defined
+    if (STRAPI_API_TOKEN && !config.headers['Authorization']) {
+      config.headers['Authorization'] = `Bearer ${STRAPI_API_TOKEN}`;
     }
     return config;
   },
