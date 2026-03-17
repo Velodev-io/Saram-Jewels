@@ -5,6 +5,7 @@ const Order = require('./Order');
 const OrderItem = require('./OrderItem');
 const Cart = require('./Cart');
 const Review = require('./Review');
+const Inquiry = require('./Inquiry');
 
 // Define relationships
 Product.belongsTo(Category, { foreignKey: 'category_id', as: 'category' });
@@ -35,5 +36,6 @@ module.exports = {
   Order,
   OrderItem,
   Cart,
-  Review
+  Review,
+  Inquiry
 };

@@ -130,7 +130,46 @@ const sendOrderConfirmationEmail = async (orderData, userEmail) => {
   }
 };
 
+// Send order notification email to admin
+const sendAdminOrderNotification = async (orderData) => {
+  try {
+    const { order_id, total_amount, customer_name, customer_email } = orderData;
+    
+    if (!transporter) return { success: true, messageId: 'logged-only' };
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: 'saramjewels@gmail.com',
+      subject: `New Order Received: #${order_id}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #1f2937; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px;">
+            New Order Notification
+          </h2>
+          
+          <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3 style="color: #374151; margin-top: 0;">Order Details</h3>
+            <p><strong>Order ID:</strong> #${order_id}</p>
+            <p><strong>Customer:</strong> ${customer_name}</p>
+            <p><strong>Email:</strong> ${customer_email}</p>
+            <p><strong>Total Amount:</strong> ₹${total_amount}</p>
+          </div>
+          
+          <p>Please log in to the admin panel to process this order.</p>
+        </div>
+      `
+    };
+
+    const result = await transporter.sendMail(mailOptions);
+    return { success: true, messageId: result.messageId };
+  } catch (error) {
+    console.error('❌ Error sending admin order notification:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 module.exports = {
   sendContactEmail,
-  sendOrderConfirmationEmail
+  sendOrderConfirmationEmail,
+  sendAdminOrderNotification
 };

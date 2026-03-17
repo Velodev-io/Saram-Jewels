@@ -86,6 +86,17 @@ class ApiService {
     const response = await api.delete(`/reviews/${id}`);
     return response.data;
   }
+
+  // Inquiry APIs
+  async getInquiries() {
+    const response = await api.get('/contact');
+    return response.data;
+  }
+
+  async updateInquiryStatus(id, status) {
+    const response = await api.put(`/contact/${id}/status`, { status });
+    return response.data;
+  }
 }
 
 const apiService = new ApiService();

@@ -1,6 +1,7 @@
 const { Order, OrderItem, Cart, Product, User } = require('../models');
 const Razorpay = require('razorpay');
 const sequelize = require('../config/database');
+const { sendOrderConfirmationEmail, sendAdminOrderNotification } = require('../services/emailService');
 
 // Initialize Razorpay only if credentials are provided
 let razorpay = null;
@@ -231,6 +232,34 @@ exports.processPayment = async (req, res) => {
     
     await transaction.commit();
     
+    // Send email notifications if payment successful
+    if (payment_status === 'completed') {
+      try {
+        const orderWithUser = await Order.findByPk(order.id, {
+          include: [{ model: User, as: 'user' }]
+        });
+        
+        const customerEmail = orderWithUser.user?.email || 'customer@example.com';
+        const customerName = orderWithUser.user ? `${orderWithUser.user.first_name} ${orderWithUser.user.last_name}` : 'Valued Customer';
+
+        // Notify Customer
+        await sendOrderConfirmationEmail({
+          order_id: order.id,
+          total_amount: order.total_amount
+        }, customerEmail);
+
+        // Notify Admin
+        await sendAdminOrderNotification({
+          order_id: order.id,
+          total_amount: order.total_amount,
+          customer_name: customerName,
+          customer_email: customerEmail
+        });
+      } catch (emailErr) {
+        console.error('Post-payment notification failed:', emailErr);
+      }
+    }
+
     res.json({
       success: payment_status === 'completed',
       order: order,

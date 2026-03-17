@@ -52,6 +52,7 @@ const Admin = () => {
     newOrders: true
   });
   const [reviews, setReviews] = useState([]);
+  const [inquiries, setInquiries] = useState([]);
 
 
   useEffect(() => {
@@ -62,10 +63,11 @@ const Admin = () => {
           apiService.getOrders(),
           apiService.getCustomers(),
           apiService.getCategories(),
-          apiService.getReviews()
+          apiService.getReviews(),
+          apiService.getInquiries()
         ]);
         
-        const [productsRes, ordersRes, customersRes, categoriesRes, reviewsRes] = results;
+        const [productsRes, ordersRes, customersRes, categoriesRes, reviewsRes, inquiriesRes] = results;
 
         // Map products
         if (productsRes.status === 'fulfilled' && productsRes.value?.products) {
@@ -107,6 +109,11 @@ const Admin = () => {
         // Set Reviews
         if (reviewsRes.status === 'fulfilled') {
           setReviews(reviewsRes.value);
+        }
+
+        // Set Inquiries
+        if (inquiriesRes.status === 'fulfilled' && inquiriesRes.value.success) {
+          setInquiries(inquiriesRes.value.data);
         }
       } catch (e) {
         console.error('Failed to load admin data:', e);
@@ -185,6 +192,7 @@ const Admin = () => {
     { id: 'customers', name: 'Customers', icon: UsersIcon },
     { id: 'inventory', name: 'Inventory', icon: ArchiveBoxIcon },
     { id: 'reviews', name: 'Client Reviews', icon: ChatBubbleBottomCenterTextIcon },
+    { id: 'messages', name: 'Inquiries', icon: ChatBubbleBottomCenterTextIcon },
     { id: 'settings', name: 'Settings', icon: CogIcon }
   ];
 
@@ -350,6 +358,17 @@ const Admin = () => {
         product.id === productId ? { ...product, stock: newStock, status: newStock > 0 ? 'active' : 'inactive' } : product
       ));
     } catch(e) {
+      console.error(e);
+    }
+  };
+
+  const updateInquiryStatus = async (inquiryId, status) => {
+    try {
+      await apiService.updateInquiryStatus(inquiryId, status);
+      setInquiries(inquiries.map(inquiry => 
+        inquiry.id === inquiryId ? { ...inquiry, status } : inquiry
+      ));
+    } catch (e) {
       console.error(e);
     }
   };
@@ -1028,6 +1047,74 @@ const Admin = () => {
               </div>
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+  const renderMessages = () => (
+    <div className="space-y-8 animate-premium-in">
+      <div>
+        <h2 className="text-3xl font-extrabold text-gradient-silver">Client Inquiries</h2>
+        <p className="text-slate-400 mt-1">Direct communications from patrons across the digital estate.</p>
+      </div>
+
+      <div className="glass-card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-white/5">
+            <thead>
+              <tr className="bg-slate-900/60">
+                <th className="px-6 py-5 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Patron Details</th>
+                <th className="px-6 py-5 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Inquiry Topic</th>
+                <th className="px-6 py-5 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Message Digest</th>
+                <th className="px-6 py-5 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Curation Date</th>
+                <th className="px-6 py-5 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Status</th>
+                <th className="px-6 py-5 text-right text-xs font-black text-slate-400 uppercase tracking-widest">Intervention</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {inquiries.map((inquiry) => (
+                <tr key={inquiry.id} className="hover:bg-white/[0.02] transition-colors group">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-bold text-slate-100">{inquiry.name}</div>
+                    <div className="text-xs text-slate-500">{inquiry.email}</div>
+                    {inquiry.phone && <div className="text-[10px] text-slate-600 font-mono mt-1">{inquiry.phone}</div>}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="px-2 py-1 bg-slate-900 border border-white/5 rounded-md text-[10px] font-black uppercase text-slate-400">
+                      {inquiry.subject}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="text-xs text-slate-400 line-clamp-2 max-w-xs">{inquiry.message}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-xs text-slate-500">
+                    {new Date(inquiry.createdAt).toLocaleDateString()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                      inquiry.status === 'unread' ? 'text-amber-400 bg-amber-500/10 border border-amber-500/20 shadow-[0_0_10px_rgba(245,158,11,0.1)]' :
+                      inquiry.status === 'replied' ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20' :
+                      'text-slate-500 bg-slate-800/10 grayscale'
+                    }`}>
+                      {inquiry.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right">
+                    <div className="flex justify-end gap-2">
+                      <button 
+                        onClick={() => updateInquiryStatus(inquiry.id, inquiry.status === 'replied' ? 'unread' : 'replied')}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
+                          inquiry.status === 'replied' ? 'border-amber-500/20 text-amber-400 hover:bg-amber-500/10' : 'border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10'
+                        }`}
+                      >
+                        {inquiry.status === 'replied' ? 'Mark Unread' : 'Mark Replied'}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -1831,6 +1918,7 @@ const Admin = () => {
           {activeTab === 'customers' && renderCustomers()}
           {activeTab === 'inventory' && renderInventory()}
           {activeTab === 'reviews' && renderReviews()}
+          {activeTab === 'messages' && renderMessages()}
           {activeTab === 'settings' && renderSettings()}
         </div>
       </div>
