@@ -89,11 +89,11 @@ const Home = () => {
     const fetchCategories = async () => {
       try {
         const response = await apiService.getCategories();
-        const formatted = (response?.data || []).slice(0, 4).map(c => ({
-          name: c.attributes?.name || 'Category',
-          sub: c.attributes?.description ? c.attributes.description.substring(0, 20) + '...' : 'Explore',
-          href: `/products?category=${c.attributes?.slug || c.id}`,
-          image: apiService.getImageUrl(c.attributes?.image?.data?.attributes) || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=600&h=700&fit=crop',
+        const formatted = (response || []).slice(0, 4).map(c => ({
+          name: c.name || 'Category',
+          sub: c.description ? c.description.substring(0, 20) + '...' : 'Explore',
+          href: `/products?category=${c.id}`,
+          image: c.image || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=600&h=700&fit=crop',
           tag: 'Featured'
         }));
         setCategories(formatted);

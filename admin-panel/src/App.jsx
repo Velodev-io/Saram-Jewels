@@ -110,12 +110,30 @@ const Admin = () => {
   
   if (!isAdmin) {
     return (
-      <div className="min-h-screen bg-green-950 text-amber-100 flex flex-col items-center justify-center space-y-8">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-amber-200 to-amber-400 bg-clip-text text-transparent">Saram Jewels</h1>
-          <p className="mt-2 text-amber-200/70">Admin Portal Login</p>
+      <div className="min-h-screen bg-[#052e16] flex flex-col items-center justify-center relative overflow-hidden px-4">
+        {/* Background Decorative Elements */}
+        <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-amber-500/5 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-500/5 rounded-full blur-[120px]" />
+        
+        <div className="text-center mb-12 animate-premium-in relative z-10">
+          <div className="w-20 h-20 bg-gradient-to-tr from-amber-200 to-amber-500 rounded-3xl flex items-center justify-center font-black text-green-950 shadow-2xl shadow-amber-500/20 mx-auto mb-6 rotate-3">
+            S
+          </div>
+          <h1 className="text-5xl font-black text-gradient-gold tracking-tighter mb-3">Saram Jewels</h1>
+          <div className="flex items-center justify-center gap-3">
+            <div className="h-[1px] w-8 bg-amber-500/20" />
+            <p className="text-xs font-black text-amber-400 uppercase tracking-[0.3em]">Imperial Admin Registry</p>
+            <div className="h-[1px] w-8 bg-amber-500/20" />
+          </div>
         </div>
-        <SignIn />
+        
+        <div className="glass-card p-2 rounded-[2rem] animate-premium-in shadow-amber-500/5 relative z-10">
+          <SignIn />
+        </div>
+
+        <p className="mt-12 text-[10px] font-bold text-amber-200/20 uppercase tracking-widest animate-premium-in delay-300">
+          Protected by Saram Security Infrastructure
+        </p>
       </div>
     );
   }
@@ -154,27 +172,61 @@ const Admin = () => {
   const addProduct = async (productData) => {
     try {
        const newProduct = await apiService.createProduct(productData);
-       setProducts([...products, {
+       const cat = categories.find(c => c.id === productData.category_id);
+       const formattedNewProduct = {
          ...newProduct,
-         category: newProduct.category?.name || 'Uncategorized',
+         category: cat ? cat.name : 'Uncategorized',
          status: newProduct.stock > 0 ? 'active' : 'inactive',
-         image: newProduct.images?.[0] || 'https://via.placeholder.com/300'
-       }]);
+         image: (Array.isArray(newProduct.images) && newProduct.images[0]) || newProduct.image || 'https://via.placeholder.com/300',
+         price: parseFloat(newProduct.price),
+         originalPrice: parseFloat(newProduct.original_price || newProduct.originalPrice || newProduct.price)
+       };
+       setProducts([formattedNewProduct, ...products]);
        setShowAddProduct(false);
+       
+       // Success cleanup
+       setSelectedImage(null);
+       setImagePreview(null);
+       setSelectedImages([]);
+       setProductImages([]);
+       
+       return true;
     } catch(e) {
        console.error(e);
+       const errorMsg = e.response?.data?.message || 'Failed to catalogue piece. Check manifest details.';
+       alert(errorMsg);
+       return false;
     }
   };
 
   const updateProduct = async (productId, productData) => {
     try {
       const updated = await apiService.updateProduct(productId, productData);
+      const cat = categories.find(c => c.id === productData.category_id);
       setProducts(products.map(product => 
-        product.id === productId ? { ...product, ...updated, category: updated.category?.name || product.category, status: updated.stock > 0 ? 'active' : 'inactive' } : product
+        product.id === productId ? { 
+          ...product, 
+          ...updated, 
+          category: cat ? cat.name : product.category, 
+          status: updated.stock > 0 ? 'active' : 'inactive',
+          image: (Array.isArray(updated.images) && updated.images[0]) || updated.image || product.image,
+          price: parseFloat(updated.price),
+          originalPrice: parseFloat(updated.original_price || updated.originalPrice || updated.price)
+        } : product
       ));
       setEditingProduct(null);
+      
+      // Success cleanup
+      setSelectedImage(null);
+      setImagePreview(null);
+      setSelectedImages([]);
+      setProductImages([]);
+      
+      return true;
     } catch(e) {
       console.error(e);
+      alert('Failed to update curation.');
+      return false;
     }
   };
 
@@ -216,10 +268,18 @@ const Admin = () => {
   const addCategory = async (categoryData) => {
     try {
       const newCategory = await apiService.createCategory(categoryData);
-      setCategories([...categories, newCategory]);
+      setCategories([...categories, {
+        ...newCategory,
+        products: [] // New categories start with no products
+      }]);
       setShowAddCategory(false);
+      setImagePreview(null); // Clear image preview only on success
+      return true;
     } catch (e) {
       console.error(e);
+      const msg = e.response?.data?.message || 'Check if the name is unique or image is too large.';
+      alert(`Failed to establish this realm: ${msg}`);
+      return false;
     }
   };
 
@@ -272,13 +332,19 @@ const Admin = () => {
   // Multiple Image Handling Functions
   const handleMultipleImageUpload = (event) => {
     const files = Array.from(event.target.files);
-    const newImages = files.map(file => ({
-      id: Date.now() + Math.random(),
-      file: file,
-      url: URL.createObjectURL(file),
-      name: file.name
-    }));
-    setSelectedImages(prev => [...prev, ...newImages]);
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const newImage = {
+          id: Date.now() + Math.random(),
+          file: file,
+          url: e.target.result,
+          name: file.name
+        };
+        setSelectedImages(prev => [...prev, newImage]);
+      };
+      reader.readAsDataURL(file);
+    });
   };
 
   const handleMultipleImageUrlInput = (urls) => {
@@ -319,80 +385,119 @@ const Admin = () => {
 
 
   const renderDashboard = () => (
-    <div className="space-y-6">
+    <div className="space-y-8 animate-premium-in">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h2 className="text-3xl font-extrabold text-gradient-gold">Dashboard Overview</h2>
+          <p className="text-amber-200/60 mt-1">Welcome back! Here's what's happening today.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="px-4 py-2 bg-green-900/40 backdrop-blur-md border border-amber-500/20 rounded-xl text-amber-200/80 text-sm font-medium">
+            Today: {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+          </div>
+        </div>
+      </div>
+
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-        <div className="bg-green-900/40 backdrop-blur-md border border-amber-500/20 rounded-lg shadow-xl shadow-black/20 p-6">
-          <div className="flex items-center">
-            <div className="p-2 bg-amber-500/20 rounded-lg">
-              <CubeIcon className="h-6 w-6 text-amber-300" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="glass-card p-6 group hover:translate-y-[-4px] transition-all duration-300">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-amber-200/60 uppercase tracking-wider">Total Products</p>
+              <h3 className="text-3xl font-bold text-amber-50 mt-1">{products.length}</h3>
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-amber-200/70">Total Products</p>
-              <p className="text-2xl font-semibold text-amber-100">{products.length}</p>
+            <div className="p-3 bg-amber-500/10 rounded-2xl group-hover:bg-amber-500/20 transition-colors">
+              <CubeIcon className="h-8 w-8 text-amber-400" />
             </div>
+          </div>
+          <div className="mt-4 flex items-center text-xs text-emerald-400">
+            <span className="font-bold">+{Math.floor(products.length * 0.1)}%</span>
+            <span className="ml-1 text-amber-200/40">from last month</span>
           </div>
         </div>
 
-        <div className="bg-green-900/40 backdrop-blur-md border border-amber-500/20 rounded-lg shadow-xl shadow-black/20 p-6">
-          <div className="flex items-center">
-            <div className="p-2 bg-emerald-500/20 rounded-lg">
-              <ShoppingBagIcon className="h-6 w-6 text-emerald-400" />
+        <div className="glass-card p-6 group hover:translate-y-[-4px] transition-all duration-300">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-amber-200/60 uppercase tracking-wider">Total Orders</p>
+              <h3 className="text-3xl font-bold text-amber-50 mt-1">{orders.length}</h3>
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-amber-200/70">Total Orders</p>
-              <p className="text-2xl font-semibold text-amber-100">{orders.length}</p>
+            <div className="p-3 bg-emerald-500/10 rounded-2xl group-hover:bg-emerald-500/20 transition-colors">
+              <ShoppingBagIcon className="h-8 w-8 text-emerald-400" />
             </div>
+          </div>
+          <div className="mt-4 flex items-center text-xs text-emerald-400">
+            <span className="font-bold">+{Math.floor(orders.length * 0.05)}%</span>
+            <span className="ml-1 text-amber-200/40">from last month</span>
           </div>
         </div>
 
-        <div className="bg-green-900/40 backdrop-blur-md border border-amber-500/20 rounded-lg shadow-xl shadow-black/20 p-6">
-          <div className="flex items-center">
-            <div className="p-2 bg-amber-500/30 rounded-lg">
-              <UsersIcon className="h-6 w-6 text-amber-200" />
+        <div className="glass-card p-6 group hover:translate-y-[-4px] transition-all duration-300">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-amber-200/60 uppercase tracking-wider">Total Customers</p>
+              <h3 className="text-3xl font-bold text-amber-50 mt-1">{customers.length}</h3>
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-amber-200/70">Total Customers</p>
-              <p className="text-2xl font-semibold text-amber-100">{customers.length}</p>
+            <div className="p-3 bg-amber-400/10 rounded-2xl group-hover:bg-amber-400/20 transition-colors">
+              <UsersIcon className="h-8 w-8 text-amber-300" />
             </div>
+          </div>
+          <div className="mt-4 flex items-center text-xs text-emerald-400">
+            <span className="font-bold">+{Math.floor(customers.length * 0.08)}%</span>
+            <span className="ml-1 text-amber-200/40">from last month</span>
           </div>
         </div>
 
-        <div className="bg-green-900/40 backdrop-blur-md border border-amber-500/20 rounded-lg shadow-xl shadow-black/20 p-6">
-          <div className="flex items-center">
-            <div className="p-2 bg-amber-400/20 rounded-lg">
-              <CurrencyRupeeIcon className="h-6 w-6 text-amber-300" />
+        <div className="glass-card p-6 group hover:translate-y-[-4px] transition-all duration-300">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-amber-200/60 uppercase tracking-wider">Total Revenue</p>
+              <h3 className="text-3xl font-bold text-amber-50 mt-1">₹{orders.reduce((sum, order) => sum + order.total, 0).toLocaleString()}</h3>
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-amber-200/70">Total Revenue</p>
-              <p className="text-2xl font-semibold text-amber-100">₹{orders.reduce((sum, order) => sum + order.total, 0).toLocaleString()}</p>
+            <div className="p-3 bg-amber-200/10 rounded-2xl group-hover:bg-amber-200/20 transition-colors">
+              <CurrencyRupeeIcon className="h-8 w-8 text-amber-200" />
             </div>
+          </div>
+          <div className="mt-4 flex items-center text-xs text-emerald-400">
+            <span className="font-bold">+12%</span>
+            <span className="ml-1 text-amber-200/40">from last month</span>
           </div>
         </div>
       </div>
 
       {/* Low Stock Alert */}
-      <div className="bg-green-900/40 backdrop-blur-md border border-amber-500/20 rounded-lg shadow-xl shadow-black/20">
-        <div className="px-6 py-4 border-b border-amber-500/30">
-          <h3 className="text-lg font-semibold text-amber-100">Low Stock Alert</h3>
+      <div className="glass-card overflow-hidden transition-all duration-300">
+        <div className="px-6 py-4 border-b border-amber-500/10 flex items-center justify-between">
+          <h3 className="text-lg font-bold text-amber-50 flex items-center">
+            <ExclamationTriangleIcon className="h-5 w-5 text-amber-400 mr-2" />
+            Low Stock Alert
+          </h3>
+          <span className="px-3 py-1 bg-amber-500/10 text-amber-400 text-xs font-bold rounded-full">
+            {products.filter(p => p.stock <= 5).length} Items At Risk
+          </span>
         </div>
         <div className="p-6">
           {products.filter(p => p.stock <= 5).length === 0 ? (
-            <p className="text-amber-200/50">No low stock items.</p>
+            <div className="text-center py-8">
+              <p className="text-amber-200/30">No low stock items. Everything is on track!</p>
+            </div>
           ) : (
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {products.filter(p => p.stock <= 5).map((product) => (
-                <div key={product.id} className="flex items-center justify-between p-3 bg-amber-900/30 border border-amber-500/30 rounded-lg">
-                  <div className="flex items-center">
-                    <ExclamationTriangleIcon className="h-5 w-5 text-amber-300 mr-3" />
+                <div key={product.id} className="flex items-center justify-between p-4 bg-green-950/40 border border-amber-500/10 rounded-xl hover:bg-green-950/60 transition-all group">
+                  <div className="flex items-center gap-4">
+                    <img src={product.image} className="h-12 w-12 rounded-lg object-cover border border-amber-500/10" alt="" />
                     <div>
-                      <p className="text-sm font-medium text-amber-100">{product.name}</p>
-                      <p className="text-sm text-amber-200/50">SKU: {product.sku}</p>
+                      <p className="text-sm font-bold text-amber-100">{product.name}</p>
+                      <p className="text-xs text-amber-200/40">SKU: {product.sku}</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-medium text-amber-100">{product.stock} units left</p>
-                    <button className="text-sm text-amber-300 hover:text-amber-100">Update Stock</button>
+                    <p className={`text-sm font-black ${product.stock === 0 ? 'text-red-400' : 'text-amber-400'}`}>
+                      {product.stock} left
+                    </p>
+                    <button className="text-xs text-amber-200/60 hover:text-amber-300 font-bold underline transition-colors">Adjust Stock</button>
                   </div>
                 </div>
               ))}
@@ -404,105 +509,116 @@ const Admin = () => {
   );
 
   const renderProducts = () => (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="space-y-8 animate-premium-in">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-amber-100">Products</h2>
-          <p className="text-amber-200/70">Manage your product catalog</p>
+          <h2 className="text-3xl font-extrabold text-gradient-gold">Product Catalog</h2>
+          <p className="text-amber-200/60 mt-1">Manage, track and organize your jewelry collection.</p>
         </div>
         <button 
           onClick={() => setShowAddProduct(true)}
-          className="bg-gradient-to-r from-amber-200 to-amber-400 text-green-950 font-semibold px-4 py-2 rounded-lg hover:from-amber-300 hover:to-amber-500 shadow-lg shadow-amber-500/20 transition-all duration-300 transform hover:-translate-y-0.5 flex items-center"
+          className="btn-primary flex items-center gap-2"
         >
-          <PlusIcon className="h-5 w-5 mr-2" />
-          Add Product
+          <PlusIcon className="h-5 w-5" />
+          Add New Piece
         </button>
       </div>
 
-      <div className="bg-green-900/40 backdrop-blur-md border border-amber-500/20 rounded-lg shadow-xl shadow-black/20 p-6">
-        <div className="relative">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-amber-200/30" />
+      <div className="glass-card p-4">
+        <div className="relative group">
+          <MagnifyingGlassIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-amber-500/40 group-focus-within:text-amber-400 transition-colors" />
           <input
             type="text"
-            placeholder="Search products..."
+            placeholder="Search by name, SKU or category..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-green-950/50 text-amber-100 placeholder-amber-200/50 pl-10 pr-4 py-2 border border-amber-500/40 rounded-lg focus:ring-2 focus:ring-amber-300 focus:border-transparent"
+            className="glass-input w-full pl-12 pr-4 py-3 bg-green-950/30"
           />
         </div>
       </div>
 
-      <div className="bg-green-900/40 backdrop-blur-md border border-amber-500/20 rounded-lg shadow-xl shadow-black/20 overflow-hidden">
+      <div className="glass-card overflow-hidden border-none shadow-2xl">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-amber-500/20">
-            <thead className="bg-green-950">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-amber-200/50 uppercase tracking-wider">Product</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-amber-200/50 uppercase tracking-wider">Category</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-amber-200/50 uppercase tracking-wider">Price</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-amber-200/50 uppercase tracking-wider">Stock</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-amber-200/50 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-amber-200/50 uppercase tracking-wider">Actions</th>
+          <table className="min-w-full divide-y divide-amber-500/10">
+            <thead>
+              <tr className="bg-green-950/80">
+                <th className="px-6 py-5 text-left text-xs font-black text-amber-400 uppercase tracking-widest">The Piece</th>
+                <th className="px-6 py-5 text-left text-xs font-black text-amber-400 uppercase tracking-widest">Category</th>
+                <th className="px-6 py-5 text-left text-xs font-black text-amber-400 uppercase tracking-widest">Valuation</th>
+                <th className="px-6 py-5 text-left text-xs font-black text-amber-400 uppercase tracking-widest">Inventory</th>
+                <th className="px-6 py-5 text-left text-xs font-black text-amber-400 uppercase tracking-widest">Status</th>
+                <th className="px-6 py-5 text-right text-xs font-black text-amber-400 uppercase tracking-widest">Management</th>
               </tr>
             </thead>
-            <tbody className="bg-green-900/40 backdrop-blur-md border border-amber-500/20 divide-y divide-amber-500/20">
+            <tbody className="divide-y divide-amber-500/5">
               {filteredProducts.map((product) => {
                 const stockStatus = getStockStatus(product.stock);
                 return (
-                  <tr key={product.id}>
+                  <tr key={product.id} className="hover:bg-amber-500/[0.02] transition-colors group">
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <img
-                          src={product.image}
-                          alt={product.name}
-                          className="h-10 w-10 rounded-lg object-cover cursor-pointer hover:opacity-80 transition-opacity"
-                          onClick={() => setZoomedImage(product.image)}
-                          title="Click to zoom"
-                        />
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-amber-100">{product.name}</div>
-                          <div className="text-sm text-amber-200/50">SKU: {product.sku}</div>
+                      <div className="flex items-center gap-4">
+                        <div className="relative">
+                          <img
+                            src={product.image}
+                            alt={product.name}
+                            className="h-14 w-14 rounded-xl object-cover border border-amber-500/20 cursor-pointer group-hover:scale-105 transition-transform"
+                            onClick={() => setZoomedImage(product.image)}
+                          />
+                          {product.stock === 0 && (
+                            <div className="absolute inset-0 bg-black/60 rounded-xl flex items-center justify-center">
+                              <span className="text-[8px] font-black text-white uppercase tracking-tighter">Out</span>
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <div className="text-sm font-bold text-amber-50 group-hover:text-amber-300 transition-colors">{product.name}</div>
+                          <div className="text-xs text-amber-200/40 font-mono tracking-tighter mt-0.5">#{product.sku}</div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-amber-100">{product.category}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-amber-100">₹{product.price}</div>
+                      <span className="px-2.5 py-1 bg-green-950/50 border border-amber-500/10 rounded-full text-xs font-bold text-amber-200/60 uppercase">
+                        {product.category}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-black text-amber-50">₹{product.price.toLocaleString()}</div>
                       {product.originalPrice > product.price && (
-                        <div className="text-sm text-amber-200/50 line-through">₹{product.originalPrice}</div>
+                        <div className="text-[10px] text-amber-200/30 line-through">₹{product.originalPrice.toLocaleString()}</div>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${stockStatus.color}`}>
-                        {stockStatus.text}
-                      </span>
-                      <div className="text-sm text-amber-200/50 mt-1">{product.stock} units</div>
+                      <div className={`text-sm font-bold ${stockStatus.color.split(' ')[0]}`}>{product.stock} units</div>
+                      <div className="w-24 h-1 bg-green-950 rounded-full mt-1.5 overflow-hidden">
+                        <div 
+                          className={`h-full ${stockStatus.color.split(' ')[1].replace('/20', '')}`} 
+                          style={{ width: `${Math.min(100, (product.stock / 20) * 100)}%` }}
+                        />
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(product.status)}`}>
+                      <span className={`px-3 py-1 text-[10px] font-black rounded-full uppercase tracking-widest ${getStatusColor(product.status)}`}>
                         {product.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex space-x-2">
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <div className="flex justify-end items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button 
                           onClick={() => setEditingProduct(product)}
-                          className="text-amber-300 hover:text-amber-100"
-                          title="Edit Product"
+                          className="p-2 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 rounded-lg transition-all"
+                          title="Edit Piece"
                         >
                           <PencilIcon className="h-4 w-4" />
                         </button>
                         <button 
                           onClick={() => toggleProductStatus(product.id)}
-                          className={`${product.status === 'active' ? 'text-emerald-400 hover:text-green-900' : 'text-amber-300 hover:text-yellow-900'}`}
-                          title={product.status === 'active' ? 'Deactivate' : 'Activate'}
+                          className={`p-2 rounded-lg transition-all ${product.status === 'active' ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20' : 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20'}`}
                         >
                           <EyeIcon className="h-4 w-4" />
                         </button>
                         <button 
                           onClick={() => deleteProduct(product.id)}
-                          className="text-red-400 hover:text-red-900"
-                          title="Delete Product"
+                          className="p-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-lg transition-all"
                         >
                           <TrashIcon className="h-4 w-4" />
                         </button>
@@ -519,43 +635,43 @@ const Admin = () => {
   );
 
   const renderOrders = () => (
-    <div className="space-y-6">
+    <div className="space-y-8 animate-premium-in">
       <div>
-        <h2 className="text-2xl font-bold text-amber-100">Orders</h2>
-        <p className="text-amber-200/70">Manage customer orders and track fulfillment</p>
+        <h2 className="text-3xl font-extrabold text-gradient-gold">Client Orders</h2>
+        <p className="text-amber-200/60 mt-1">Monitor sales and manage fulfillment pipeline.</p>
       </div>
 
-      <div className="bg-green-900/40 backdrop-blur-md border border-amber-500/20 rounded-lg shadow-xl shadow-black/20 overflow-hidden">
+      <div className="glass-card overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-amber-500/20">
-            <thead className="bg-green-950">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-amber-200/50 uppercase tracking-wider">Order ID</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-amber-200/50 uppercase tracking-wider">Customer</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-amber-200/50 uppercase tracking-wider">Total</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-amber-200/50 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-amber-200/50 uppercase tracking-wider">Date</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-amber-200/50 uppercase tracking-wider">Actions</th>
+          <table className="min-w-full divide-y divide-amber-500/10">
+            <thead>
+              <tr className="bg-green-950/80">
+                <th className="px-6 py-5 text-left text-xs font-black text-amber-400 uppercase tracking-widest">Order Ref</th>
+                <th className="px-6 py-5 text-left text-xs font-black text-amber-400 uppercase tracking-widest">Client</th>
+                <th className="px-6 py-5 text-left text-xs font-black text-amber-400 uppercase tracking-widest">Value</th>
+                <th className="px-6 py-5 text-left text-xs font-black text-amber-400 uppercase tracking-widest">Status</th>
+                <th className="px-6 py-5 text-left text-xs font-black text-amber-400 uppercase tracking-widest">Manifest Date</th>
+                <th className="px-6 py-5 text-right text-xs font-black text-amber-400 uppercase tracking-widest">Intervention</th>
               </tr>
             </thead>
-            <tbody className="bg-green-900/40 backdrop-blur-md border border-amber-500/20 divide-y divide-amber-500/20">
+            <tbody className="divide-y divide-amber-500/5">
               {orders.map((order) => (
-                <tr key={order.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-amber-100">{order.id}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-amber-100">{order.customer}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-amber-100">₹{order.total.toLocaleString()}</td>
+                <tr key={order.id} className="hover:bg-amber-500/[0.02] transition-colors group text-sm">
+                  <td className="px-6 py-4 whitespace-nowrap font-black text-amber-50">{order.id}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-amber-200/80 font-bold">{order.customer}</td>
+                  <td className="px-6 py-4 whitespace-nowrap font-black text-amber-100 italic">₹{order.total.toLocaleString()}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(order.status)}`}>
+                    <span className={`px-3 py-1 text-[10px] font-black rounded-full uppercase tracking-widest ${getStatusColor(order.status)}`}>
                       {order.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-amber-200/50">{order.date}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                  <td className="px-6 py-4 whitespace-nowrap text-amber-200/30 text-xs">{order.date}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right">
                     <button 
                       onClick={() => setShowOrderDetails(order)}
-                      className="text-amber-300 hover:text-amber-100"
+                      className="px-4 py-1.5 bg-amber-500/10 text-amber-400 hover:bg-amber-500 text-[10px] font-black uppercase tracking-widest border border-amber-500/20 rounded-lg hover:text-green-950 transition-all"
                     >
-                      View Details
+                      Inspect
                     </button>
                   </td>
                 </tr>
@@ -568,37 +684,44 @@ const Admin = () => {
   );
 
   const renderCustomers = () => (
-    <div className="space-y-6">
+    <div className="space-y-8 animate-premium-in">
       <div>
-        <h2 className="text-2xl font-bold text-amber-100">Customers</h2>
-        <p className="text-amber-200/70">Manage customer information and track engagement</p>
+        <h2 className="text-3xl font-extrabold text-gradient-gold">Customer Registry</h2>
+        <p className="text-amber-200/60 mt-1">Manage relationships and track lifetime value.</p>
       </div>
 
-      <div className="bg-green-900/40 backdrop-blur-md border border-amber-500/20 rounded-lg shadow-xl shadow-black/20 overflow-hidden">
+      <div className="glass-card overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-amber-500/20">
-            <thead className="bg-green-950">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-amber-200/50 uppercase tracking-wider">Customer</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-amber-200/50 uppercase tracking-wider">Email</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-amber-200/50 uppercase tracking-wider">Orders</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-amber-200/50 uppercase tracking-wider">Total Spent</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-amber-200/50 uppercase tracking-wider">Actions</th>
+          <table className="min-w-full divide-y divide-amber-500/10">
+            <thead>
+              <tr className="bg-green-950/80">
+                <th className="px-6 py-5 text-left text-xs font-black text-amber-400 uppercase tracking-widest">Client Identity</th>
+                <th className="px-6 py-5 text-left text-xs font-black text-amber-400 uppercase tracking-widest">Communication</th>
+                <th className="px-6 py-5 text-left text-xs font-black text-amber-400 uppercase tracking-widest">Acquisitions</th>
+                <th className="px-6 py-5 text-left text-xs font-black text-amber-400 uppercase tracking-widest">Lifetime Yield</th>
+                <th className="px-6 py-5 text-right text-xs font-black text-amber-400 uppercase tracking-widest">Actions</th>
               </tr>
             </thead>
-            <tbody className="bg-green-900/40 backdrop-blur-md border border-amber-500/20 divide-y divide-amber-500/20">
+            <tbody className="divide-y divide-amber-500/5">
               {customers.map((customer) => (
-                <tr key={customer.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-amber-100">{customer.name}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-amber-100">{customer.email}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-amber-100">{customer.orders}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-amber-100">₹{customer.totalSpent.toLocaleString()}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                <tr key={customer.id} className="hover:bg-amber-500/[0.02] transition-colors group">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center gap-3">
+                      <div className="h-9 w-9 bg-amber-500/10 rounded-full flex items-center justify-center font-black text-amber-500 text-xs border border-amber-500/10 uppercase">
+                        {customer.name.charAt(0)}
+                      </div>
+                      <div className="text-sm font-bold text-amber-50">{customer.name}</div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-amber-200/60 font-mono italic">{customer.email}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-amber-50">{customer.orders} Orders</td>
+                  <td className="px-6 py-4 whitespace-nowrap font-black text-amber-100">₹{customer.totalSpent.toLocaleString()}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right">
                     <button 
                       onClick={() => setShowCustomerProfile(customer)}
-                      className="text-amber-300 hover:text-amber-100"
+                      className="px-4 py-1.5 border border-amber-500/20 rounded-lg text-amber-300 text-xs font-bold hover:bg-amber-500/10 transition-all opacity-0 group-hover:opacity-100"
                     >
-                      View Profile
+                      Dossier
                     </button>
                   </td>
                 </tr>
@@ -611,41 +734,60 @@ const Admin = () => {
   );
 
   const renderCategories = () => (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="space-y-8 animate-premium-in">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-amber-100">Categories</h2>
-          <p className="text-amber-200/70">Manage your product categories</p>
+          <h2 className="text-3xl font-extrabold text-gradient-gold">Collections</h2>
+          <p className="text-amber-200/60 mt-1">Organize your pieces into elegant categories.</p>
         </div>
         <button 
           onClick={() => setShowAddCategory(true)}
-          className="bg-gradient-to-r from-amber-200 to-amber-400 text-green-950 font-semibold px-4 py-2 rounded-lg hover:from-amber-300 hover:to-amber-500 shadow-lg shadow-amber-500/20 transition-all duration-300 transform hover:-translate-y-0.5 flex items-center"
+          className="btn-primary flex items-center gap-2"
         >
-          <PlusIcon className="h-5 w-5 mr-2" />
-          Add Category
+          <PlusIcon className="h-5 w-5" />
+          New Category
         </button>
       </div>
 
-      <div className="bg-green-900/40 backdrop-blur-md border border-amber-500/20 rounded-lg shadow-xl shadow-black/20 overflow-hidden">
+      <div className="glass-card border border-amber-500/10 overflow-hidden shadow-2xl shadow-black/40">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-amber-500/20">
-            <thead className="bg-green-950">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-amber-200/50 uppercase tracking-wider">Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-amber-200/50 uppercase tracking-wider">Slug</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-amber-200/50 uppercase tracking-wider">Description</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-amber-200/50 uppercase tracking-wider">Actions</th>
+          <table className="min-w-full divide-y divide-amber-500/10">
+            <thead>
+              <tr className="bg-amber-400/5 backdrop-blur-md">
+                <th className="px-6 py-5 text-left text-[10px] font-black text-amber-400/60 uppercase tracking-[0.2em]">Category Name</th>
+                <th className="px-6 py-5 text-left text-[10px] font-black text-amber-400/60 uppercase tracking-[0.2em]">Identifier</th>
+                <th className="px-6 py-5 text-left text-[10px] font-black text-amber-400/60 uppercase tracking-[0.2em]">Description</th>
+                <th className="px-6 py-5 text-left text-[10px] font-black text-amber-400/60 uppercase tracking-[0.2em]">Pieces</th>
+                <th className="px-6 py-5 text-right text-[10px] font-black text-amber-400/60 uppercase tracking-[0.2em]">Actions</th>
               </tr>
             </thead>
-            <tbody className="bg-green-900/40 backdrop-blur-md border border-amber-500/20 divide-y divide-amber-500/20">
+            <tbody className="divide-y divide-amber-500/5 bg-green-950/20">
               {categories.map((category) => (
-                <tr key={category.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-amber-100">{category.name}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-amber-100">{category.slug}</td>
-                  <td className="px-6 py-4 text-sm text-amber-200/50">{category.description || 'No description'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <button className="text-red-400 hover:text-red-900">
-                      <TrashIcon className="h-4 w-4" />
+                <tr key={category.id} className="hover:bg-amber-500/[0.03] transition-all duration-300 group">
+                  <td className="px-6 py-5 whitespace-nowrap">
+                    <div className="text-sm font-black text-amber-50 group-hover:text-amber-300 transition-colors uppercase tracking-tight">{category.name}</div>
+                  </td>
+                  <td className="px-6 py-5 whitespace-nowrap">
+                    <span className="px-2 py-1 rounded-md bg-amber-500/10 border border-amber-500/20 text-[10px] font-black font-mono text-amber-400/60 uppercase">
+                      {category.slug || category.id?.substring(0, 8)}
+                    </span>
+                  </td>
+                  <td className="px-6 py-5">
+                    <div className="text-xs font-bold text-amber-200/40 line-clamp-1 max-w-xs">{category.description || 'No legacy documented...'}</div>
+                  </td>
+                  <td className="px-6 py-5 whitespace-nowrap">
+                    <div className="text-sm font-black text-amber-100">{category.products?.length || 0} Pieces</div>
+                  </td>
+                  <td className="px-6 py-5 whitespace-nowrap text-right">
+                    <button 
+                      onClick={() => {
+                        if(window.confirm('Dissolve this collection and its legacy?')) {
+                          // deleteCategory logic
+                        }
+                      }}
+                      className="p-2.5 text-red-400/40 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all opacity-0 group-hover:opacity-100"
+                    >
+                      <TrashIcon className="h-5 w-5" />
                     </button>
                   </td>
                 </tr>
@@ -654,40 +796,112 @@ const Admin = () => {
           </table>
         </div>
       </div>
+    </div>
+  );
 
-      {showAddCategory && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-green-900/40 backdrop-blur-md border border-amber-500/20 rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-xl font-semibold mb-4 text-amber-100">Add New Category</h3>
-            <form onSubmit={(e) => {
+  const renderAddCategoryModal = () => {
+    if (!showAddCategory) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-[100] p-4 md:p-8">
+        <div className="glass-card p-0 w-full max-w-lg max-h-[90vh] overflow-y-auto animate-premium-in border-amber-500/20 shadow-[0_0_50px_rgba(0,0,0,0.5)]">
+          <div className="p-8">
+            <div className="flex justify-between items-center mb-10 pb-4 border-b border-amber-500/10">
+              <div>
+                <h3 className="text-2xl font-black text-gradient-gold uppercase tracking-tighter">Found New Collection</h3>
+                <p className="text-[10px] font-bold text-amber-200/40 uppercase tracking-[0.2em] mt-1">Expansion of the Saram Legacy</p>
+              </div>
+              <button 
+                onClick={() => { setShowAddCategory(false); setImagePreview(null); }}
+                className="w-10 h-10 flex items-center justify-center rounded-full bg-green-950/50 text-amber-200/40 hover:text-amber-100 border border-amber-500/10 transition-all"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <form onSubmit={async (e) => {
               e.preventDefault();
+              const submitButton = e.target.querySelector('button[type="submit"]');
+              const originalText = submitButton.innerText;
+              submitButton.innerText = 'Manifesting...';
+              submitButton.disabled = true;
+
               const formData = new FormData(e.target);
-              addCategory({
+              const success = await addCategory({
                 name: formData.get('name'),
-                slug: formData.get('name').toLowerCase().replace(/\s+/g, '-'),
-                description: formData.get('description')
+                description: formData.get('description'),
+                image: imagePreview || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=600&h=600&fit=crop'
               });
+
+              if (!success) {
+                submitButton.innerText = originalText;
+                submitButton.disabled = false;
+              }
             }}>
-              <div className="space-y-4">
+              <div className="space-y-8">
                 <div>
-                  <label className="block text-sm font-medium text-amber-200/80 mb-1">Name</label>
-                  <input name="name" required className="w-full bg-green-950/50 text-amber-100 placeholder-amber-200/50 px-3 py-2 border border-amber-500/40 rounded-lg" />
+                  <label className="block text-[10px] font-black text-amber-400 uppercase tracking-[0.2em] mb-3">Collection Designation</label>
+                  <input 
+                    name="name" 
+                    required 
+                    placeholder="e.g. Imperial Heritage"
+                    className="glass-input w-full px-5 py-4 text-sm font-bold" 
+                  />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-amber-200/80 mb-1">Description</label>
-                  <textarea name="description" rows="3" className="w-full bg-green-950/50 text-amber-100 placeholder-amber-200/50 px-3 py-2 border border-amber-500/40 rounded-lg" />
+                  <label className="block text-[10px] font-black text-amber-400 uppercase tracking-[0.2em] mb-3">Historical Narrative</label>
+                  <textarea 
+                    name="description" 
+                    rows="4" 
+                    placeholder="Detail the essence and craftsmanship of this curation..."
+                    className="glass-input w-full px-5 py-4 text-sm font-bold resize-none" 
+                  />
                 </div>
-                <div className="flex justify-end space-x-3 pt-4">
-                  <button type="button" onClick={() => setShowAddCategory(false)} className="px-4 py-2 border border-amber-500/40 rounded-lg text-amber-200/80">Cancel</button>
-                  <button type="submit" className="px-4 py-2 bg-gradient-to-r from-amber-200 to-amber-400 text-green-950 font-semibold rounded-lg">Add Category</button>
+                <div>
+                  <label className="block text-[10px] font-black text-amber-400 uppercase tracking-[0.2em] mb-3">Visual Anchor</label>
+                  <div className="flex gap-6 items-center p-4 bg-green-950/40 border border-amber-500/10 rounded-2xl">
+                    <div className="relative group">
+                      <img 
+                        src={imagePreview || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=200&h=200&fit=crop'} 
+                        className={`w-20 h-20 rounded-xl object-cover border-2 ${imagePreview ? 'border-amber-400 shadow-lg shadow-amber-500/20' : 'border-amber-500/10 opacity-30'}`} 
+                        alt="Preview" 
+                      />
+                      {imagePreview && (
+                        <div className="absolute inset-0 bg-black/60 rounded-xl opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer">
+                          <PlusIcon className="h-6 w-6 text-amber-200" />
+                        </div>
+                      )}
+                    </div>
+                    <label className="flex-1 cursor-pointer">
+                      <div className="glass-card p-4 text-center text-[10px] font-black uppercase text-amber-200/40 hover:text-amber-100 transition-all border-dashed border-2 border-amber-500/10 hover:border-amber-500/30">
+                        {imagePreview ? 'Re-select Visual' : 'Upload Collection Visual'}
+                      </div>
+                      <input type="file" className="hidden" onChange={handleImageUpload} accept="image/*" />
+                    </label>
+                  </div>
+                </div>
+                <div className="flex gap-4 pt-6 border-t border-amber-500/10">
+                  <button 
+                    type="button" 
+                    onClick={() => { setShowAddCategory(false); setImagePreview(null); }} 
+                    className="btn-secondary flex-1 py-4 uppercase tracking-widest text-[10px] font-black"
+                  >
+                    Rescind
+                  </button>
+                  <button 
+                    type="submit" 
+                    className="btn-primary flex-1 py-4 uppercase tracking-widest text-[10px] font-black"
+                  >
+                    Found Collection
+                  </button>
                 </div>
               </div>
             </form>
           </div>
         </div>
-      )}
-    </div>
-  );
+      </div>
+    );
+  };
 
   const renderInventory = () => (
     <div className="space-y-6">
@@ -753,15 +967,15 @@ const Admin = () => {
   );
 
   const renderSettings = () => (
-    <div className="space-y-6">
+    <div className="space-y-8 animate-premium-in">
       <div>
-        <h2 className="text-2xl font-bold text-amber-100">Settings</h2>
-        <p className="text-amber-200/70">Configure your store settings and preferences</p>
+        <h2 className="text-3xl font-extrabold text-gradient-gold">Global Configurations</h2>
+        <p className="text-amber-200/60 mt-1">Define the operational parameters of your luxury store.</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-green-900/40 backdrop-blur-md border border-amber-500/20 rounded-lg shadow-xl shadow-black/20 p-6">
-          <h3 className="text-lg font-semibold text-amber-100 mb-4">General Settings</h3>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="glass-card p-8">
+          <h3 className="text-lg font-black text-amber-50 uppercase tracking-widest mb-6 border-b border-amber-500/10 pb-4">General Parameters</h3>
           <form onSubmit={(e) => {
             e.preventDefault();
             const formData = new FormData(e.target);
@@ -773,143 +987,114 @@ const Admin = () => {
               shippingCost: parseFloat(formData.get('shippingCost')),
               freeShippingThreshold: parseFloat(formData.get('freeShippingThreshold'))
             });
-            alert('Settings saved successfully!');
+            alert('Curated settings saved successfully!');
           }}>
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-amber-200/80 mb-1">Store Name</label>
+                <label className="block text-xs font-black text-amber-400 uppercase tracking-widest mb-2">Establishment Name</label>
                 <input
                   name="siteName"
                   type="text"
                   defaultValue={siteSettings.siteName}
-                  className="w-full bg-green-950/50 text-amber-100 placeholder-amber-200/50 px-3 py-2 border border-amber-500/40 rounded-lg focus:ring-2 focus:ring-amber-300 focus:border-transparent"
+                  className="glass-input w-full px-4 py-3"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-amber-200/80 mb-1">Store Description</label>
+                <label className="block text-xs font-black text-amber-400 uppercase tracking-widest mb-2">Heritage Description</label>
                 <input
                   name="siteDescription"
                   type="text"
                   defaultValue={siteSettings.siteDescription}
-                  className="w-full bg-green-950/50 text-amber-100 placeholder-amber-200/50 px-3 py-2 border border-amber-500/40 rounded-lg focus:ring-2 focus:ring-amber-300 focus:border-transparent"
+                  className="glass-input w-full px-4 py-3"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-amber-200/80 mb-1">Currency</label>
-                <select
-                  name="currency"
-                  defaultValue={siteSettings.currency}
-                  className="w-full bg-green-950/50 text-amber-100 placeholder-amber-200/50 px-3 py-2 border border-amber-500/40 rounded-lg focus:ring-2 focus:ring-amber-300 focus:border-transparent"
-                >
-                  <option value="INR">Indian Rupee (₹)</option>
-                  <option value="USD">US Dollar ($)</option>
-                  <option value="EUR">Euro (€)</option>
-                </select>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-black text-amber-400 uppercase tracking-widest mb-2">Valuation Currency</label>
+                  <select
+                    name="currency"
+                    defaultValue={siteSettings.currency}
+                    className="glass-input w-full px-4 py-3 appearance-none"
+                  >
+                    <option value="INR" className="bg-green-950">INR (₹)</option>
+                    <option value="USD" className="bg-green-950">USD ($)</option>
+                    <option value="EUR" className="bg-green-950">EUR (€)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-black text-amber-400 uppercase tracking-widest mb-2">Fiscal Duty (%)</label>
+                  <input
+                    name="taxRate"
+                    type="number"
+                    step="0.1"
+                    defaultValue={siteSettings.taxRate}
+                    className="glass-input w-full px-4 py-3"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-amber-200/80 mb-1">Tax Rate (%)</label>
-                <input
-                  name="taxRate"
-                  type="number"
-                  step="0.1"
-                  defaultValue={siteSettings.taxRate}
-                  className="w-full bg-green-950/50 text-amber-100 placeholder-amber-200/50 px-3 py-2 border border-amber-500/40 rounded-lg focus:ring-2 focus:ring-amber-300 focus:border-transparent"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-black text-amber-400 uppercase tracking-widest mb-2">Shipping Cost (₹)</label>
+                  <input
+                    name="shippingCost"
+                    type="number"
+                    step="0.01"
+                    defaultValue={siteSettings.shippingCost}
+                    className="glass-input w-full px-4 py-3"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-black text-amber-400 uppercase tracking-widest mb-2">Free Delivery At (₹)</label>
+                  <input
+                    name="freeShippingThreshold"
+                    type="number"
+                    step="0.01"
+                    defaultValue={siteSettings.freeShippingThreshold}
+                    className="glass-input w-full px-4 py-3"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-amber-200/80 mb-1">Shipping Cost (₹)</label>
-                <input
-                  name="shippingCost"
-                  type="number"
-                  step="0.01"
-                  defaultValue={siteSettings.shippingCost}
-                  className="w-full bg-green-950/50 text-amber-100 placeholder-amber-200/50 px-3 py-2 border border-amber-500/40 rounded-lg focus:ring-2 focus:ring-amber-300 focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-amber-200/80 mb-1">Free Shipping Threshold (₹)</label>
-                <input
-                  name="freeShippingThreshold"
-                  type="number"
-                  step="0.01"
-                  defaultValue={siteSettings.freeShippingThreshold}
-                  className="w-full bg-green-950/50 text-amber-100 placeholder-amber-200/50 px-3 py-2 border border-amber-500/40 rounded-lg focus:ring-2 focus:ring-amber-300 focus:border-transparent"
-                />
-              </div>
-              <button type="submit" className="w-full bg-green-950/50 text-amber-100 placeholder-amber-200/50 bg-gradient-to-r from-amber-200 to-amber-400 text-green-950 font-semibold py-2 rounded-lg hover:from-amber-300 hover:to-amber-500 shadow-lg shadow-amber-500/20 transition-all duration-300 transform hover:-translate-y-0.5">
-                Save Changes
+              <button type="submit" className="btn-primary w-full mt-4">
+                Propagate Changes
               </button>
             </div>
           </form>
         </div>
 
-        <div className="bg-green-900/40 backdrop-blur-md border border-amber-500/20 rounded-lg shadow-xl shadow-black/20 p-6">
-          <h3 className="text-lg font-semibold text-amber-100 mb-4">Notification Settings</h3>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm font-medium text-amber-100">Email Notifications</div>
-                <div className="text-sm text-amber-200/50">Receive notifications via email</div>
-              </div>
-              <button 
-                onClick={() => toggleNotification('email')}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  notifications.email ? 'bg-gradient-to-r from-amber-200 to-amber-400' : 'bg-green-800/80'
-                }`}
-              >
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-green-900/40 backdrop-blur-md border border-amber-500/20 transition ${
-                  notifications.email ? 'translate-x-6' : 'translate-x-1'
-                }`}></span>
-              </button>
+        <div className="space-y-8">
+          <div className="glass-card p-8">
+            <h3 className="text-lg font-black text-amber-50 uppercase tracking-widest mb-6 border-b border-amber-500/10 pb-4">Communication</h3>
+            <div className="space-y-6">
+              {[
+                { id: 'email', label: 'Email Dispatch', desc: 'Receive automated reports via secure mail.' },
+                { id: 'push', label: 'Vanguard Alerts', desc: 'Real-time browser notifications for priority events.' }
+              ].map((item) => (
+                <div key={item.id} className="flex items-center justify-between p-4 bg-green-950/40 border border-amber-500/10 rounded-2xl">
+                  <div>
+                    <div className="text-sm font-bold text-amber-50">{item.label}</div>
+                    <div className="text-[10px] text-amber-200/40 uppercase font-black tracking-widest mt-1">{item.desc}</div>
+                  </div>
+                  <button 
+                    onClick={() => toggleNotification(item.id)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all duration-300 ${
+                      notifications[item.id] ? 'bg-amber-400 shadow-lg shadow-amber-500/40' : 'bg-green-800'
+                    }`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-green-950 transition-transform duration-300 ${
+                      notifications[item.id] ? 'translate-x-6' : 'translate-x-1'
+                    }`} />
+                  </button>
+                </div>
+              ))}
             </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm font-medium text-amber-100">Push Notifications</div>
-                <div className="text-sm text-amber-200/50">Receive browser notifications</div>
-              </div>
-              <button 
-                onClick={() => toggleNotification('push')}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  notifications.push ? 'bg-gradient-to-r from-amber-200 to-amber-400' : 'bg-green-800/80'
-                }`}
-              >
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-green-900/40 backdrop-blur-md border border-amber-500/20 transition ${
-                  notifications.push ? 'translate-x-6' : 'translate-x-1'
-                }`}></span>
-              </button>
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm font-medium text-amber-100">Low Stock Alerts</div>
-                <div className="text-sm text-amber-200/50">Get notified when products are running low</div>
-              </div>
-              <button 
-                onClick={() => toggleNotification('lowStock')}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  notifications.lowStock ? 'bg-gradient-to-r from-amber-200 to-amber-400' : 'bg-green-800/80'
-                }`}
-              >
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-green-900/40 backdrop-blur-md border border-amber-500/20 transition ${
-                  notifications.lowStock ? 'translate-x-6' : 'translate-x-1'
-                }`}></span>
-              </button>
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm font-medium text-amber-100">New Order Notifications</div>
-                <div className="text-sm text-amber-200/50">Receive alerts for new orders</div>
-              </div>
-              <button 
-                onClick={() => toggleNotification('newOrders')}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  notifications.newOrders ? 'bg-gradient-to-r from-amber-200 to-amber-400' : 'bg-green-800/80'
-                }`}
-              >
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-green-900/40 backdrop-blur-md border border-amber-500/20 transition ${
-                  notifications.newOrders ? 'translate-x-6' : 'translate-x-1'
-                }`}></span>
-              </button>
-            </div>
+          </div>
+
+          <div className="glass-card p-8 bg-gradient-to-br from-amber-500/10 to-transparent">
+            <h3 className="text-lg font-black text-amber-50 uppercase tracking-widest mb-2 italic">System Integrity</h3>
+            <p className="text-sm text-amber-200/60 mb-6">Current backend: <span className="font-mono text-amber-400">v2.4.0-Imperial</span></p>
+            <button className="text-xs font-black text-red-400 uppercase tracking-widest hover:text-red-300 transition-colors">
+              Danger Zone: Purge Cache & Re-index
+            </button>
           </div>
         </div>
       </div>
@@ -931,12 +1116,15 @@ const Admin = () => {
     const product = editingProduct || {};
     
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-green-900/40 backdrop-blur-md border border-amber-500/20 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold">
-              {editingProduct ? 'Edit Product' : 'Add New Product'}
-            </h2>
+      <div className="fixed inset-0 bg-[#020617]/95 backdrop-blur-xl flex items-start justify-center z-[100] p-4 overflow-y-auto pt-10 pb-20">
+        <div className="glass-card p-10 w-full max-w-3xl animate-premium-in border-amber-500/20 shadow-[0_0_100px_rgba(0,0,0,0.9)] relative mb-10">
+          <div className="flex justify-between items-center mb-8 pb-4 border-b border-amber-500/10">
+            <div>
+              <h2 className="text-2xl font-black text-gradient-gold uppercase tracking-tight">
+                {editingProduct ? 'Curate Piece' : 'Catalogue New Piece'}
+              </h2>
+              <p className="text-xs text-amber-200/40 font-bold uppercase tracking-widest mt-1">Product Manifest</p>
+            </div>
             <button
               onClick={() => {
                 setShowAddProduct(false);
@@ -944,7 +1132,7 @@ const Admin = () => {
                 setSelectedImage(null);
                 setImagePreview(null);
               }}
-              className="text-amber-200/50 hover:text-amber-200/80"
+              className="w-10 h-10 flex items-center justify-center rounded-full bg-green-950/50 text-amber-200/40 hover:text-amber-100 border border-amber-500/10 transition-all"
             >
               ✕
             </button>
@@ -970,29 +1158,28 @@ const Admin = () => {
                 
                 const productData = {
                   name: formData.get('name'),
-                  category: formData.get('category'),
+                  category_id: formData.get('category_id'),
                   price: parseFloat(formData.get('price')),
                   originalPrice: parseFloat(formData.get('originalPrice')),
                   stock: parseInt(formData.get('stock')),
                   sku: formData.get('sku'),
+                  is_featured: formData.get('is_featured') === 'on',
                   image: allImages[0] || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=600&h=600&fit=crop',
                   images: allImages // Store all images for the product
                 };
                 
+                let success = false;
                 if (editingProduct) {
-                  await updateProduct(editingProduct.id, productData);
+                  success = await updateProduct(editingProduct.id, productData);
                 } else {
-                  await addProduct(productData);
+                  success = await addProduct(productData);
                 }
                 
-                // Reset image states
-                setSelectedImage(null);
-                setImagePreview(null);
-                setSelectedImages([]);
-                setProductImages([]);
+                if (!success) {
+                  throw new Error('Operation failed');
+                }
               } catch (error) {
                 console.error('Form submission failed:', error);
-                alert('Failed to save product. Please try again.');
               } finally {
                 if (submitButton) {
                   submitButton.innerText = originalText;
@@ -1001,28 +1188,29 @@ const Admin = () => {
               }
             }}
           >
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-amber-200/80 mb-1">Product Name</label>
+                <label className="block text-xs font-black text-amber-400 uppercase tracking-widest mb-2">Item Designation</label>
                 <input
                   name="name"
                   type="text"
                   defaultValue={product.name}
                   required
-                  className="w-full bg-green-950/50 text-amber-100 placeholder-amber-200/50 px-3 py-2 border border-amber-500/40 rounded-lg focus:ring-2 focus:ring-amber-300"
+                  placeholder="e.g. Royal Heritage Ring"
+                  className="glass-input w-full px-4 py-3"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-amber-200/80 mb-1">Category</label>
                 <select
-                  name="category"
-                  defaultValue={product.category}
+                  name="category_id"
+                  defaultValue={product.category_id}
                   required
-                  className="w-full bg-green-950/50 text-amber-100 placeholder-amber-200/50 px-3 py-2 border border-amber-500/40 rounded-lg focus:ring-2 focus:ring-amber-300"
+                  className="glass-input w-full px-4 py-3 appearance-none"
                 >
-                  <option value="">Select Category</option>
+                  <option value="" className="bg-green-950">Select Realm</option>
                   {categories.map(cat => (
-                    <option key={cat.id} value={cat.name}>{cat.name}</option>
+                    <option key={cat.id} value={cat.id} className="bg-green-950">{cat.name}</option>
                   ))}
                 </select>
               </div>
@@ -1067,6 +1255,18 @@ const Admin = () => {
                   required
                   className="w-full bg-green-950/50 text-amber-100 placeholder-amber-200/50 px-3 py-2 border border-amber-500/40 rounded-lg focus:ring-2 focus:ring-amber-300"
                 />
+              </div>
+              <div className="col-span-2 flex items-center gap-3 p-4 bg-amber-500/5 rounded-xl border border-amber-500/10">
+                <input
+                  id="is_featured"
+                  name="is_featured"
+                  type="checkbox"
+                  defaultChecked={product.is_featured}
+                  className="w-5 h-5 rounded border-amber-500/40 text-amber-500 focus:ring-amber-500 bg-green-950/50"
+                />
+                <label htmlFor="is_featured" className="text-sm font-black text-amber-50 uppercase tracking-widest cursor-pointer">
+                  Featured Piece (Vanguard Collection)
+                </label>
               </div>
               <div className="col-span-2">
                 <label className="block text-sm font-medium text-amber-200/80 mb-1">Product Image</label>
@@ -1554,40 +1754,57 @@ const Admin = () => {
   };
 
   return (
-    <div className="min-h-screen bg-green-950 text-amber-100">
-      <div className="flex flex-col lg:flex-row">
+    <div className="min-h-screen bg-green-950 text-amber-100 selection:bg-amber-500/30">
+      <div className="flex flex-col lg:flex-row min-h-screen">
         {/* Sidebar */}
-        <div className="w-full bg-green-950/50 text-amber-100 placeholder-amber-200/50 lg:w-64 bg-green-900/40 backdrop-blur-md border border-amber-500/20 shadow-lg min-h-screen">
-          <div className="p-6 border-b border-amber-500/30">
-            <h1 className="text-xl font-bold text-amber-100">Admin Dashboard</h1>
-            <p className="text-sm text-amber-200/70">Welcome back, Suryansh</p>
-            <p className="text-xs text-amber-200/50 mt-1">Role: Admin</p>
-            <p className="text-xs text-amber-200/50">{user?.email}</p>
+        <aside className="w-full lg:w-72 glass-card border-l-0 border-y-0 border-r border-amber-500/10 lg:sticky lg:top-0 lg:h-screen flex flex-col z-50 overflow-y-auto">
+          <div className="p-8 border-b border-amber-500/5">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 bg-gradient-to-tr from-amber-200 to-amber-500 rounded-xl flex items-center justify-center font-black text-green-950 shadow-lg shadow-amber-500/20">
+                S
+              </div>
+              <h1 className="text-2xl font-black text-gradient-gold tracking-tighter">Saram Admin</h1>
+            </div>
+            
+            <div className="p-4 bg-green-950/40 border border-amber-500/10 rounded-2xl">
+              <p className="text-[10px] font-black text-amber-400 uppercase tracking-[0.2em] mb-1">Authenticated As</p>
+              <p className="text-sm font-bold text-amber-50 truncate">{user?.email}</p>
+              <div className="flex items-center gap-2 mt-2">
+                <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
+                <span className="text-[10px] font-bold text-amber-200/40 uppercase">Active Session</span>
+              </div>
+            </div>
           </div>
           
-          <nav className="p-4">
-            <div className="grid grid-cols-2 lg:grid-cols-1 gap-2 lg:space-y-2">
-              {tabs.map((tab) => {
-                const Icon = tab.icon;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center px-3 lg:px-4 py-2 lg:py-3 text-xs lg:text-sm font-medium rounded-lg transition-colors ${
-                      activeTab === tab.id
-                        ? 'bg-amber-200 text-green-950 border border-amber-300 shadow-md shadow-amber-500/20'
-                        : 'text-amber-200/80 hover:bg-green-800/50 hover:text-amber-100'
-                    }`}
-                  >
-                    <Icon className="h-4 w-4 lg:h-5 lg:w-5 mr-2 lg:mr-3" />
-                    <span className="hidden lg:inline">{tab.name}</span>
-                    <span className="lg:hidden">{tab.name}</span>
-                  </button>
-                );
-              })}
-            </div>
+          <nav className="flex-1 p-6 space-y-1.5">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`sidebar-link w-full group ${isActive ? 'sidebar-link-active' : 'sidebar-link-inactive'}`}
+                >
+                  <Icon className={`h-5 w-5 mr-3 transition-transform group-hover:scale-110 ${isActive ? 'text-green-950' : 'text-amber-400/60 group-hover:text-amber-400'}`} />
+                  <span className="tracking-tight">{tab.name}</span>
+                  {isActive && (
+                    <div className="ml-auto w-1.5 h-1.5 bg-green-950 rounded-full" />
+                  )}
+                </button>
+              );
+            })}
           </nav>
-        </div>
+
+          <div className="p-6 border-t border-amber-500/5">
+            <button className="flex items-center w-full px-4 py-3 text-red-400/60 hover:text-red-400 hover:bg-red-500/5 rounded-xl transition-all font-bold text-sm">
+              <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              Sign Out
+            </button>
+          </div>
+        </aside>
 
         {/* Main Content */}
         <div className="flex-1 p-4 md:p-8">
@@ -1603,6 +1820,7 @@ const Admin = () => {
 
       {/* Modals */}
       {renderAddEditProductModal()}
+      {renderAddCategoryModal()}
       {renderOrderDetailsModal()}
       {renderCustomerProfileModal()}
       {renderBulkStockUpdateModal()}

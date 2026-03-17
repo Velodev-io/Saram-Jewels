@@ -1,28 +1,21 @@
 import axios from 'axios';
 
-const STRAPI_URL = process.env.REACT_APP_STRAPI_URL || 'http://localhost:1337';
-const STRAPI_API_TOKEN = process.env.REACT_APP_STRAPI_API_TOKEN;
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
 
-// Create axios instance for Strapi API
-const strapiApi = axios.create({
-  baseURL: STRAPI_URL,
+// Create axios instance for Custom Backend API
+const api = axios.create({
+  baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${STRAPI_API_TOKEN}`,
   },
 });
 
 // Add request interceptor to include Clerk token
-strapiApi.interceptors.request.use(
+api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('clerk-token');
     if (token) {
-      config.headers['X-Clerk-Token'] = `Bearer ${token}`; // Prevent overwriting Strapi API token
-    }
-    
-    // Ensure Strapi API Token is always present if defined
-    if (STRAPI_API_TOKEN && !config.headers['Authorization']) {
-      config.headers['Authorization'] = `Bearer ${STRAPI_API_TOKEN}`;
+      config.headers['Authorization'] = `Bearer ${token}`;
     }
     return config;
   },
@@ -36,30 +29,7 @@ class ApiService {
   // Product APIs
   async getProducts(params = {}) {
     try {
-      const queryParams = new URLSearchParams();
-      
-      if (params.category) {
-        queryParams.append('filters[category][slug][$eq]', params.category);
-      }
-      
-      if (params.featured) {
-        queryParams.append('filters[is_featured][$eq]', true);
-      }
-      
-      if (params.search) {
-        queryParams.append('filters[name][$containsi]', params.search);
-      }
-      
-      if (params.populate) {
-        queryParams.append('populate', params.populate);
-      }
-      
-      if (params.pagination) {
-        queryParams.append('pagination[page]', params.pagination.page || 1);
-        queryParams.append('pagination[pageSize]', params.pagination.pageSize || 12);
-      }
-
-      const response = await strapiApi.get(`/api/products?${queryParams}`);
+      const response = await api.get('/products', { params });
       return response.data;
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -69,8 +39,9 @@ class ApiService {
 
   async getProduct(slug) {
     try {
-      const response = await strapiApi.get(`/api/products?filters[slug][$eq]=${slug}&populate=*`);
-      return response.data.data[0];
+      // Custom backend uses slug or ID. 
+      const response = await api.get(`/products/${slug}`);
+      return response.data;
     } catch (error) {
       console.error('Error fetching product:', error);
       throw error;
@@ -79,8 +50,8 @@ class ApiService {
 
   async getProductById(id) {
     try {
-      const response = await strapiApi.get(`/api/products/${id}?populate=*`);
-      return response.data.data;
+      const response = await api.get(`/products/${id}`);
+      return response.data;
     } catch (error) {
       console.error('Error fetching product by ID:', error);
       throw error;
@@ -90,7 +61,7 @@ class ApiService {
   // Category APIs
   async getCategories() {
     try {
-      const response = await strapiApi.get('/api/categories?populate=*');
+      const response = await api.get('/categories');
       return response.data;
     } catch (error) {
       console.error('Error fetching categories:', error);
@@ -98,10 +69,10 @@ class ApiService {
     }
   }
 
-  async getCategory(slug) {
+  async getCategory(id) {
     try {
-      const response = await strapiApi.get(`/api/categories?filters[slug][$eq]=${slug}&populate=*`);
-      return response.data.data[0];
+      const response = await api.get(`/categories/${id}`);
+      return response.data;
     } catch (error) {
       console.error('Error fetching category:', error);
       throw error;
@@ -111,7 +82,7 @@ class ApiService {
   // User APIs
   async getCurrentUser() {
     try {
-      const response = await strapiApi.get('/api/users/me');
+      const response = await api.get('/users/profile');
       return response.data;
     } catch (error) {
       console.error('Error fetching current user:', error);
@@ -119,11 +90,9 @@ class ApiService {
     }
   }
 
-  async updateUser(userId, userData) {
+  async updateUser(userData) {
     try {
-      const response = await strapiApi.put(`/api/users/${userId}`, {
-        data: userData
-      });
+      const response = await api.put('/users/profile', userData);
       return response.data;
     } catch (error) {
       console.error('Error updating user:', error);
@@ -134,9 +103,7 @@ class ApiService {
   // Order APIs
   async createOrder(orderData) {
     try {
-      const response = await strapiApi.post('/api/orders', {
-        data: orderData
-      });
+      const response = await api.post('/orders', orderData);
       return response.data;
     } catch (error) {
       console.error('Error creating order:', error);
@@ -144,9 +111,9 @@ class ApiService {
     }
   }
 
-  async getUserOrders(userId) {
+  async getUserOrders() {
     try {
-      const response = await strapiApi.get(`/api/orders?filters[user][id][$eq]=${userId}&populate=*`);
+      const response = await api.get('/orders/my-orders');
       return response.data;
     } catch (error) {
       console.error('Error fetching user orders:', error);
@@ -154,19 +121,7 @@ class ApiService {
     }
   }
 
-  async updateOrder(orderId, orderData) {
-    try {
-      const response = await strapiApi.put(`/api/orders/${orderId}`, {
-        data: orderData
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error updating order:', error);
-      throw error;
-    }
-  }
-
-  // Cart APIs (using localStorage for now, can be moved to Strapi later)
+  // Cart APIs (using localStorage)
   getCart() {
     try {
       const cart = localStorage.getItem('cart');
@@ -195,9 +150,9 @@ class ApiService {
       } else {
         cart.push({
           id: product.id,
-          name: product.attributes.name,
-          price: product.attributes.price,
-          image: product.attributes.images?.[0]?.url,
+          name: product.name,
+          price: product.price,
+          image: product.images?.[0], // Assuming custom backend returns array of strings
           quantity
         });
       }
@@ -255,9 +210,7 @@ class ApiService {
   // Contact APIs
   async submitContact(contactData) {
     try {
-      const response = await strapiApi.post('/api/contacts', {
-        data: contactData
-      });
+      const response = await api.post('/contact', contactData);
       return response.data;
     } catch (error) {
       console.error('Error submitting contact:', error);
@@ -275,18 +228,12 @@ class ApiService {
 
   getImageUrl(image) {
     if (!image) return null;
-    
-    if (image.url) {
-      return image.url.startsWith('http') 
-        ? image.url 
-        : `${STRAPI_URL}${image.url}`;
-    }
-    
-    return null;
+    if (typeof image === 'string') return image;
+    return image.url || null;
   }
 }
 
-// Create singleton instance
 const apiService = new ApiService();
-
 export default apiService;
+export { api };
+

@@ -12,12 +12,17 @@ const Category = sequelize.define('Category', {
     allowNull: false,
     unique: true
   },
+  slug: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    unique: true
+  },
   description: {
     type: DataTypes.TEXT,
     allowNull: true
   },
   image: {
-    type: DataTypes.STRING,
+    type: DataTypes.TEXT,
     allowNull: true
   }
 }, {

@@ -79,7 +79,7 @@ const ProductCard = ({ product, viewMode, onAddToCart, onWishlistToggle, inCart,
           <img
             src={product.images[0]}
             alt={product.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
             onError={(e) => { e.target.style.display = 'none'; }}
           />
         </div>
@@ -136,10 +136,11 @@ const ProductCard = ({ product, viewMode, onAddToCart, onWishlistToggle, inCart,
           src={product.images[0]}
           alt={product.name}
           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-          onError={(e) => { e.target.style.display = 'none'; }}
+          onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block'; }}
         />
+        <PlaceholderImg name={product.name} style={{ display: 'none' }} />
         {/* Overlay on hover */}
-        <div className="absolute inset-0 bg-[#020617]/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        <div className="absolute inset-0 bg-[#020617]/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
         {/* Badges */}
         <div className="absolute top-3 left-3 flex flex-col gap-2">
@@ -231,25 +232,29 @@ const ProductList = () => {
           apiService.getCategories()
         ]);
         
-        const formattedProducts = (productsData?.data || []).map(p => ({
+        const formattedProducts = (productsData?.products || productsData || []).map(p => ({
           id: p.id,
-          name: p.attributes?.name || 'Unknown Product',
-          description: p.attributes?.description || '',
-          price: p.attributes?.price || 0,
-          originalPrice: p.attributes?.originalPrice || p.attributes?.price || 0,
-          category: p.attributes?.category?.data?.attributes?.slug || 'unassigned',
-          images: p.attributes?.images?.data ? p.attributes.images.data.map(img => apiService.getImageUrl(img.attributes)) : [],
-          rating: p.attributes?.rating || 0,
-          reviews: p.attributes?.reviews || 0,
-          isFeatured: p.attributes?.is_featured || false,
-          stock: p.attributes?.stock || 0
+          name: p.name || 'Unknown Product',
+          description: p.description || '',
+          price: parseFloat(p.price) || 0,
+          originalPrice: parseFloat(p.original_price || p.originalPrice || p.price) || 0,
+          categoryName: p.category?.name || 'unassigned',
+          categoryId: p.category?.id || p.category_id || 'unassigned',
+          category: p.category?.name || p.category_id || 'unassigned',
+          images: Array.isArray(p.images) && p.images.length > 0 
+            ? p.images 
+            : (typeof p.images === 'string' ? [p.images] : ['https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=600&h=600&fit=crop']),
+          rating: parseFloat(p.rating) || 4.5,
+          reviews: parseInt(p.reviews) || 20,
+          isFeatured: p.is_featured || false,
+          stock: parseInt(p.stock) || 0
         }));
         
         const formattedCategories = [
           { id: 'all', name: 'All' },
-          ...(categoriesData?.data || []).map(c => ({
-            id: c.attributes?.slug || c.id,
-            name: c.attributes?.name || `Category ${c.id}`
+          ...(categoriesData || []).map(c => ({
+            id: c.id,
+            name: c.name || `Category ${c.id}`
           }))
         ];
         
@@ -278,7 +283,7 @@ const ProductList = () => {
       (p.name && p.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (p.description && p.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (p.category && p.category.toLowerCase().includes(searchQuery.toLowerCase()));
-    const matchesCat = selectedCategory === 'all' || p.category === selectedCategory;
+    const matchesCat = selectedCategory === 'all' || p.categoryId === selectedCategory;
     let matchesPrice = true;
     if (priceRange !== 'all') {
       const [min, max] = priceRange.split('-').map(Number);
@@ -411,7 +416,7 @@ const ProductList = () => {
                   placeholder="Search jewelry..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="input-dark pl-10 h-10 text-sm"
+                  className="input-dark !pl-10 !h-10 text-sm"
                 />
                 {searchQuery && (
                   <button

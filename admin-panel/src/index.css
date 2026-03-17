@@ -2,19 +2,72 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer utilities {
-  .animate-slide-in {
-    animation: slideIn 0.3s ease-out forwards;
+@layer base {
+  body {
+    @apply bg-[#052e16] text-[#fef3c7] antialiased;
+    font-family: 'Inter', sans-serif;
+  }
+
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-green-950;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-amber-500/20 rounded-full hover:bg-amber-500/40 transition-colors;
   }
 }
 
-@keyframes slideIn {
+@layer components {
+  .glass-card {
+    @apply bg-green-900/40 backdrop-blur-xl border border-amber-500/10 shadow-2xl shadow-black/40;
+  }
+  
+  .glass-input {
+    @apply bg-green-950/60 border border-amber-500/20 text-[#fef3c7] rounded-xl focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500/40 transition-all placeholder-amber-200/30;
+    color: #fef3c7 !important;
+  }
+
+  .btn-primary {
+    @apply bg-gradient-to-r from-amber-200 via-amber-300 to-amber-400 text-green-950 font-bold px-6 py-2.5 rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply bg-green-800/30 border border-amber-500/20 text-amber-100 font-semibold px-6 py-2.5 rounded-xl hover:bg-green-800/50 transition-all;
+  }
+
+  .sidebar-link {
+    @apply flex items-center px-4 py-3 rounded-xl transition-all duration-300;
+  }
+
+  .sidebar-link-active {
+    @apply bg-amber-300 text-green-950 shadow-xl shadow-amber-500/20 font-bold scale-[1.05];
+  }
+
+  .sidebar-link-inactive {
+    @apply text-amber-200/60 hover:bg-green-800/40 hover:text-amber-50 hover:translate-x-1;
+  }
+}
+
+@layer utilities {
+  .animate-premium-in {
+    animation: premiumIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  
+  .text-gradient-gold {
+    @apply bg-gradient-to-r from-amber-200 via-amber-300 to-amber-500 bg-clip-text text-transparent;
+  }
+}
+
+@keyframes premiumIn {
   from {
     opacity: 0;
-    transform: translateY(-10px);
+    transform: translateY(20px) scale(0.98);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
 }

@@ -19,6 +19,14 @@ const Product = sequelize.define('Product', {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: false
   },
+  original_price: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true
+  },
+  sku: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
   category_id: {
     type: DataTypes.UUID,
     allowNull: false,
@@ -28,7 +36,7 @@ const Product = sequelize.define('Product', {
     }
   },
   images: {
-    type: DataTypes.ARRAY(DataTypes.STRING),
+    type: DataTypes.JSON,
     defaultValue: []
   },
   stock: {

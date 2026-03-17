@@ -25,13 +25,13 @@ const Categories = () => {
     const fetchCategories = async () => {
       try {
         const response = await apiService.getCategories();
-        const formatted = (response?.data || []).map(c => ({
-          id: c.attributes?.slug || c.id,
-          name: c.attributes?.name || `Category ${c.id}`,
-          description: c.attributes?.description || '',
-          image: apiService.getImageUrl(c.attributes?.image?.data?.attributes) || '',
-          count: c.attributes?.products?.data?.length || 0,
-          featured: false, // You can add logic for featured/tag if needed
+        const formatted = (response || []).map(c => ({
+          id: c.id,
+          name: c.name || `Category ${c.id}`,
+          description: c.description || '',
+          image: c.image || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=600&h=600&fit=crop',
+          count: c.products?.length || 0,
+          featured: false,
           tag: 'Classic'
         }));
         setCategories(formatted);

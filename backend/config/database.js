@@ -4,24 +4,24 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 // Use a fallback database URL for development if not provided
-const databaseUrl = process.env.DATABASE_URL || 'postgresql://localhost:5432/saram_dev';
+const databaseUrl = process.env.DATABASE_URL;
 
-const sequelize = new Sequelize(databaseUrl, {
-  dialect: 'postgres',
-  logging: false,
-  dialectOptions: {
-    ssl: process.env.NODE_ENV === 'production' ? {
-      require: true,
-      rejectUnauthorized: false
-    } : false
-  },
-  pool: {
-    max: 5,
-    min: 0,
-    acquire: 30000,
-    idle: 10000
-  }
-});
+const sequelize = databaseUrl 
+  ? new Sequelize(databaseUrl, {
+      dialect: 'postgres',
+      logging: false,
+      dialectOptions: {
+        ssl: process.env.NODE_ENV === 'production' ? {
+          require: true,
+          rejectUnauthorized: false
+        } : false
+      }
+    })
+  : new Sequelize({
+      dialect: 'sqlite',
+      storage: './database.sqlite',
+      logging: false
+    });
 
 const testConnection = async () => {
   try {

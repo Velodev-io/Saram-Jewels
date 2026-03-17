@@ -1,5 +1,6 @@
 const { Product, Category } = require('../models');
 const { Op } = require('sequelize');
+const { processJewelryImage } = require('../utils/imageProcessor');
 
 // Get all products with pagination
 exports.getProducts = async (req, res) => {
@@ -81,15 +82,24 @@ exports.getProductsByCategory = async (req, res) => {
 // Create new product (admin only)
 exports.createProduct = async (req, res) => {
   try {
-    const { name, description, price, category_id, images, stock } = req.body;
+    const { name, description, price, originalPrice, category_id, stock, sku, is_featured } = req.body;
+    let { images } = req.body;
+    
+    // Fix all images: center, square, and optimize
+    if (images && Array.isArray(images)) {
+      images = await Promise.all(images.map(img => processJewelryImage(img)));
+    }
     
     const product = await Product.create({
       name,
       description,
       price,
+      original_price: originalPrice,
       category_id,
       images,
-      stock
+      stock,
+      sku,
+      is_featured
     });
     
     res.status(201).json(product);
@@ -102,20 +112,29 @@ exports.createProduct = async (req, res) => {
 // Update product (admin only)
 exports.updateProduct = async (req, res) => {
   try {
-    const { name, description, price, category_id, images, stock } = req.body;
+    const { name, description, price, originalPrice, category_id, stock, sku, is_featured } = req.body;
+    let { images } = req.body;
     const product = await Product.findByPk(req.params.id);
     
     if (!product) {
       return res.status(404).json({ message: 'Product not found' });
     }
     
+    // Process images if changed
+    if (images && Array.isArray(images)) {
+      images = await Promise.all(images.map(img => processJewelryImage(img)));
+    }
+
     await product.update({
       name,
       description,
       price,
+      original_price: originalPrice,
       category_id,
       images,
-      stock
+      stock,
+      sku,
+      is_featured
     });
     
     res.json(product);
@@ -154,8 +173,8 @@ exports.searchProducts = async (req, res) => {
     const { count, rows } = await Product.findAndCountAll({
       where: {
         [Op.or]: [
-          { name: { [Op.iLike]: `%${query}%` } },
-          { description: { [Op.iLike]: `%${query}%` } }
+          { name: { [Op.like]: `%${query}%` } },
+          { description: { [Op.like]: `%${query}%` } }
         ]
       },
       limit,
