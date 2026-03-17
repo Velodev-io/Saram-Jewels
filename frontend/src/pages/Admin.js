@@ -11,8 +11,10 @@ import {
   TrashIcon,
   EyeIcon,
   ArchiveBoxIcon,
-  ExclamationTriangleIcon,
-  MagnifyingGlassIcon
+  MagnifyingGlassIcon,
+  XMarkIcon,
+  CheckCircleIcon,
+  ArrowRightIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 import { useSiteSettings } from '../context/SiteSettingsContext';
@@ -49,42 +51,53 @@ const Admin = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [productsRes, ordersRes] = await Promise.all([
+        const [productsRes, ordersRes, usersRes] = await Promise.all([
           apiService.getProducts(),
-          apiService.getUserOrders('all') // Adjust if you have an admin-level orders API
+          apiService.getOrders(),
+          apiService.getUsers()
         ]);
         
-        const formattedProducts = (productsRes?.data || []).map(p => ({
+        const formattedProducts = (productsRes?.products || productsRes || []).map(p => ({
           id: p.id,
-          name: p.attributes?.name || 'Unknown Product',
-          category: p.attributes?.category?.data?.attributes?.name || 'Unassigned',
-          price: p.attributes?.price || 0,
-          originalPrice: p.attributes?.originalPrice || p.attributes?.price || 0,
-          stock: p.attributes?.stock || 0,
-          sku: p.attributes?.sku || `SKU-${Math.floor(Math.random() * 10000)}`,
-          status: p.attributes?.stock > 0 ? 'active' : 'inactive',
-          rating: p.attributes?.rating || 0,
-          reviews: p.attributes?.reviews || 0,
-          image: p.attributes?.images?.data ? apiService.getImageUrl(p.attributes.images.data[0]?.attributes) : 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=600&h=600&fit=crop'
+          name: p.name || 'Unknown Product',
+          category: p.category?.name || 'Unassigned',
+          price: parseFloat(p.price) || 0,
+          originalPrice: parseFloat(p.original_price || p.price) || 0,
+          stock: parseInt(p.stock) || 0,
+          sku: p.sku || `SKU-${p.id}`,
+          status: p.stock > 0 ? 'active' : 'inactive',
+          rating: parseFloat(p.rating) || 0,
+          reviews: parseInt(p.reviews) || 0,
+          image: p.images?.[0] || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=600&h=600&fit=crop',
+          images: p.images || []
         }));
         
-        const formattedOrders = (ordersRes?.data || []).map(o => ({
-          id: o.attributes?.order_number || `ORD-${o.id}`,
-          customer: o.attributes?.user?.data?.attributes?.first_name || 'Guest',
-          total: o.attributes?.total_amount || 0,
-          status: o.attributes?.status || 'Processing',
-          date: new Date(o.attributes?.createdAt).toISOString().split('T')[0]
+        const formattedOrders = (ordersRes || []).map(o => ({
+          id: o.id,
+          order_number: o.razorpay_order_id || `ORD-${o.id}`,
+          customer: o.user ? `${o.user.first_name || ''} ${o.user.last_name || ''}`.trim() || o.user.email : 'Guest',
+          total: parseFloat(o.total_amount) || 0,
+          status: o.status || 'Pending',
+          date: new Date(o.created_at || o.createdAt).toISOString().split('T')[0],
+          address: typeof o.shipping_address === 'string' ? JSON.parse(o.shipping_address) : o.shipping_address,
+          items: o.items || []
+        }));
+        
+        const formattedCustomers = (usersRes || []).map(u => ({
+          id: u.id,
+          name: `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email,
+          email: u.email,
+          phone: u.phone || 'N/A',
+          joined: new Date(u.created_at || u.createdAt).toISOString().split('T')[0],
+          orders: 0,
+          totalSpent: 0
         }));
         
         setProducts(formattedProducts);
         setOrders(formattedOrders);
-        setCustomers([]); // Can fetch users later if needed
+        setCustomers(formattedCustomers);
       } catch (err) {
         console.error("Error fetching admin data:", err);
-        // Fallback or empty state on error
-        setProducts([]);
-        setOrders([]);
-        setCustomers([]);
       } finally {
         setLoading(false);
       }
@@ -119,14 +132,7 @@ const Admin = () => {
     { id: 'settings', name: 'Settings', icon: CogIcon }
   ];
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'active': return 'text-green-600 bg-green-100';
-      case 'Delivered': return 'text-green-600 bg-green-100';
-      case 'In Transit': return 'text-blue-600 bg-blue-100';
-      default: return 'text-gray-600 bg-gray-100';
-    }
-  };
+
 
   const getStockStatus = (stock) => {
     if (stock === 0) return { color: 'text-red-600 bg-red-100', text: 'Out of Stock' };
@@ -256,14 +262,7 @@ const Admin = () => {
     }
   };
 
-  const reorderImages = (fromIndex, toIndex) => {
-    setProductImages(prev => {
-      const newImages = [...prev];
-      const [movedImage] = newImages.splice(fromIndex, 1);
-      newImages.splice(toIndex, 0, movedImage);
-      return newImages;
-    });
-  };
+
 
   // Notification Functions
   const toggleNotification = (type) => {
@@ -276,189 +275,208 @@ const Admin = () => {
 
 
   const renderDashboard = () => (
-    <div className="space-y-6">
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <CubeIcon className="h-6 w-6 text-blue-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Products</p>
-              <p className="text-2xl font-semibold text-gray-900">{products.length}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <ShoppingBagIcon className="h-6 w-6 text-green-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Orders</p>
-              <p className="text-2xl font-semibold text-gray-900">{orders.length}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <UsersIcon className="h-6 w-6 text-purple-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Customers</p>
-              <p className="text-2xl font-semibold text-gray-900">{customers.length}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="p-2 bg-yellow-100 rounded-lg">
-              <CurrencyRupeeIcon className="h-6 w-6 text-yellow-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-              <p className="text-2xl font-semibold text-gray-900">₹{orders.reduce((sum, order) => sum + order.total, 0).toLocaleString()}</p>
-            </div>
-          </div>
+    <div className="space-y-8 animate-fade-in">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-3xl font-display font-bold text-[#ffffff]">Executive Overview</h2>
+          <p className="text-[#64748b] text-[10px] font-bold uppercase tracking-[0.2em] mt-2">Real-time store performance metrics</p>
         </div>
       </div>
 
-      {/* Low Stock Alert */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">Low Stock Alert</h3>
-        </div>
-        <div className="p-6">
-          {products.filter(p => p.stock <= 5).length === 0 ? (
-            <p className="text-gray-500">No low stock items.</p>
-          ) : (
-            <div className="space-y-3">
-              {products.filter(p => p.stock <= 5).map((product) => (
-                <div key={product.id} className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
-                  <div className="flex items-center">
-                    <ExclamationTriangleIcon className="h-5 w-5 text-yellow-600 mr-3" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{product.name}</p>
-                      <p className="text-sm text-gray-500">SKU: {product.sku}</p>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {[
+          { label: 'Total Products', value: products.length, icon: CubeIcon, color: 'from-blue-500/20 to-blue-600/5', textColor: 'text-blue-400' },
+          { label: 'Total Orders', value: orders.length, icon: ShoppingBagIcon, color: 'from-emerald-500/20 to-emerald-600/5', textColor: 'text-emerald-400' },
+          { label: 'Total Customers', value: customers.length, icon: UsersIcon, color: 'from-amber-500/20 to-amber-600/5', textColor: 'text-amber-400' },
+          { label: 'Total Revenue', value: `₹${orders.reduce((sum, order) => sum + order.total, 0).toLocaleString()}`, icon: CurrencyRupeeIcon, color: 'from-purple-500/20 to-purple-600/5', textColor: 'text-purple-400' },
+        ].map((stat, i) => (
+          <div key={i} className="glass p-6 rounded-[32px] border border-[rgba(226,232,240,0.1)] relative group overflow-hidden">
+            <div className={`absolute inset-0 bg-gradient-to-br ${stat.color} opacity-50`} />
+            <div className="relative z-10 flex items-center gap-5">
+              <div className={`w-14 h-14 rounded-2xl bg-[#020617] border border-[rgba(226,232,240,0.1)] flex items-center justify-center ${stat.textColor}`}>
+                <stat.icon className="h-7 w-7" />
+              </div>
+              <div>
+                <p className="text-[#64748b] text-[10px] font-bold uppercase tracking-widest mb-1">{stat.label}</p>
+                <p className="text-2xl font-bold text-[#f8fafc]">{stat.value}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Low Stock Alert */}
+        <div className="glass rounded-[32px] border border-[rgba(226,232,240,0.1)] overflow-hidden">
+          <div className="px-8 py-6 border-b border-[rgba(226,232,240,0.08)]">
+            <h3 className="text-lg font-bold text-[#f8fafc]">Inventory Alerts</h3>
+          </div>
+          <div className="p-8">
+            {products.filter(p => p.stock <= 5).length === 0 ? (
+              <div className="text-center py-10">
+                 <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto mb-4 border border-emerald-500/20">
+                    <CheckCircleIcon className="h-8 w-8 text-emerald-500" />
+                 </div>
+                 <p className="text-[#64748b] text-sm">All products are well stocked</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {products.filter(p => p.stock <= 5).map((product) => (
+                  <div key={product.id} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5 group hover:border-[#e2e8f0]/20 transition-all">
+                    <div className="flex items-center gap-4">
+                        <img src={product.image} className="w-12 h-12 rounded-xl object-cover border border-white/10" alt="" />
+                        <div>
+                          <p className="text-sm font-semibold text-[#f8fafc]">{product.name}</p>
+                          <p className="text-[10px] text-[#64748b] font-bold uppercase tracking-widest">{product.sku}</p>
+                        </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-bold text-amber-400">{product.stock} units left</p>
+                      <button className="text-[10px] font-bold uppercase tracking-widest text-[#64748b] hover:text-[#e2e8f0] mt-1 transition-colors">Manage Stock</button>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium text-gray-900">{product.stock} units left</p>
-                    <button className="text-sm text-blue-600 hover:text-blue-800">Update Stock</button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Recent Activity Mockup */}
+        <div className="glass rounded-[32px] border border-[rgba(226,232,240,0.1)] overflow-hidden">
+          <div className="px-8 py-6 border-b border-[rgba(226,232,240,0.08)]">
+            <h3 className="text-lg font-bold text-[#f8fafc]">Recent Activity</h3>
+          </div>
+          <div className="p-8">
+             <div className="space-y-6">
+                {[1, 2, 3].map((_, i) => (
+                  <div key={i} className="flex gap-4 relative">
+                     {i < 2 && <div className="absolute left-[11px] top-6 w-px h-10 bg-[rgba(226,232,240,0.1)]" />}
+                     <div className="w-6 h-6 rounded-full bg-[#e2e8f0] flex-shrink-0 flex items-center justify-center text-[#020617] text-[10px] font-bold relative z-10">✦</div>
+                     <div>
+                        <p className="text-sm text-[#f8fafc]">New order received from <span className="font-semibold">{orders[i]?.customer || 'Valued Guest'}</span></p>
+                        <p className="text-[10px] text-[#64748b] mt-1">Order #SJ-00{i+1} • {orders[i]?.date || 'Today'}</p>
+                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+             </div>
+          </div>
         </div>
       </div>
     </div>
   );
 
   const renderProducts = () => (
-    <div className="space-y-6">
+    <div className="space-y-8 animate-fade-in">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Products</h2>
-          <p className="text-gray-600">Manage your product catalog</p>
+          <h2 className="text-3xl font-display font-bold text-[#ffffff]">Catalog</h2>
+          <p className="text-[#64748b] text-[10px] font-bold uppercase tracking-[0.2em] mt-2">Manage your inventory of treasures</p>
         </div>
         <button 
           onClick={() => setShowAddProduct(true)}
-          className="bg-pink-600 text-white px-4 py-2 rounded-lg hover:bg-pink-700 flex items-center"
+          className="btn-silver px-6 py-3 rounded-2xl flex items-center gap-2 group"
         >
-          <PlusIcon className="h-5 w-5 mr-2" />
-          Add Product
+          <PlusIcon className="h-5 w-5 group-hover:rotate-90 transition-transform" />
+          <span>Add Treasure</span>
         </button>
       </div>
 
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="glass p-6 rounded-[32px] border border-[rgba(226,232,240,0.1)]">
         <div className="relative">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <MagnifyingGlassIcon className="absolute left-5 top-1/2 transform -translate-y-1/2 h-5 w-5 text-[#64748b]" />
           <input
             type="text"
-            placeholder="Search products..."
+            placeholder="Search catalog by name or SKU..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+            className="input-dark pl-14 h-14 rounded-2xl bg-[#020617]"
           />
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="glass rounded-[32px] border border-[rgba(226,232,240,0.1)] overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+          <table className="min-w-full divide-y divide-[rgba(226,232,240,0.08)]">
+            <thead>
+              <tr className="bg-white/[0.02]">
+                <th className="px-8 py-5 text-left text-[10px] font-bold text-[#64748b] uppercase tracking-[0.2em]">Product</th>
+                <th className="px-8 py-5 text-left text-[10px] font-bold text-[#64748b] uppercase tracking-[0.2em]">Provenance</th>
+                <th className="px-8 py-5 text-left text-[10px] font-bold text-[#64748b] uppercase tracking-[0.2em]">Value</th>
+                <th className="px-8 py-5 text-left text-[10px] font-bold text-[#64748b] uppercase tracking-[0.2em]">Inventory</th>
+                <th className="px-8 py-5 text-left text-[10px] font-bold text-[#64748b] uppercase tracking-[0.2em]">Status</th>
+                <th className="px-8 py-5 text-left text-[10px] font-bold text-[#64748b] uppercase tracking-[0.2em]">Actions</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="divide-y divide-[rgba(226,232,240,0.05)]">
               {filteredProducts.map((product) => {
                 const stockStatus = getStockStatus(product.stock);
                 return (
-                  <tr key={product.id}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <img
-                          src={product.image}
-                          alt={product.name}
-                          className="h-10 w-10 rounded-lg object-cover cursor-pointer hover:opacity-80 transition-opacity"
-                          onClick={() => setZoomedImage(product.image)}
-                          title="Click to zoom"
-                        />
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">{product.name}</div>
-                          <div className="text-sm text-gray-500">SKU: {product.sku}</div>
+                  <tr key={product.id} className="group hover:bg-white/[0.02] transition-colors">
+                    <td className="px-8 py-6 whitespace-nowrap">
+                      <div className="flex items-center gap-4">
+                        <div className="relative">
+                           <img
+                             src={product.image}
+                             alt={product.name}
+                             className="h-14 w-14 rounded-2xl object-cover cursor-pointer hover:scale-110 transition-transform border border-white/10"
+                             onClick={() => setZoomedImage(product.image)}
+                             title="Click to zoom"
+                           />
+                           {product.stock <= 5 && (
+                             <div className="absolute -top-1 -right-1 w-3 h-3 bg-amber-500 rounded-full border-2 border-[#020617]" />
+                           )}
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-[#f8fafc]">{product.name}</p>
+                          <p className="text-[10px] text-[#64748b] font-bold uppercase tracking-[0.2em] mt-0.5">#{product.sku}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{product.category}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">₹{product.price}</div>
+                    <td className="px-8 py-6 whitespace-nowrap">
+                       <span className="text-xs font-medium text-[#94a3b8] px-3 py-1 rounded-full bg-white/5 border border-white/5">{product.category}</span>
+                    </td>
+                    <td className="px-8 py-6 whitespace-nowrap">
+                      <div className="text-sm font-bold text-[#f8fafc]">₹{product.price.toLocaleString()}</div>
                       {product.originalPrice > product.price && (
-                        <div className="text-sm text-gray-500 line-through">₹{product.originalPrice}</div>
+                        <div className="text-[10px] text-[#64748b] line-through">₹{product.originalPrice.toLocaleString()}</div>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${stockStatus.color}`}>
-                        {stockStatus.text}
-                      </span>
-                      <div className="text-sm text-gray-500 mt-1">{product.stock} units</div>
+                    <td className="px-8 py-6 whitespace-nowrap">
+                      <div className="space-y-1">
+                         <div className="flex items-center gap-2">
+                            <div className={`w-1.5 h-1.5 rounded-full ${stockStatus.color.includes('green') ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                            <span className="text-sm font-bold text-[#f8fafc]">{product.stock} units</span>
+                         </div>
+                         <p className={`text-[9px] font-bold uppercase tracking-widest ${stockStatus.color.includes('green') ? 'text-emerald-500/60' : 'text-amber-500/60'}`}>{stockStatus.text}</p>
+                      </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(product.status)}`}>
+                    <td className="px-8 py-6 whitespace-nowrap">
+                      <span className={`inline-flex px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full ${
+                        product.status === 'active' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                      }`}>
                         {product.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex space-x-2">
+                    <td className="px-8 py-6 whitespace-nowrap text-sm font-medium">
+                      <div className="flex gap-4">
                         <button 
                           onClick={() => setEditingProduct(product)}
-                          className="text-blue-600 hover:text-blue-900"
+                          className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-[#64748b] hover:text-[#e2e8f0] border border-white/5 hover:border-white/10 transition-all"
                           title="Edit Product"
                         >
                           <PencilIcon className="h-4 w-4" />
                         </button>
                         <button 
                           onClick={() => toggleProductStatus(product.id)}
-                          className={`${product.status === 'active' ? 'text-green-600 hover:text-green-900' : 'text-yellow-600 hover:text-yellow-900'}`}
+                          className={`w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center border border-white/5 hover:border-white/10 transition-all ${product.status === 'active' ? 'text-emerald-400' : 'text-amber-400'}`}
                           title={product.status === 'active' ? 'Deactivate' : 'Activate'}
                         >
                           <EyeIcon className="h-4 w-4" />
                         </button>
                         <button 
                           onClick={() => deleteProduct(product.id)}
-                          className="text-red-600 hover:text-red-900"
+                          className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-[#64748b] hover:text-red-400 border border-white/5 hover:border-red-400/20 transition-all"
                           title="Delete Product"
                         >
                           <TrashIcon className="h-4 w-4" />
@@ -476,43 +494,52 @@ const Admin = () => {
   );
 
   const renderOrders = () => (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900">Orders</h2>
-        <p className="text-gray-600">Manage customer orders and track fulfillment</p>
+    <div className="space-y-8 animate-fade-in">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-3xl font-display font-bold text-[#ffffff]">Order Management</h2>
+          <p className="text-[#64748b] text-[10px] font-bold uppercase tracking-[0.2em] mt-2">Oversee client acquisitions and logistics</p>
+        </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="glass rounded-[32px] border border-[rgba(226,232,240,0.1)] overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+          <table className="min-w-full divide-y divide-[rgba(226,232,240,0.08)]">
+            <thead>
+              <tr className="bg-white/[0.02]">
+                <th className="px-8 py-5 text-left text-[10px] font-bold text-[#64748b] uppercase tracking-[0.2em]">Order ID</th>
+                <th className="px-8 py-5 text-left text-[10px] font-bold text-[#64748b] uppercase tracking-[0.2em]">Customer</th>
+                <th className="px-8 py-5 text-left text-[10px] font-bold text-[#64748b] uppercase tracking-[0.2em]">Total Value</th>
+                <th className="px-8 py-5 text-left text-[10px] font-bold text-[#64748b] uppercase tracking-[0.2em]">Status</th>
+                <th className="px-8 py-5 text-left text-[10px] font-bold text-[#64748b] uppercase tracking-[0.2em]">Acquisition Date</th>
+                <th className="px-8 py-5 text-left text-[10px] font-bold text-[#64748b] uppercase tracking-[0.2em]">Actions</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="divide-y divide-[rgba(226,232,240,0.05)]">
               {orders.map((order) => (
-                <tr key={order.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{order.id}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{order.customer}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">₹{order.total.toLocaleString()}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(order.status)}`}>
+                <tr key={order.id} className="group hover:bg-white/[0.02] transition-colors">
+                  <td className="px-8 py-6 whitespace-nowrap text-sm font-bold text-[#e2e8f0]">#{order.order_number?.slice(-8)}</td>
+                  <td className="px-8 py-6 whitespace-nowrap">
+                     <p className="text-sm font-semibold text-[#f8fafc]">{order.customer}</p>
+                  </td>
+                  <td className="px-8 py-6 whitespace-nowrap text-sm font-bold text-[#f8fafc]">₹{order.total.toLocaleString()}</td>
+                  <td className="px-8 py-6 whitespace-nowrap">
+                    <span className={`inline-flex px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full ${
+                      order.status === 'Delivered' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                      order.status === 'Shipped' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
+                      'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                    }`}>
                       {order.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.date}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                  <td className="px-8 py-6 whitespace-nowrap text-xs text-[#64748b] font-medium tracking-wide">{order.date}</td>
+                  <td className="px-8 py-6 whitespace-nowrap text-sm font-medium">
                     <button 
                       onClick={() => setShowOrderDetails(order)}
-                      className="text-blue-600 hover:text-blue-900"
+                      className="text-xs font-bold uppercase tracking-widest text-[#e2e8f0] hover:text-white flex items-center gap-2 group/btn"
                     >
                       View Details
+                      <ArrowRightIcon className="h-3 w-3 group-hover/btn:translate-x-1 transition-transform" />
                     </button>
                   </td>
                 </tr>
@@ -525,37 +552,50 @@ const Admin = () => {
   );
 
   const renderCustomers = () => (
-    <div className="space-y-6">
+    <div className="space-y-8 animate-fade-in">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">Customers</h2>
-        <p className="text-gray-600">Manage customer information and track engagement</p>
+        <h2 className="text-3xl font-display font-bold text-[#ffffff]">Clientele</h2>
+        <p className="text-[#64748b] text-[10px] font-bold uppercase tracking-[0.2em] mt-2">Manage customer relationships and insights</p>
       </div>
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="glass rounded-[32px] border border-[rgba(226,232,240,0.1)] overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Orders</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Spent</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+          <table className="min-w-full divide-y divide-[rgba(226,232,240,0.08)]">
+            <thead>
+              <tr className="bg-white/[0.02]">
+                <th className="px-8 py-5 text-left text-[10px] font-bold text-[#64748b] uppercase tracking-[0.2em]">Client</th>
+                <th className="px-8 py-5 text-left text-[10px] font-bold text-[#64748b] uppercase tracking-[0.2em]">Contact Protocol</th>
+                <th className="px-8 py-5 text-left text-[10px] font-bold text-[#64748b] uppercase tracking-[0.2em]">Acquisitions</th>
+                <th className="px-8 py-5 text-left text-[10px] font-bold text-[#64748b] uppercase tracking-[0.2em]">Lifetime Value</th>
+                <th className="px-8 py-5 text-left text-[10px] font-bold text-[#64748b] uppercase tracking-[0.2em]">Actions</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="divide-y divide-[rgba(226,232,240,0.05)]">
               {customers.map((customer) => (
-                <tr key={customer.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{customer.name}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{customer.email}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{customer.orders}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">₹{customer.totalSpent.toLocaleString()}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                <tr key={customer.id} className="group hover:bg-white/[0.02] transition-colors">
+                  <td className="px-8 py-6 whitespace-nowrap">
+                    <div className="flex items-center gap-4">
+                       <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#e2e8f0] to-[#94a3b8] flex items-center justify-center text-[#020617] text-xs font-bold">
+                          {customer.name.charAt(0)}
+                       </div>
+                       <div>
+                          <p className="text-sm font-semibold text-[#f8fafc]">{customer.name}</p>
+                          <p className="text-[10px] text-[#64748b] font-bold uppercase tracking-widest mt-0.5">Joined {customer.joined}</p>
+                       </div>
+                    </div>
+                  </td>
+                  <td className="px-8 py-6 whitespace-nowrap">
+                     <p className="text-sm text-[#e2e8f0]">{customer.email}</p>
+                     <p className="text-[10px] text-[#64748b] font-medium tracking-wide mt-0.5">{customer.phone}</p>
+                  </td>
+                  <td className="px-8 py-6 whitespace-nowrap text-sm font-bold text-[#f8fafc]">{customer.orders}</td>
+                  <td className="px-8 py-6 whitespace-nowrap text-sm font-bold text-silver-gradient">₹{customer.totalSpent.toLocaleString()}</td>
+                  <td className="px-8 py-6 whitespace-nowrap text-sm font-medium">
                     <button 
                       onClick={() => setShowCustomerProfile(customer)}
-                      className="text-blue-600 hover:text-blue-900"
+                      className="px-6 py-2 rounded-xl bg-white/5 border border-white/5 text-xs font-bold uppercase tracking-widest text-[#e2e8f0] hover:bg-white/10 transition-all"
                     >
-                      View Profile
+                      Profile
                     </button>
                   </td>
                 </tr>
@@ -1132,55 +1172,121 @@ const Admin = () => {
     if (!showOrderDetails) return null;
     
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold">Order Details - {showOrderDetails.id}</h2>
+      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+        <div className="glass rounded-[40px] border border-[rgba(226,232,240,0.15)] shadow-[0_40px_80px_rgba(0,0,0,0.8)] w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col animate-fade-in-up">
+          <div className="p-8 border-b border-[rgba(226,232,240,0.1)] flex justify-between items-center">
+            <div>
+              <h2 className="text-2xl font-display font-bold text-[#f8fafc]">Acquisition Details</h2>
+              <p className="text-[10px] font-bold text-[#64748b] tracking-[0.2em] uppercase mt-1">Order Ref: #{showOrderDetails.order_number?.slice(-12)}</p>
+            </div>
             <button
               onClick={() => setShowOrderDetails(null)}
-              className="text-gray-500 hover:text-gray-700"
+              className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-[#64748b] hover:text-[#e2e8f0] transition-colors"
             >
-              ✕
+              <XMarkIcon className="h-5 w-5" />
             </button>
           </div>
           
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Customer</label>
-                <p className="text-sm text-gray-900">{showOrderDetails.customer}</p>
+          <div className="flex-1 overflow-y-auto p-8 space-y-10">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+              {/* Client Info */}
+              <div className="space-y-6">
+                 <div>
+                    <h3 className="text-xs font-bold text-[#e2e8f0] uppercase tracking-widest mb-4 opacity-50">Client Information</h3>
+                    <div className="space-y-3">
+                       <div className="flex justify-between">
+                          <span className="text-xs text-[#64748b]">Name</span>
+                          <span className="text-sm font-semibold text-[#f8fafc]">{showOrderDetails.customer}</span>
+                       </div>
+                       <div className="flex justify-between">
+                          <span className="text-xs text-[#64748b]">Acquisition Date</span>
+                          <span className="text-sm font-semibold text-[#f8fafc]">{showOrderDetails.date}</span>
+                       </div>
+                       <div className="flex justify-between">
+                          <span className="text-xs text-[#64748b]">Financial Value</span>
+                          <span className="text-sm font-bold text-silver-gradient text-lg">₹{showOrderDetails.total.toLocaleString()}</span>
+                       </div>
+                    </div>
+                 </div>
+
+                 <div>
+                    <h3 className="text-xs font-bold text-[#e2e8f0] uppercase tracking-widest mb-4 opacity-50">Logistics Status</h3>
+                    <select
+                      value={showOrderDetails.status}
+                      onChange={(e) => updateOrderStatus(showOrderDetails.id, e.target.value)}
+                      className="input-dark bg-[#020617] border-[rgba(226,232,240,0.1)] rounded-2xl"
+                    >
+                      <option value="Pending">Pending Validation</option>
+                      <option value="Processing">Processing Order</option>
+                      <option value="Shipped">Dispatched</option>
+                      <option value="In Transit">In Transit</option>
+                      <option value="Delivered">Exquisitely Delivered</option>
+                      <option value="Cancelled">Voided</option>
+                    </select>
+                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Total</label>
-                <p className="text-sm text-gray-900">₹{showOrderDetails.total.toLocaleString()}</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Date</label>
-                <p className="text-sm text-gray-900">{showOrderDetails.date}</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Status</label>
-                <select
-                  value={showOrderDetails.status}
-                  onChange={(e) => updateOrderStatus(showOrderDetails.id, e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500"
-                >
-                  <option value="Pending">Pending</option>
-                  <option value="Processing">Processing</option>
-                  <option value="Shipped">Shipped</option>
-                  <option value="In Transit">In Transit</option>
-                  <option value="Delivered">Delivered</option>
-                  <option value="Cancelled">Cancelled</option>
-                </select>
+
+              {/* Shipping Address */}
+              <div className="space-y-6">
+                 <h3 className="text-xs font-bold text-[#e2e8f0] uppercase tracking-widest mb-4 opacity-50">Delivery Sanctuary</h3>
+                 {showOrderDetails.address ? (
+                   <div className="glass p-6 rounded-[24px] border border-[rgba(226,232,240,0.1)] space-y-2">
+                      <p className="text-sm font-bold text-[#f8fafc] mb-3">{showOrderDetails.address.name}</p>
+                      <p className="text-xs text-[#94a3b8] leading-relaxed">{showOrderDetails.address.address}</p>
+                      <p className="text-xs text-[#94a3b8] leading-relaxed">{showOrderDetails.address.city}, {showOrderDetails.address.state} - {showOrderDetails.address.zip}</p>
+                      <div className="pt-3 border-t border-white/5 mt-3">
+                         <p className="text-[10px] font-bold text-[#64748b] uppercase tracking-wider">Contact Protocol</p>
+                         <p className="text-xs text-[#e2e8f0] mt-1">{showOrderDetails.address.phone}</p>
+                      </div>
+                   </div>
+                 ) : (
+                   <div className="p-6 rounded-[24px] border border-dashed border-[rgba(226,232,240,0.2)] text-center">
+                      <p className="text-xs text-[#64748b]">No address intelligence provided</p>
+                   </div>
+                 )}
               </div>
             </div>
             
-            <div className="border-t pt-4">
-              <h3 className="font-medium text-gray-900 mb-2">Order Items</h3>
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <p className="text-sm text-gray-600">Order items would be displayed here</p>
+            {/* Order Items */}
+            <div className="pt-10 border-t border-[rgba(226,232,240,0.1)]">
+              <h3 className="text-xs font-bold text-[#e2e8f0] uppercase tracking-widest mb-6 opacity-50">Treasures In Package</h3>
+              <div className="space-y-4">
+                {showOrderDetails.items && showOrderDetails.items.length > 0 ? (
+                  showOrderDetails.items.map((item, idx) => (
+                    <div key={idx} className="flex items-center gap-6 p-4 rounded-2xl bg-white/5 border border-white/5">
+                      <div className="w-16 h-16 rounded-xl overflow-hidden bg-[#020617] flex-shrink-0 border border-white/10">
+                        <img src={item.product?.images?.[0] || 'https://via.placeholder.com/150'} alt="" className="w-full h-full object-cover" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-bold text-[#f8fafc]">{item.product?.name || 'Unnamed Treasure'}</p>
+                        <p className="text-[10px] text-[#64748b] font-bold uppercase tracking-widest mt-0.5">Quantity: {item.quantity}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-bold text-[#e2e8f0]">₹{(item.price * item.quantity).toLocaleString()}</p>
+                        <p className="text-[10px] text-[#64748b] font-medium mt-0.5">₹{item.price} ea.</p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-6 text-sm text-[#64748b]">No itemized details available</div>
+                )}
               </div>
             </div>
+          </div>
+
+          <div className="p-8 border-t border-[rgba(226,232,240,0.1)] bg-white/[0.02] flex justify-end gap-4">
+             <button
+               onClick={() => setShowOrderDetails(null)}
+               className="px-8 py-3 rounded-xl border border-[rgba(226,232,240,0.2)] text-xs font-bold text-[#94a3b8] uppercase tracking-widest hover:text-[#f8fafc] hover:bg-white/5 transition-all"
+             >
+               Close
+             </button>
+             <button
+               onClick={() => window.print()}
+               className="btn-silver px-8 py-3 rounded-xl text-xs font-bold"
+             >
+               Invoice
+             </button>
           </div>
         </div>
       </div>
@@ -1417,49 +1523,67 @@ const Admin = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="flex flex-col lg:flex-row">
+    <div className="min-h-screen bg-[#020617]">
+      <div className="flex flex-col lg:flex-row min-h-screen">
         {/* Sidebar */}
-        <div className="w-full lg:w-64 bg-white shadow-lg min-h-screen">
-          <div className="p-6 border-b border-gray-200">
-            <h1 className="text-xl font-bold text-gray-900">Admin Dashboard</h1>
-            <p className="text-sm text-gray-600">Welcome back, Suryansh</p>
-            <p className="text-xs text-gray-500 mt-1">Role: Admin</p>
-            <p className="text-xs text-gray-500">{user?.email}</p>
+        <div className="w-full lg:w-72 bg-[#0f172a] border-r border-[rgba(226,232,240,0.1)] flex flex-col">
+          <div className="p-8 border-b border-[rgba(226,232,240,0.08)]">
+            <div className="flex items-center gap-3 mb-6">
+               <div className="w-10 h-10 rounded-full border border-[#e2e8f0]/40 flex items-center justify-center text-[#e2e8f0]">
+                  <CogIcon className="h-5 w-5" />
+               </div>
+               <div>
+                  <h1 className="font-display font-bold text-xl text-[#ffffff] tracking-wider">ADMIN</h1>
+                  <p className="text-[10px] font-bold text-[#64748b] tracking-[0.2em] uppercase">Control Panel</p>
+               </div>
+            </div>
+            
+            <div className="glass p-4 rounded-2xl border border-[rgba(226,232,240,0.1)]">
+               <p className="text-xs font-semibold text-[#f8fafc] mb-1 truncate">{user?.firstName || 'Suryansh'}</p>
+               <p className="text-[10px] text-[#64748b] font-medium uppercase tracking-widest">{user?.email}</p>
+            </div>
           </div>
           
-          <nav className="p-4">
-            <div className="grid grid-cols-2 lg:grid-cols-1 gap-2 lg:space-y-2">
-              {tabs.map((tab) => {
-                const Icon = tab.icon;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center px-3 lg:px-4 py-2 lg:py-3 text-xs lg:text-sm font-medium rounded-lg transition-colors ${
-                      activeTab === tab.id
-                        ? 'bg-green-50 text-green-900 border border-green-200'
-                        : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-                    }`}
-                  >
-                    <Icon className="h-4 w-4 lg:h-5 lg:w-5 mr-2 lg:mr-3" />
-                    <span className="hidden lg:inline">{tab.name}</span>
-                    <span className="lg:hidden">{tab.name}</span>
-                  </button>
-                );
-              })}
-            </div>
+          <nav className="flex-1 p-6 space-y-2">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`w-full flex items-center px-5 py-4 text-sm font-medium rounded-2xl transition-all duration-300 ${
+                    activeTab === tab.id
+                      ? 'bg-[#e2e8f0] text-[#020617] shadow-[0_8px_20px_rgba(226,232,240,0.2)]'
+                      : 'text-[#94a3b8] hover:text-[#f8fafc] hover:bg-white/5'
+                  }`}
+                >
+                  <Icon className="h-5 w-5 mr-4" />
+                  <span className="tracking-wide">{tab.name}</span>
+                  {activeTab === tab.id && (
+                    <div className="ml-auto w-1.5 h-1.5 rounded-full bg-[#020617]" />
+                  )}
+                </button>
+              );
+            })}
           </nav>
+          
+          <div className="p-6 border-t border-[rgba(226,232,240,0.08)]">
+             <button className="w-full flex items-center gap-3 px-5 py-3 text-xs font-bold uppercase tracking-[0.2em] text-[#64748b] hover:text-red-400 transition-colors">
+                Logout
+             </button>
+          </div>
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 p-4 md:p-8">
-          {activeTab === 'dashboard' && renderDashboard()}
-          {activeTab === 'products' && renderProducts()}
-          {activeTab === 'orders' && renderOrders()}
-          {activeTab === 'customers' && renderCustomers()}
-          {activeTab === 'inventory' && renderInventory()}
-          {activeTab === 'settings' && renderSettings()}
+        <div className="flex-1 p-6 lg:p-12 overflow-x-hidden">
+          <div className="max-w-7xl mx-auto">
+            {activeTab === 'dashboard' && renderDashboard()}
+            {activeTab === 'products' && renderProducts()}
+            {activeTab === 'orders' && renderOrders()}
+            {activeTab === 'customers' && renderCustomers()}
+            {activeTab === 'inventory' && renderInventory()}
+            {activeTab === 'settings' && renderSettings()}
+          </div>
         </div>
       </div>
 

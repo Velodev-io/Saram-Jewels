@@ -18,76 +18,152 @@ exports.createOrder = async (req, res) => {
   const transaction = await sequelize.transaction();
   
   try {
-    const { user_id, shipping_address, payment_method = 'razorpay' } = req.body;
+    const { user_id, shipping_address, payment_method = 'razorpay', items, amount, user_email, first_name, last_name } = req.body;
     
-    // Get user's cart items
-    const cartItems = await Cart.findAll({
-      where: { user_id },
-      include: [{ model: Product, as: 'product' }],
-      transaction
-    });
-    
-    if (cartItems.length === 0) {
-      await transaction.rollback();
-      return res.status(400).json({ message: 'Cart is empty' });
+    let processedItems = [];
+    let total_amount = amount || 0;
+    let internal_user_id = null;
+
+    // Handle Clerk user_id (string) vs internal UUID
+    if (user_id && user_id !== 'guest') {
+      let user = await User.findOne({ 
+        where: { clerk_user_id: user_id },
+        transaction
+      });
+      
+      if (!user && user_id.startsWith('user_') && user_email) {
+        // Create user if missing but Clerk ID and Email are provided
+        user = await User.create({
+          clerk_user_id: user_id,
+          email: user_email,
+          first_name: first_name,
+          last_name: last_name
+        }, { transaction });
+        console.log(`Created new user record for Clerk ID ${user_id}`);
+      }
+
+      if (user) {
+        internal_user_id = user.id;
+      } else {
+        // Fallback for guest or direct UUID
+        if (!user_id.startsWith('user_')) {
+          internal_user_id = user_id;
+        } else {
+          console.warn(`User with Clerk ID ${user_id} not found and no email provided for auto-creation.`);
+          internal_user_id = null; // Forces guest order or null user_id
+        }
+      }
     }
-    
-    // Calculate total amount
-    let total_amount = 0;
-    cartItems.forEach(item => {
-      total_amount += parseFloat(item.product.price) * item.quantity;
-    });
+
+    if (items && items.length > 0) {
+      // Use items from request body
+      processedItems = items;
+      if (!amount) {
+        items.forEach(item => {
+          total_amount += parseFloat(item.price) * item.quantity;
+        });
+        // Add default tax (3%) if not provided
+        total_amount = total_amount * 1.03;
+      }
+    } else {
+      if (!internal_user_id) {
+         await transaction.rollback();
+         return res.status(400).json({ message: 'Cart items are required for guest checkout' });
+      }
+
+      // Get user's cart items from DB (fallback)
+      const cartItems = await Cart.findAll({
+        where: { user_id: internal_user_id },
+        include: [{ model: Product, as: 'product' }],
+        transaction
+      });
+      
+      if (cartItems.length === 0) {
+        await transaction.rollback();
+        return res.status(400).json({ message: 'Cart is empty' });
+      }
+      
+      processedItems = cartItems.map(item => ({
+        product_id: item.product_id,
+        quantity: item.quantity,
+        price: item.product.price
+      }));
+      
+      if (!amount) {
+        cartItems.forEach(item => {
+          total_amount += parseFloat(item.product.price) * item.quantity;
+        });
+        // Add default tax (3%)
+        total_amount = total_amount * 1.03;
+      }
+    }
     
     let razorpayOrder = null;
     
     // Create Razorpay order only if using Razorpay and Razorpay is configured
     if (payment_method === 'razorpay' && razorpay) {
-      razorpayOrder = await razorpay.orders.create({
-        amount: Math.round(total_amount * 100), // Convert to paisa
-        currency: 'INR',
-        receipt: `order_${Date.now()}`
-      });
+      try {
+        razorpayOrder = await razorpay.orders.create({
+          amount: Math.round(total_amount * 100), // Convert to paisa
+          currency: 'INR',
+          receipt: `order_${Date.now()}`
+        });
+      } catch (rzpErr) {
+        console.error('Razorpay order creation failed:', rzpErr);
+        // Continue without RZP order if in dev, or might fail
+      }
     } else if (payment_method === 'razorpay' && !razorpay) {
-      throw new Error('Razorpay is not configured. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables.');
+      // Razorpay not configured — proceed with dummy/simulated payment
+      console.log('⚠️ Razorpay not configured. Proceeding with simulated payment for order.');
     }
     
     // Create order in database
-    const order = await Order.create({
-      user_id,
+    const orderData = {
+      user_id: internal_user_id,
       total_amount,
       status: 'pending',
       razorpay_order_id: razorpayOrder?.id || null,
       payment_method: payment_method,
-      shipping_address
-    }, { transaction });
+      shipping_address: shipping_address // Sequelize DataTypes.JSON handles objects
+    };
+
+    const order = await Order.create(orderData, { transaction });
     
     // Create order items
-    const orderItems = await Promise.all(cartItems.map(async (item) => {
+    const orderItems = await Promise.all(processedItems.map(async (item) => {
       return OrderItem.create({
         order_id: order.id,
         product_id: item.product_id,
         quantity: item.quantity,
-        price: item.product.price
+        price: item.price
       }, { transaction });
     }));
     
-    // Clear user's cart
-    await Cart.destroy({
-      where: { user_id },
-      transaction
-    });
+    // Clear user's cart in DB if user is logged in
+    if (internal_user_id) {
+      await Cart.destroy({
+        where: { user_id: internal_user_id },
+        transaction
+      });
+    }
     
     await transaction.commit();
     
     res.status(201).json({
+      success: true,
       order,
+      order_number: order.order_number || order.id,
       orderItems,
       razorpayOrder
     });
   } catch (error) {
-    await transaction.rollback();
+    if (transaction) await transaction.rollback();
     console.error('Error creating order:', error);
-    res.status(500).json({ message: 'Error creating order', error: error.message });
+    res.status(500).json({ 
+      success: false,
+      message: 'Error creating order', 
+      error: error.message 
+    });
   }
 };
 
@@ -168,6 +244,28 @@ exports.processPayment = async (req, res) => {
     res.status(500).json({ message: 'Error processing payment', error: error.message });
   }
 };
+// Get all orders (admin)
+exports.getAllOrders = async (req, res) => {
+  try {
+    const orders = await Order.findAll({
+      include: [
+        {
+          model: OrderItem,
+          as: 'items',
+          include: [{ model: Product, as: 'product' }]
+        },
+        { model: User, as: 'user' }
+      ],
+      order: [['created_at', 'DESC']]
+    });
+    
+    res.json(orders);
+  } catch (error) {
+    console.error('Error fetching all orders:', error);
+    res.status(500).json({ message: 'Error fetching orders', error: error.message });
+  }
+};
+
 
 // Get user's orders
 exports.getUserOrders = async (req, res) => {

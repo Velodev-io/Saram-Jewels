@@ -13,7 +13,6 @@ import {
 } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartSolid } from '@heroicons/react/24/solid';
 import { useCart } from '../context/CartContext';
-import ImageZoom from '../components/ui/ImageZoom';
 import apiService from '../services/api';
 
 /* ── Sparkle Component ── */
@@ -221,7 +220,7 @@ const ProductList = () => {
 
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([{ id: 'all', name: 'All' }]);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -247,7 +246,8 @@ const ProductList = () => {
           rating: parseFloat(p.rating) || 4.5,
           reviews: parseInt(p.reviews) || 20,
           isFeatured: p.is_featured || false,
-          stock: parseInt(p.stock) || 0
+          stock: parseInt(p.stock) || 0,
+          status: p.status || 'active'
         }));
         
         const formattedCategories = [
@@ -283,13 +283,14 @@ const ProductList = () => {
       (p.name && p.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (p.description && p.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (p.category && p.category.toLowerCase().includes(searchQuery.toLowerCase()));
-    const matchesCat = selectedCategory === 'all' || p.categoryId === selectedCategory;
+    const matchesCat = selectedCategory === 'all' || String(p.categoryId) === String(selectedCategory);
     let matchesPrice = true;
     if (priceRange !== 'all') {
       const [min, max] = priceRange.split('-').map(Number);
       matchesPrice = max ? p.price >= min && p.price <= max : p.price >= min;
     }
-    return matchesSearch && matchesCat && matchesPrice;
+    const isActive = p.status === 'active';
+    return matchesSearch && matchesCat && matchesPrice && isActive;
   });
 
   const sorted = [...filtered].sort((a, b) => {
@@ -416,7 +417,7 @@ const ProductList = () => {
                   placeholder="Search jewelry..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="input-dark !pl-10 !h-10 text-sm"
+                  className="input-dark !pl-11 !h-11 text-sm bg-[#020617]"
                 />
                 {searchQuery && (
                   <button

@@ -10,10 +10,15 @@ import {
   PencilIcon,
   TrashIcon,
   EyeIcon,
+  EyeSlashIcon,
   ArchiveBoxIcon,
   ExclamationTriangleIcon,
-  MagnifyingGlassIcon
+  MagnifyingGlassIcon,
+  ChatBubbleBottomCenterTextIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon
 } from '@heroicons/react/24/outline';
+import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import { SignIn } from '@clerk/clerk-react';
 import { useAuth } from './context/AuthContext';
 import { useSiteSettings } from './context/SiteSettingsContext';
@@ -46,31 +51,35 @@ const Admin = () => {
     lowStock: true,
     newOrders: true
   });
+  const [reviews, setReviews] = useState([]);
 
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [productsData, ordersData, customersData, categoriesData] = await Promise.all([
+        const results = await Promise.allSettled([
           apiService.getProducts(),
           apiService.getOrders(),
           apiService.getCustomers(),
-          apiService.getCategories()
+          apiService.getCategories(),
+          apiService.getReviews()
         ]);
         
+        const [productsRes, ordersRes, customersRes, categoriesRes, reviewsRes] = results;
+
         // Map products
-        if (productsData && productsData.products) {
-          setProducts(productsData.products.map(p => ({
+        if (productsRes.status === 'fulfilled' && productsRes.value?.products) {
+          setProducts(productsRes.value.products.map(p => ({
             ...p,
             category: p.category?.name || 'Uncategorized',
-            status: p.stock > 0 ? 'active' : 'inactive',
+            status: p.status || (p.stock > 0 ? 'active' : 'inactive'),
             image: p.images?.[0] || 'https://via.placeholder.com/300'
           })));
         }
         
         // Map orders
-        if (ordersData) {
-          setOrders(ordersData.map(o => ({
+        if (ordersRes.status === 'fulfilled') {
+          setOrders(ordersRes.value.map(o => ({
             id: o.order_number || o.id,
             customer: o.user ? (o.user.first_name + ' ' + o.user.last_name).trim() || o.user.email : 'Guest',
             total: parseFloat(o.total_amount) || 0,
@@ -80,8 +89,8 @@ const Admin = () => {
         }
         
         // Map customers
-        if (customersData) {
-           setCustomers(customersData.map(c => ({
+        if (customersRes.status === 'fulfilled') {
+           setCustomers(customersRes.value.map(c => ({
              id: c.id,
              name: (c.first_name + ' ' + c.last_name).trim() || 'Unknown',
              email: c.email,
@@ -91,8 +100,13 @@ const Admin = () => {
         }
 
         // Set Categories
-        if (categoriesData) {
-          setCategories(categoriesData);
+        if (categoriesRes.status === 'fulfilled') {
+          setCategories(categoriesRes.value);
+        }
+
+        // Set Reviews
+        if (reviewsRes.status === 'fulfilled') {
+          setReviews(reviewsRes.value);
         }
       } catch (e) {
         console.error('Failed to load admin data:', e);
@@ -102,7 +116,32 @@ const Admin = () => {
     };
     
     loadData();
+    // Keep it sync with a 30s poll
+    const interval = setInterval(loadData, 30000);
+    return () => clearInterval(interval);
   }, []);
+
+  // Effect to populate images when editing a product
+  useEffect(() => {
+    if (editingProduct) {
+      if (Array.isArray(editingProduct.images)) {
+        setProductImages(editingProduct.images.map((url, idx) => ({
+          id: `existing-${idx}-${Date.now()}`,
+          url,
+          name: `Existing Image ${idx + 1}`
+        })));
+      } else if (editingProduct.image) {
+        setProductImages([{
+          id: `existing-main-${Date.now()}`,
+          url: editingProduct.image,
+          name: 'Main Image'
+        }]);
+      }
+    } else {
+      setProductImages([]);
+      setSelectedImages([]);
+    }
+  }, [editingProduct]);
 
   // Check if user is admin - for now, allow any signed-in user
   // TODO: Add proper admin role checking later
@@ -110,29 +149,29 @@ const Admin = () => {
   
   if (!isAdmin) {
     return (
-      <div className="min-h-screen bg-[#052e16] flex flex-col items-center justify-center relative overflow-hidden px-4">
+      <div className="min-h-screen bg-[#020617] flex flex-col items-center justify-center relative overflow-hidden px-4">
         {/* Background Decorative Elements */}
-        <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-amber-500/5 rounded-full blur-[120px]" />
-        <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-500/5 rounded-full blur-[120px]" />
+        <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-500/5 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-sky-500/5 rounded-full blur-[120px]" />
         
         <div className="text-center mb-12 animate-premium-in relative z-10">
-          <div className="w-20 h-20 bg-gradient-to-tr from-amber-200 to-amber-500 rounded-3xl flex items-center justify-center font-black text-green-950 shadow-2xl shadow-amber-500/20 mx-auto mb-6 rotate-3">
+          <div className="w-20 h-20 bg-gradient-to-tr from-slate-200 to-slate-400 rounded-3xl flex items-center justify-center font-black text-slate-950 shadow-2xl shadow-white/10 mx-auto mb-6 rotate-3">
             S
           </div>
-          <h1 className="text-5xl font-black text-gradient-gold tracking-tighter mb-3">Saram Jewels</h1>
+          <h1 className="text-5xl font-black text-gradient-silver tracking-tighter mb-3">Saram Jewels</h1>
           <div className="flex items-center justify-center gap-3">
-            <div className="h-[1px] w-8 bg-amber-500/20" />
-            <p className="text-xs font-black text-amber-400 uppercase tracking-[0.3em]">Imperial Admin Registry</p>
-            <div className="h-[1px] w-8 bg-amber-500/20" />
+            <div className="h-[1px] w-8 bg-slate-500/20" />
+            <p className="text-xs font-black text-slate-400 uppercase tracking-[0.3em]">Elite Admin Vault</p>
+            <div className="h-[1px] w-8 bg-slate-500/20" />
           </div>
         </div>
         
-        <div className="glass-card p-2 rounded-[2rem] animate-premium-in shadow-amber-500/5 relative z-10">
+        <div className="glass-card p-2 rounded-[2rem] animate-premium-in shadow-white/5 relative z-10">
           <SignIn />
         </div>
 
-        <p className="mt-12 text-[10px] font-bold text-amber-200/20 uppercase tracking-widest animate-premium-in delay-300">
-          Protected by Saram Security Infrastructure
+        <p className="mt-12 text-[10px] font-bold text-slate-500/40 uppercase tracking-widest animate-premium-in delay-300">
+          SECURED BY SARAM CRYPTO-ARCHITECTURE
         </p>
       </div>
     );
@@ -145,22 +184,24 @@ const Admin = () => {
     { id: 'orders', name: 'Orders', icon: ShoppingBagIcon },
     { id: 'customers', name: 'Customers', icon: UsersIcon },
     { id: 'inventory', name: 'Inventory', icon: ArchiveBoxIcon },
+    { id: 'reviews', name: 'Client Reviews', icon: ChatBubbleBottomCenterTextIcon },
     { id: 'settings', name: 'Settings', icon: CogIcon }
   ];
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'active': return 'text-emerald-400 bg-emerald-500/20';
-      case 'Delivered': return 'text-emerald-400 bg-emerald-500/20';
-      case 'In Transit': return 'text-amber-300 bg-amber-500/20';
-      default: return 'text-amber-200/70 bg-green-800/50';
+      case 'active': return 'text-sky-400 bg-sky-500/20 border border-sky-500/30 shadow-[0_0_12px_rgba(56,189,248,0.2)]';
+      case 'Delivered': return 'text-emerald-400 bg-emerald-500/20 border border-emerald-500/30';
+      case 'In Transit': return 'text-indigo-400 bg-indigo-500/20 border border-indigo-500/30';
+      case 'inactive': return 'text-slate-400 bg-slate-800/60 border border-slate-700/50 grayscale opacity-60';
+      default: return 'text-slate-400 bg-slate-800/40 border border-slate-700/30';
     }
   };
 
   const getStockStatus = (stock) => {
-    if (stock === 0) return { color: 'text-red-400 bg-red-500/20', text: 'Out of Stock' };
-    if (stock <= 5) return { color: 'text-amber-300 bg-amber-400/20', text: 'Low Stock' };
-    return { color: 'text-emerald-400 bg-emerald-500/20', text: 'In Stock' };
+    if (stock === 0) return { color: 'text-rose-400 bg-rose-500/20', text: 'Out of Stock' };
+    if (stock <= 5) return { color: 'text-amber-400 bg-amber-400/20', text: 'Low Stock' };
+    return { color: 'text-sky-400 bg-sky-500/20', text: 'In Stock' };
   };
 
   const filteredProducts = products.filter(product => 
@@ -241,12 +282,30 @@ const Admin = () => {
     }
   };
 
-  const toggleProductStatus = (productId) => {
-    setProducts(products.map(product => 
-      product.id === productId 
-        ? { ...product, status: product.status === 'active' ? 'inactive' : 'active' }
-        : product
-    ));
+  const toggleProductStatus = async (productId) => {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+
+    const newStatus = product.status === 'active' ? 'inactive' : 'active';
+    
+    try {
+      // Optimitic update
+      setProducts(products.map(p => 
+        p.id === productId ? { ...p, status: newStatus } : p
+      ));
+      
+      // Persist to backend
+      // We'll update the 'stock' as well if it's currently 0 but being activated? 
+      // Or just let status be independent.
+      await apiService.updateProduct(productId, { status: newStatus });
+    } catch(e) {
+      console.error(e);
+      // Revert on error
+      setProducts(products.map(p => 
+        p.id === productId ? { ...p, status: product.status } : p
+      ));
+      alert('Failed to sync status change with vault.');
+    }
   };
 
   // Order Management Functions
@@ -365,13 +424,21 @@ const Admin = () => {
     }
   };
 
-  const reorderImages = (fromIndex, toIndex) => {
-    setProductImages(prev => {
-      const newImages = [...prev];
-      const [movedImage] = newImages.splice(fromIndex, 1);
-      newImages.splice(toIndex, 0, movedImage);
-      return newImages;
-    });
+  const reorderImages = (index, direction) => {
+    const images = [...productImages];
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    if (newIndex >= 0 && newIndex < images.length) {
+      const temp = images[index];
+      images[index] = images[newIndex];
+      images[newIndex] = temp;
+      setProductImages(images);
+    }
+  };
+
+  const setMainImage = (index) => {
+    const images = [...productImages];
+    const [main] = images.splice(index, 1);
+    setProductImages([main, ...images]);
   };
 
   // Notification Functions
@@ -389,12 +456,12 @@ const Admin = () => {
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-extrabold text-gradient-gold">Dashboard Overview</h2>
-          <p className="text-amber-200/60 mt-1">Welcome back! Here's what's happening today.</p>
+          <h2 className="text-3xl font-extrabold text-gradient-silver">Dashboard Overview</h2>
+          <p className="text-slate-400 mt-1">Welcome back! Accessing vault analytics.</p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="px-4 py-2 bg-green-900/40 backdrop-blur-md border border-amber-500/20 rounded-xl text-amber-200/80 text-sm font-medium">
-            Today: {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+          <div className="px-4 py-2 bg-slate-900/40 backdrop-blur-md border border-slate-500/20 rounded-xl text-slate-300 text-sm font-medium">
+            Timestamp: {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
           </div>
         </div>
       </div>
@@ -404,24 +471,24 @@ const Admin = () => {
         <div className="glass-card p-6 group hover:translate-y-[-4px] transition-all duration-300">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-amber-200/60 uppercase tracking-wider">Total Products</p>
-              <h3 className="text-3xl font-bold text-amber-50 mt-1">{products.length}</h3>
+              <p className="text-sm font-medium text-slate-400 uppercase tracking-wider">The Curation</p>
+              <h3 className="text-3xl font-bold text-white mt-1">{products.length}</h3>
             </div>
-            <div className="p-3 bg-amber-500/10 rounded-2xl group-hover:bg-amber-500/20 transition-colors">
-              <CubeIcon className="h-8 w-8 text-amber-400" />
+            <div className="p-3 bg-slate-500/10 rounded-2xl group-hover:bg-slate-500/20 transition-colors">
+              <CubeIcon className="h-8 w-8 text-sky-400" />
             </div>
           </div>
-          <div className="mt-4 flex items-center text-xs text-emerald-400">
+          <div className="mt-4 flex items-center text-xs text-sky-400">
             <span className="font-bold">+{Math.floor(products.length * 0.1)}%</span>
-            <span className="ml-1 text-amber-200/40">from last month</span>
+            <span className="ml-1 text-slate-500">since launch</span>
           </div>
         </div>
 
         <div className="glass-card p-6 group hover:translate-y-[-4px] transition-all duration-300">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-amber-200/60 uppercase tracking-wider">Total Orders</p>
-              <h3 className="text-3xl font-bold text-amber-50 mt-1">{orders.length}</h3>
+              <p className="text-sm font-medium text-slate-400 uppercase tracking-wider">Acquisitions</p>
+              <h3 className="text-3xl font-bold text-white mt-1">{orders.length}</h3>
             </div>
             <div className="p-3 bg-emerald-500/10 rounded-2xl group-hover:bg-emerald-500/20 transition-colors">
               <ShoppingBagIcon className="h-8 w-8 text-emerald-400" />
@@ -429,39 +496,39 @@ const Admin = () => {
           </div>
           <div className="mt-4 flex items-center text-xs text-emerald-400">
             <span className="font-bold">+{Math.floor(orders.length * 0.05)}%</span>
-            <span className="ml-1 text-amber-200/40">from last month</span>
+            <span className="ml-1 text-slate-500">yield growth</span>
           </div>
         </div>
 
         <div className="glass-card p-6 group hover:translate-y-[-4px] transition-all duration-300">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-amber-200/60 uppercase tracking-wider">Total Customers</p>
-              <h3 className="text-3xl font-bold text-amber-50 mt-1">{customers.length}</h3>
+              <p className="text-sm font-medium text-slate-400 uppercase tracking-wider">Patrons</p>
+              <h3 className="text-3xl font-bold text-white mt-1">{customers.length}</h3>
             </div>
-            <div className="p-3 bg-amber-400/10 rounded-2xl group-hover:bg-amber-400/20 transition-colors">
-              <UsersIcon className="h-8 w-8 text-amber-300" />
+            <div className="p-3 bg-indigo-400/10 rounded-2xl group-hover:bg-indigo-400/20 transition-colors">
+              <UsersIcon className="h-8 w-8 text-indigo-400" />
             </div>
           </div>
-          <div className="mt-4 flex items-center text-xs text-emerald-400">
+          <div className="mt-4 flex items-center text-xs text-indigo-400">
             <span className="font-bold">+{Math.floor(customers.length * 0.08)}%</span>
-            <span className="ml-1 text-amber-200/40">from last month</span>
+            <span className="ml-1 text-slate-500">expansion</span>
           </div>
         </div>
 
         <div className="glass-card p-6 group hover:translate-y-[-4px] transition-all duration-300">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-amber-200/60 uppercase tracking-wider">Total Revenue</p>
-              <h3 className="text-3xl font-bold text-amber-50 mt-1">₹{orders.reduce((sum, order) => sum + order.total, 0).toLocaleString()}</h3>
+              <p className="text-sm font-medium text-slate-400 uppercase tracking-wider">Total Yield</p>
+              <h3 className="text-3xl font-bold text-white mt-1">₹{orders.reduce((sum, order) => sum + order.total, 0).toLocaleString()}</h3>
             </div>
-            <div className="p-3 bg-amber-200/10 rounded-2xl group-hover:bg-amber-200/20 transition-colors">
-              <CurrencyRupeeIcon className="h-8 w-8 text-amber-200" />
+            <div className="p-3 bg-slate-200/10 rounded-2xl group-hover:bg-slate-200/20 transition-colors">
+              <CurrencyRupeeIcon className="h-8 w-8 text-slate-300" />
             </div>
           </div>
-          <div className="mt-4 flex items-center text-xs text-emerald-400">
-            <span className="font-bold">+12%</span>
-            <span className="ml-1 text-amber-200/40">from last month</span>
+          <div className="mt-4 flex items-center text-xs text-sky-400">
+            <span className="font-bold">+12.4%</span>
+            <span className="ml-1 text-slate-500">net liquidity</span>
           </div>
         </div>
       </div>
@@ -512,8 +579,8 @@ const Admin = () => {
     <div className="space-y-8 animate-premium-in">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-3xl font-extrabold text-gradient-gold">Product Catalog</h2>
-          <p className="text-amber-200/60 mt-1">Manage, track and organize your jewelry collection.</p>
+          <h2 className="text-3xl font-extrabold text-gradient-silver">Product Catalog</h2>
+          <p className="text-slate-400 mt-1">Manage, track and organize your jewelry collection.</p>
         </div>
         <button 
           onClick={() => setShowAddProduct(true)}
@@ -526,42 +593,42 @@ const Admin = () => {
 
       <div className="glass-card p-4">
         <div className="relative group">
-          <MagnifyingGlassIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-amber-500/40 group-focus-within:text-amber-400 transition-colors" />
+          <MagnifyingGlassIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-sky-400 transition-colors" />
           <input
             type="text"
             placeholder="Search by name, SKU or category..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="glass-input w-full pl-12 pr-4 py-3 bg-green-950/30"
+            className="glass-input w-full pl-12 pr-4 py-3"
           />
         </div>
       </div>
 
       <div className="glass-card overflow-hidden border-none shadow-2xl">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-amber-500/10">
+          <table className="min-w-full divide-y divide-[#e2e8f0]/10">
             <thead>
-              <tr className="bg-green-950/80">
-                <th className="px-6 py-5 text-left text-xs font-black text-amber-400 uppercase tracking-widest">The Piece</th>
-                <th className="px-6 py-5 text-left text-xs font-black text-amber-400 uppercase tracking-widest">Category</th>
-                <th className="px-6 py-5 text-left text-xs font-black text-amber-400 uppercase tracking-widest">Valuation</th>
-                <th className="px-6 py-5 text-left text-xs font-black text-amber-400 uppercase tracking-widest">Inventory</th>
-                <th className="px-6 py-5 text-left text-xs font-black text-amber-400 uppercase tracking-widest">Status</th>
-                <th className="px-6 py-5 text-right text-xs font-black text-amber-400 uppercase tracking-widest">Management</th>
+              <tr className="bg-[#0f172a]/80">
+                <th className="px-6 py-5 text-left text-xs font-black text-slate-400 uppercase tracking-widest">The Piece</th>
+                <th className="px-6 py-5 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Category</th>
+                <th className="px-6 py-5 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Valuation</th>
+                <th className="px-6 py-5 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Inventory</th>
+                <th className="px-6 py-5 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Status</th>
+                <th className="px-6 py-5 text-right text-xs font-black text-slate-400 uppercase tracking-widest">Management</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-amber-500/5">
               {filteredProducts.map((product) => {
                 const stockStatus = getStockStatus(product.stock);
                 return (
-                  <tr key={product.id} className="hover:bg-amber-500/[0.02] transition-colors group">
+                  <tr key={product.id} className="group hover:bg-white/[0.02] transition-all">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-4">
-                        <div className="relative">
+                        <div className="relative group/img">
                           <img
                             src={product.image}
                             alt={product.name}
-                            className="h-14 w-14 rounded-xl object-cover border border-amber-500/20 cursor-pointer group-hover:scale-105 transition-transform"
+                            className="h-14 w-14 rounded-xl object-cover border border-white/10 cursor-pointer group-hover/img:scale-105 transition-transform"
                             onClick={() => setZoomedImage(product.image)}
                           />
                           {product.stock === 0 && (
@@ -571,27 +638,27 @@ const Admin = () => {
                           )}
                         </div>
                         <div>
-                          <div className="text-sm font-bold text-amber-50 group-hover:text-amber-300 transition-colors">{product.name}</div>
-                          <div className="text-xs text-amber-200/40 font-mono tracking-tighter mt-0.5">#{product.sku}</div>
+                          <div className="text-sm font-bold text-slate-100 group-hover:text-white transition-colors">{product.name}</div>
+                          <div className="text-xs text-slate-500 font-mono tracking-tighter mt-0.5">#{product.sku}</div>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2.5 py-1 bg-green-950/50 border border-amber-500/10 rounded-full text-xs font-bold text-amber-200/60 uppercase">
+                      <span className="px-2.5 py-1 bg-slate-900/50 border border-white/5 rounded-full text-xs font-bold text-slate-400 uppercase">
                         {product.category}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-black text-amber-50">₹{product.price.toLocaleString()}</div>
+                      <div className="text-sm font-black text-slate-100">₹{product.price.toLocaleString()}</div>
                       {product.originalPrice > product.price && (
-                        <div className="text-[10px] text-amber-200/30 line-through">₹{product.originalPrice.toLocaleString()}</div>
+                        <div className="text-[10px] text-slate-600 line-through">₹{product.originalPrice.toLocaleString()}</div>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className={`text-sm font-bold ${stockStatus.color.split(' ')[0]}`}>{product.stock} units</div>
-                      <div className="w-24 h-1 bg-green-950 rounded-full mt-1.5 overflow-hidden">
+                      <div className="w-24 h-1 bg-slate-800 rounded-full mt-1.5 overflow-hidden">
                         <div 
-                          className={`h-full ${stockStatus.color.split(' ')[1].replace('/20', '')}`} 
+                           className={`h-full ${stockStatus.color.split(' ')[1].replace('/20', '')}`} 
                           style={{ width: `${Math.min(100, (product.stock / 20) * 100)}%` }}
                         />
                       </div>
@@ -605,20 +672,20 @@ const Admin = () => {
                       <div className="flex justify-end items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button 
                           onClick={() => setEditingProduct(product)}
-                          className="p-2 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 rounded-lg transition-all"
+                          className="p-2 bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-all"
                           title="Edit Piece"
                         >
                           <PencilIcon className="h-4 w-4" />
                         </button>
                         <button 
                           onClick={() => toggleProductStatus(product.id)}
-                          className={`p-2 rounded-lg transition-all ${product.status === 'active' ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20' : 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20'}`}
+                          className={`p-2 rounded-lg transition-all ${product.status === 'active' ? 'bg-sky-500/10 text-sky-400 hover:bg-sky-500/20' : 'bg-slate-500/10 text-slate-400 hover:bg-slate-500/20'}`}
                         >
-                          <EyeIcon className="h-4 w-4" />
+                          {product.status === 'active' ? <EyeIcon className="h-4 w-4" /> : <EyeSlashIcon className="h-4 w-4" />}
                         </button>
                         <button 
                           onClick={() => deleteProduct(product.id)}
-                          className="p-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-lg transition-all"
+                          className="p-2 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 rounded-lg transition-all"
                         >
                           <TrashIcon className="h-4 w-4" />
                         </button>
@@ -637,8 +704,8 @@ const Admin = () => {
   const renderOrders = () => (
     <div className="space-y-8 animate-premium-in">
       <div>
-        <h2 className="text-3xl font-extrabold text-gradient-gold">Client Orders</h2>
-        <p className="text-amber-200/60 mt-1">Monitor sales and manage fulfillment pipeline.</p>
+        <h2 className="text-3xl font-extrabold text-gradient-silver">Client Orders</h2>
+        <p className="text-slate-400 mt-1">Monitor sales and manage fulfillment pipeline.</p>
       </div>
 
       <div className="glass-card overflow-hidden">
@@ -1103,8 +1170,8 @@ const Admin = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-green-950 text-amber-100 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500"></div>
+      <div className="min-h-screen bg-[#020617] text-white flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white/30 border-t-white"></div>
       </div>
     );
   }
@@ -1112,13 +1179,12 @@ const Admin = () => {
   // Add/Edit Product Modal
   const renderAddEditProductModal = () => {
     if (!showAddProduct && !editingProduct) return null;
-    
     const product = editingProduct || {};
     
     return (
       <div className="fixed inset-0 bg-[#020617]/95 backdrop-blur-xl flex items-start justify-center z-[100] p-4 overflow-y-auto pt-10 pb-20">
-        <div className="glass-card p-10 w-full max-w-3xl animate-premium-in border-amber-500/20 shadow-[0_0_100px_rgba(0,0,0,0.9)] relative mb-10">
-          <div className="flex justify-between items-center mb-8 pb-4 border-b border-amber-500/10">
+        <div className="glass-card p-10 w-full max-w-3xl animate-premium-in border-white/10 shadow-[0_0_100px_rgba(0,0,0,0.9)] relative mb-10">
+          <div className="flex justify-between items-center mb-8 pb-4 border-b border-white/10">
             <div>
               <h2 className="text-2xl font-black text-gradient-gold uppercase tracking-tight">
                 {editingProduct ? 'Curate Piece' : 'Catalogue New Piece'}
@@ -1129,12 +1195,12 @@ const Admin = () => {
               onClick={() => {
                 setShowAddProduct(false);
                 setEditingProduct(null);
-                setSelectedImage(null);
-                setImagePreview(null);
+                setSelectedImages([]);
+                setProductImages([]);
               }}
-              className="w-10 h-10 flex items-center justify-center rounded-full bg-green-950/50 text-amber-200/40 hover:text-amber-100 border border-amber-500/10 transition-all"
+              className="w-10 h-10 flex items-center justify-center rounded-full bg-green-950/50 text-amber-200/40 hover:text-amber-100 border border-amber-500/10 transition-all font-bold"
             >
-              ✕
+              x
             </button>
           </div>
           
@@ -1142,42 +1208,41 @@ const Admin = () => {
             onSubmit={async (e) => {
               e.preventDefault();
               const submitButton = e.target.querySelector('button[type="submit"]');
-              const originalText = submitButton.innerText;
-              submitButton.innerText = 'Processing...';
-              submitButton.disabled = true;
+              const originalText = submitButton?.innerText || 'Save';
+              if (submitButton) {
+                submitButton.innerText = 'Processing...';
+                submitButton.disabled = true;
+              }
 
               try {
                 const formData = new FormData(e.target);
-                
-                // Combine all images (main image + additional images)
                 const allImages = [
-                  imagePreview || formData.get('image') || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=600&h=600&fit=crop',
-                  ...selectedImages.map(img => img.url),
-                  ...productImages.map(img => img.url)
+                  ...productImages.map(img => img.url),
+                  ...selectedImages.map(img => img.url)
                 ].filter(Boolean);
                 
                 const productData = {
                   name: formData.get('name'),
                   category_id: formData.get('category_id'),
-                  price: parseFloat(formData.get('price')),
-                  originalPrice: parseFloat(formData.get('originalPrice')),
-                  stock: parseInt(formData.get('stock')),
+                  price: parseFloat(formData.get('price') || 0),
+                  originalPrice: parseFloat(formData.get('originalPrice') || 0),
+                  stock: parseInt(formData.get('stock') || 0),
                   sku: formData.get('sku'),
                   is_featured: formData.get('is_featured') === 'on',
-                  image: allImages[0] || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=600&h=600&fit=crop',
-                  images: allImages // Store all images for the product
+                  images: allImages,
+                  image: allImages[0] || 'https://via.placeholder.com/600'
                 };
                 
-                let success = false;
                 if (editingProduct) {
-                  success = await updateProduct(editingProduct.id, productData);
+                  await updateProduct(editingProduct.id, productData);
                 } else {
-                  success = await addProduct(productData);
+                  await addProduct(productData);
                 }
                 
-                if (!success) {
-                  throw new Error('Operation failed');
-                }
+                setShowAddProduct(false);
+                setEditingProduct(null);
+                setSelectedImages([]);
+                setProductImages([]);
               } catch (error) {
                 console.error('Form submission failed:', error);
               } finally {
@@ -1268,171 +1333,37 @@ const Admin = () => {
                   Featured Piece (Vanguard Collection)
                 </label>
               </div>
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-amber-200/80 mb-1">Product Image</label>
+
+              <div className="col-span-2 mt-4 space-y-6">
+                <label className="block text-xs font-black text-amber-400 uppercase tracking-widest">Product Imagery</label>
                 
-                {/* Image Preview */}
-                {(imagePreview || product.image) && (
-                  <div className="mb-4">
-                    <img
-                      src={imagePreview || product.image}
-                      alt="Product preview"
-                      className="w-32 h-32 object-cover rounded-lg border border-amber-500/40 cursor-pointer hover:opacity-80 transition-opacity"
-                      onClick={() => setZoomedImage(imagePreview || product.image)}
-                      title="Click to zoom"
-                    />
+                {/* Unified Upload Area */}
+                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-amber-500/20 rounded-2xl cursor-pointer hover:bg-amber-500/5 transition-all">
+                  <PlusIcon className="w-8 h-8 text-amber-400 mb-2" />
+                  <span className="text-[10px] font-black uppercase text-amber-200/50">Add Photos</span>
+                  <input type="file" multiple accept="image/*" onChange={handleMultipleImageUpload} className="hidden" />
+                </label>
+
+                {/* Previews */}
+                {(selectedImages.length > 0 || productImages.length > 0) && (
+                  <div className="grid grid-cols-4 gap-3">
+                    {selectedImages.map(img => (
+                      <div key={img.id} className="relative group rounded-lg overflow-hidden h-20 border border-amber-500/20">
+                        <img src={img.url} className="w-full h-full object-cover" />
+                        <button type="button" onClick={() => removeImage(img.id, true)} className="absolute inset-0 bg-red-500/80 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[8px] font-black">REMOVE</button>
+                      </div>
+                    ))}
+                    {productImages.map((img, idx) => (
+                      <div key={img.id} className={`relative group rounded-lg overflow-hidden h-20 border ${idx === 0 ? 'border-amber-400 font-bold' : 'border-amber-500/20'}`}>
+                        <img src={img.url} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center gap-1">
+                          <button type="button" onClick={() => setMainImage(idx)} className="text-[8px] bg-amber-400 text-green-950 px-1 rounded font-bold">SET MAIN</button>
+                          <button type="button" onClick={() => removeImage(img.id, false)} className="text-[8px] bg-red-500 text-white px-1 rounded font-bold">DELETE</button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
-                
-                {/* Image Upload Options */}
-                <div className="space-y-3">
-                  {/* URL Input */}
-                  <div>
-                    <label className="block text-sm font-medium text-amber-200/70 mb-1">Image URL</label>
-                    <input
-                      name="image"
-                      type="url"
-                      defaultValue={product.image}
-                      onChange={(e) => handleImageUrlInput(e.target.value)}
-                      placeholder="https://example.com/image.jpg"
-                      className="w-full bg-green-950/50 text-amber-100 placeholder-amber-200/50 px-3 py-2 border border-amber-500/40 rounded-lg focus:ring-2 focus:ring-amber-300"
-                    />
-                  </div>
-                  
-                  {/* Upload Buttons */}
-                  <div className="flex space-x-3">
-                    <button
-                      type="button"
-                      onClick={handleGallerySelect}
-                      className="flex-1 px-4 py-2 border border-amber-500/40 rounded-lg text-amber-200/80 hover:bg-green-950 flex items-center justify-center"
-                    >
-                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      Gallery
-                    </button>
-                    
-                    <button
-                      type="button"
-                      onClick={handleCameraCapture}
-                      className="flex-1 px-4 py-2 border border-amber-500/40 rounded-lg text-amber-200/80 hover:bg-green-950 flex items-center justify-center"
-                    >
-                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                      Camera
-                    </button>
-                    
-                    <label className="flex-1 px-4 py-2 border border-amber-500/40 rounded-lg text-amber-200/80 hover:bg-green-950 flex items-center justify-center cursor-pointer">
-                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                      </svg>
-                      Upload
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageUpload}
-                        className="hidden"
-                      />
-                    </label>
-                  </div>
-                  
-                  {/* Selected File Info */}
-                  {selectedImage && (
-                    <div className="text-sm text-amber-200/70">
-                      Selected: {selectedImage.name} ({(selectedImage.size / 1024).toFixed(1)} KB)
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Multiple Product Images Section */}
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-amber-200/80 mb-1">Additional Product Images</label>
-                <p className="text-sm text-amber-200/50 mb-4">Add multiple images to showcase your product from different angles</p>
-                
-                {/* Multiple Image Upload Options */}
-                <div className="space-y-4">
-                  {/* Multiple URL Input */}
-                  <div>
-                    <label className="block text-sm font-medium text-amber-200/70 mb-1">Image URLs (one per line)</label>
-                    <textarea
-                      name="additionalImages"
-                      placeholder="https://example.com/image1.jpg&#10;https://example.com/image2.jpg&#10;https://example.com/image3.jpg"
-                      rows="3"
-                      onChange={(e) => handleMultipleImageUrlInput(e.target.value)}
-                      className="w-full bg-green-950/50 text-amber-100 placeholder-amber-200/50 px-3 py-2 border border-amber-500/40 rounded-lg focus:ring-2 focus:ring-amber-300 resize-none"
-                    />
-                  </div>
-                  
-                  {/* Multiple File Upload */}
-                  <div>
-                    <label className="block text-sm font-medium text-amber-200/70 mb-2">Upload Multiple Images</label>
-                    <label className="flex items-center justify-center w-full h-32 border-2 border-dashed border-amber-500/40 rounded-lg cursor-pointer hover:border-pink-500 transition-colors">
-                      <div className="text-center">
-                        <svg className="w-8 h-8 mx-auto text-amber-200/30 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                        </svg>
-                        <p className="text-sm text-amber-200/70">Click to upload multiple images</p>
-                        <p className="text-xs text-amber-200/50">PNG, JPG, JPEG up to 10MB each</p>
-                      </div>
-                      <input
-                        type="file"
-                        multiple
-                        accept="image/*"
-                        onChange={handleMultipleImageUpload}
-                        className="hidden"
-                      />
-                    </label>
-                  </div>
-
-                  {/* Selected Images Preview */}
-                  {(selectedImages.length > 0 || productImages.length > 0) && (
-                    <div className="space-y-3">
-                      <h4 className="text-sm font-medium text-amber-200/80">Selected Images ({selectedImages.length + productImages.length})</h4>
-                      
-                      {/* Selected Images Grid */}
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        {selectedImages.map((image, index) => (
-                          <div key={image.id} className="relative group">
-                            <img
-                              src={image.url}
-                              alt={image.name}
-                              className="w-full bg-green-950/50 text-amber-100 placeholder-amber-200/50 h-24 object-cover rounded-lg border border-amber-500/40"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => removeImage(image.id, true)}
-                              className="absolute top-1 right-1 bg-red-500 text-green-950 font-semibold rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              ×
-                            </button>
-                            <div className="text-xs text-amber-200/50 mt-1 truncate">{image.name}</div>
-                          </div>
-                        ))}
-                        
-                        {productImages.map((image, index) => (
-                          <div key={image.id} className="relative group">
-                            <img
-                              src={image.url}
-                              alt={image.name}
-                              className="w-full bg-green-950/50 text-amber-100 placeholder-amber-200/50 h-24 object-cover rounded-lg border border-amber-500/40"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => removeImage(image.id, false)}
-                              className="absolute top-1 right-1 bg-red-500 text-green-950 font-semibold rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              ×
-                            </button>
-                            <div className="text-xs text-amber-200/50 mt-1 truncate">{image.name}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
               </div>
             </div>
             
@@ -1753,25 +1684,110 @@ const Admin = () => {
     );
   };
 
+  const deleteReview = async (id) => {
+    if (window.confirm('Are you sure you want to delete this review?')) {
+      try {
+        await apiService.deleteReview(id);
+        setReviews(reviews.filter(r => r.id !== id));
+      } catch (e) {
+        console.error('Delete review error:', e);
+      }
+    }
+  };
+
+  const renderReviews = () => (
+    <div className="space-y-8 animate-premium-in">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-3xl font-extrabold text-gradient-silver">Client Chronicles</h2>
+          <p className="text-slate-400 mt-1">Manage user feedback and monitor brand sentiment.</p>
+        </div>
+        <div className="glass-card px-6 py-3 border-white/5 flex items-center gap-4">
+          <div className="text-center">
+            <div className="text-xl font-black text-white">{reviews.length}</div>
+            <div className="text-[10px] text-slate-500 uppercase font-bold tracking-widest">Total Reviews</div>
+          </div>
+          <div className="w-px h-8 bg-white/10" />
+          <div className="text-center">
+            <div className="text-xl font-black text-sky-400">
+              {(reviews.reduce((acc, r) => acc + r.rating, 0) / (reviews.length || 1)).toFixed(1)}
+            </div>
+            <div className="text-[10px] text-slate-500 uppercase font-bold tracking-widest">Avg Rating</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {reviews.map((review) => (
+          <div key={review.id} className="glass-card p-6 group transition-all hover:bg-white/[0.02]">
+            <div className="flex justify-between items-start mb-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-slate-800 flex items-center justify-center text-white font-bold border border-white/5">
+                  {review.user_name?.charAt(0) || 'S'}
+                </div>
+                <div>
+                  <h4 className="text-slate-100 font-bold">{review.user_name}</h4>
+                  <p className="text-[10px] text-slate-500 uppercase font-bold tracking-widest">
+                    {new Date(review.created_at || Date.now()).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-col items-end gap-2">
+                <div className="flex gap-0.5">
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <StarIconSolid 
+                      key={s} 
+                      className={`h-3 w-3 ${s <= review.rating ? 'text-sky-400' : 'text-slate-700'}`} 
+                    />
+                  ))}
+                </div>
+                <button 
+                  onClick={() => deleteReview(review.id)}
+                  className="p-2 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 rounded-lg opacity-0 group-hover:opacity-100 transition-all border border-rose-500/20"
+                >
+                  <TrashIcon className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            <div className="relative">
+              <div className="absolute -left-2 -top-2 text-4xl text-white/5 font-serif">“</div>
+              <p className="text-slate-400 text-sm leading-relaxed relative z-10 pl-2">
+                {review.comment}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+      
+      {reviews.length === 0 && (
+        <div className="glass-card py-24 text-center">
+          <ChatBubbleBottomCenterTextIcon className="h-16 w-16 text-slate-700 mx-auto mb-6 opacity-20" />
+          <h3 className="text-xl font-bold text-slate-500">No Chronicles Shared Yet</h3>
+          <p className="text-slate-600 mt-2 text-sm italic">User feedback will appear here as they experience Saram.</p>
+        </div>
+      )}
+    </div>
+  );
+
   return (
-    <div className="min-h-screen bg-green-950 text-amber-100 selection:bg-amber-500/30">
+    <div className="min-h-screen bg-[#020617] text-slate-100 selection:bg-white/10">
       <div className="flex flex-col lg:flex-row min-h-screen">
         {/* Sidebar */}
-        <aside className="w-full lg:w-72 glass-card border-l-0 border-y-0 border-r border-amber-500/10 lg:sticky lg:top-0 lg:h-screen flex flex-col z-50 overflow-y-auto">
-          <div className="p-8 border-b border-amber-500/5">
+        <aside className="w-full lg:w-72 glass-card border-l-0 border-y-0 border-r border-white/5 lg:sticky lg:top-0 lg:h-screen flex flex-col z-50 overflow-y-auto">
+          <div className="p-8 border-b border-white/5">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 bg-gradient-to-tr from-amber-200 to-amber-500 rounded-xl flex items-center justify-center font-black text-green-950 shadow-lg shadow-amber-500/20">
+              <div className="w-10 h-10 bg-gradient-to-tr from-slate-200 to-slate-400 rounded-xl flex items-center justify-center font-black text-slate-950 shadow-lg shadow-white/5">
                 S
               </div>
-              <h1 className="text-2xl font-black text-gradient-gold tracking-tighter">Saram Admin</h1>
+              <h1 className="text-2xl font-black text-gradient-silver tracking-tighter">Saram Admin</h1>
             </div>
             
-            <div className="p-4 bg-green-950/40 border border-amber-500/10 rounded-2xl">
-              <p className="text-[10px] font-black text-amber-400 uppercase tracking-[0.2em] mb-1">Authenticated As</p>
-              <p className="text-sm font-bold text-amber-50 truncate">{user?.email}</p>
+            <div className="p-4 bg-slate-900/40 border border-white/5 rounded-2xl">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Authenticated As</p>
+              <p className="text-sm font-bold text-slate-100 truncate">{user?.email}</p>
               <div className="flex items-center gap-2 mt-2">
-                <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
-                <span className="text-[10px] font-bold text-amber-200/40 uppercase">Active Session</span>
+                <span className="w-1.5 h-1.5 bg-sky-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(56,189,248,0.4)]" />
+                <span className="text-[10px] font-bold text-slate-500 uppercase">Secure Link Active</span>
               </div>
             </div>
           </div>
@@ -1786,10 +1802,10 @@ const Admin = () => {
                   onClick={() => setActiveTab(tab.id)}
                   className={`sidebar-link w-full group ${isActive ? 'sidebar-link-active' : 'sidebar-link-inactive'}`}
                 >
-                  <Icon className={`h-5 w-5 mr-3 transition-transform group-hover:scale-110 ${isActive ? 'text-green-950' : 'text-amber-400/60 group-hover:text-amber-400'}`} />
+                  <Icon className={`h-5 w-5 mr-3 transition-transform group-hover:scale-110 ${isActive ? 'text-slate-900' : 'text-slate-400/60 group-hover:text-white'}`} />
                   <span className="tracking-tight">{tab.name}</span>
                   {isActive && (
-                    <div className="ml-auto w-1.5 h-1.5 bg-green-950 rounded-full" />
+                    <div className="ml-auto w-1.5 h-1.5 bg-slate-900 rounded-full" />
                   )}
                 </button>
               );
@@ -1814,6 +1830,7 @@ const Admin = () => {
           {activeTab === 'orders' && renderOrders()}
           {activeTab === 'customers' && renderCustomers()}
           {activeTab === 'inventory' && renderInventory()}
+          {activeTab === 'reviews' && renderReviews()}
           {activeTab === 'settings' && renderSettings()}
         </div>
       </div>

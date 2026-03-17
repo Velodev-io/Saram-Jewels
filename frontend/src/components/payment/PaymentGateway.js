@@ -107,75 +107,20 @@ const PaymentGateway = ({ amount, orderId, onPaymentSuccess, onPaymentFailure })
   };
 
   const processRazorpayPayment = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
+      // Simulate dummy Razorpay payment processing for testing
+      await new Promise(resolve => setTimeout(resolve, 1500));
       
-      // Load Razorpay script
-      const script = document.createElement('script');
-      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-      script.async = true;
-      document.body.appendChild(script);
-
-      script.onload = async () => {
-        try {
-          const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/orders/create`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              user_id: 'temp-user-id', // Replace with actual user ID
-              shipping_address: {
-                address: 'Sample Address',
-                city: 'Sample City',
-                state: 'Sample State',
-                pincode: '123456'
-              }
-            })
-          });
-
-          const data = await response.json();
-          
-          if (!data.razorpayOrder) {
-            throw new Error('Failed to create Razorpay order');
-          }
-
-          const options = {
-            key: process.env.REACT_APP_RAZORPAY_KEY_ID || 'rzp_test_your_key',
-            amount: data.razorpayOrder.amount,
-            currency: data.razorpayOrder.currency,
-            name: 'Saram Jewels',
-            description: 'Jewelry Purchase',
-            order_id: data.razorpayOrder.id,
-            handler: function (response) {
-              onPaymentSuccess({
-                paymentId: response.razorpay_payment_id,
-                orderId: data.order.id,
-                method: 'razorpay'
-              });
-            },
-            prefill: {
-              name: 'Customer Name',
-              email: 'customer@example.com',
-              contact: '9999999999'
-            },
-            theme: {
-              color: '#e2e8f0'
-            }
-          };
-
-          const rzp = new window.Razorpay(options);
-          rzp.open();
-        } catch (error) {
-          console.error('Razorpay error:', error);
-          onPaymentFailure('Payment failed. Please try again.');
-        } finally {
-          setLoading(false);
-        }
-      };
+      onPaymentSuccess({
+        paymentId: `rzp_dummy_${Date.now()}`,
+        orderId: orderId || 'SJ-' + Math.floor(Math.random() * 10000),
+        method: 'razorpay'
+      });
     } catch (error) {
-      console.error('Error loading Razorpay:', error);
-      onPaymentFailure('Failed to load payment gateway.');
+      console.error('Error in dummy Razorpay:', error);
+      onPaymentFailure('Simulated payment failed.');
+    } finally {
       setLoading(false);
     }
   };

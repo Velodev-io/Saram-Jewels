@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
-  StarIcon,
   HeartIcon,
   ShareIcon,
   ShoppingCartIcon,
   TruckIcon,
   ShieldCheckIcon,
-  ArrowLeftIcon,
   GiftIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid, HeartIcon as HeartSolid } from '@heroicons/react/24/solid';
@@ -47,7 +45,7 @@ const ProductDetail = () => {
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [activeTab, setActiveTab] = useState('description');
   const [relatedProducts, setRelatedProducts] = useState([]);
-  const [reviews, setReviews] = useState([]);
+  const [reviews] = useState([]);
 
   useEffect(() => {
     const fetchProduct = async () => {

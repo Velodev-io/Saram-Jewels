@@ -48,6 +48,10 @@ const Product = sequelize.define('Product', {
     type: DataTypes.BOOLEAN,
     defaultValue: false
   },
+  status: {
+    type: DataTypes.ENUM('active', 'inactive'),
+    defaultValue: 'active'
+  },
   created_at: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW

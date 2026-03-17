@@ -6,9 +6,6 @@ import {
   ShoppingBagIcon, 
   CogIcon, 
   HeartIcon,
-  MapPinIcon,
-  PhoneIcon,
-  EnvelopeIcon,
   TruckIcon,
   EyeIcon,
   CalendarIcon
@@ -94,11 +91,11 @@ const Profile = () => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'Delivered': return 'text-green-600 bg-green-100';
-      case 'In Transit': return 'text-blue-600 bg-blue-100';
-      case 'Out for Delivery': return 'text-orange-600 bg-orange-100';
-      case 'Order Confirmed': return 'text-purple-600 bg-purple-100';
-      default: return 'text-gray-600 bg-gray-100';
+      case 'Delivered': return 'text-[#10b981] bg-[#10b981]/10 border border-[#10b981]/20';
+      case 'In Transit': return 'text-[#3b82f6] bg-[#3b82f6]/10 border border-[#3b82f6]/20';
+      case 'Out for Delivery': return 'text-[#f59e0b] bg-[#f59e0b]/10 border border-[#f59e0b]/20';
+      case 'Order Confirmed': return 'text-[#8b5cf6] bg-[#8b5cf6]/10 border border-[#8b5cf6]/20';
+      default: return 'text-[#94a3b8] bg-[#1e293b] border border-[#334155]';
     }
   };
 
@@ -111,83 +108,89 @@ const Profile = () => {
 
   const renderProfileTab = () => (
     <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Personal Information</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="bg-[#1e293b] rounded-2xl border border-[rgba(226,232,240,0.1)] p-6 md:p-8">
+        <h3 className="text-xl font-display font-medium text-[#f8fafc] mb-6 border-b border-[rgba(226,232,240,0.1)] pb-4">Personal Information</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[#94a3b8] mb-2">First Name</label>
             <input
               type="text"
               value={user?.firstName || ''}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500"
+              className="input-dark w-full bg-[#0f172a] opacity-80 cursor-not-allowed"
               readOnly
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[#94a3b8] mb-2">Last Name</label>
             <input
               type="text"
               value={user?.lastName || ''}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500"
+              className="input-dark w-full bg-[#0f172a] opacity-80 cursor-not-allowed"
               readOnly
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[#94a3b8] mb-2">Email</label>
             <input
               type="email"
               value={user?.email || ''}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500"
+              className="input-dark w-full bg-[#0f172a] opacity-80 cursor-not-allowed"
               readOnly
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[#94a3b8] mb-2">Phone</label>
             <input
               type="tel"
               placeholder="Add phone number"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500"
+              className="input-dark w-full bg-[#0f172a]"
             />
           </div>
         </div>
+        <div className="mt-6">
+          <button className="btn-silver py-3 px-6 text-xs">Save Changes</button>
+        </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Shipping Address</h3>
-        <div className="space-y-4">
+      <div className="bg-[#1e293b] rounded-2xl border border-[rgba(226,232,240,0.1)] p-6 md:p-8">
+        <h3 className="text-xl font-display font-medium text-[#f8fafc] mb-6 border-b border-[rgba(226,232,240,0.1)] pb-4">Shipping Address</h3>
+        <div className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[#94a3b8] mb-2">Address</label>
             <textarea
               rows={3}
               placeholder="Enter your shipping address"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500"
+              className="input-dark w-full bg-[#0f172a] resize-none"
             />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+              <label className="block text-xs font-bold uppercase tracking-widest text-[#94a3b8] mb-2">City</label>
               <input
                 type="text"
                 placeholder="City"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500"
+                className="input-dark w-full bg-[#0f172a]"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
+              <label className="block text-xs font-bold uppercase tracking-widest text-[#94a3b8] mb-2">State</label>
               <input
                 type="text"
                 placeholder="State"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500"
+                className="input-dark w-full bg-[#0f172a]"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Pincode</label>
+              <label className="block text-xs font-bold uppercase tracking-widest text-[#94a3b8] mb-2">Pincode</label>
               <input
                 type="text"
                 placeholder="Pincode"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500"
+                className="input-dark w-full bg-[#0f172a]"
               />
             </div>
+          </div>
+          <div>
+             <button className="btn-silver py-3 px-6 text-xs">Update Address</button>
           </div>
         </div>
       </div>
@@ -198,30 +201,30 @@ const Profile = () => {
     <div className="space-y-6">
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#e2e8f0]"></div>
         </div>
       ) : orders.length === 0 ? (
-        <div className="text-center py-12">
-          <ShoppingBagIcon className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900">No orders yet</h3>
-          <p className="mt-1 text-sm text-gray-500">Start shopping to see your order history.</p>
+        <div className="text-center py-16 bg-[#1e293b] rounded-2xl border border-[rgba(226,232,240,0.1)]">
+          <ShoppingBagIcon className="mx-auto h-16 w-16 text-[#64748b]" />
+          <h3 className="mt-4 text-xl font-display text-[#f8fafc]">No orders yet</h3>
+          <p className="mt-2 text-sm text-[#94a3b8]">Start shopping to see your elegant order history.</p>
         </div>
       ) : (
         orders.map((order) => (
-          <div key={order.id} className="bg-white rounded-lg shadow">
+          <div key={order.id} className="bg-[#1e293b] rounded-2xl border border-[rgba(226,232,240,0.08)] overflow-hidden">
             {/* Order Header */}
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex justify-between items-start">
+            <div className="p-6 border-b border-[rgba(226,232,240,0.08)] bg-[#0f172a]/40">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900">Order #{order.id}</h3>
-                  <p className="text-sm text-gray-500 flex items-center mt-1">
+                  <h3 className="text-lg font-bold text-[#f8fafc]">Order #{order.id}</h3>
+                  <p className="text-xs text-[#94a3b8] font-medium tracking-wide flex items-center mt-2">
                     <CalendarIcon className="h-4 w-4 mr-1" />
                     {new Date(order.date).toLocaleDateString()}
                   </p>
                 </div>
-                <div className="text-right">
-                  <p className="text-lg font-semibold text-gray-900">₹{order.total.toLocaleString()}</p>
-                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(order.status)}`}>
+                <div className="text-left sm:text-right">
+                  <p className="text-xl font-bold text-silver-gradient mb-2">₹{order.total.toLocaleString()}</p>
+                  <span className={`inline-flex px-3 py-1 text-[10px] uppercase tracking-widest rounded-full ${getStatusColor(order.status)}`}>
                     {order.status}
                   </span>
                 </div>
@@ -229,16 +232,16 @@ const Profile = () => {
             </div>
 
             {/* Order Items */}
-            <div className="p-6 border-b border-gray-200">
-              <h4 className="text-sm font-medium text-gray-900 mb-3">Items</h4>
-              <div className="space-y-3">
+            <div className="p-6 border-b border-[rgba(226,232,240,0.08)]">
+              <h4 className="text-xs font-bold uppercase tracking-widest text-[#94a3b8] mb-4">Items</h4>
+              <div className="space-y-4">
                 {order.items.map((item, index) => (
-                  <div key={index} className="flex justify-between items-center">
+                  <div key={index} className="flex justify-between items-center group">
                     <div>
-                      <p className="text-sm font-medium text-gray-900">{item.name}</p>
-                      <p className="text-sm text-gray-500">Qty: {item.quantity}</p>
+                      <p className="text-sm font-medium text-[#e2e8f0] group-hover:text-white transition-colors">{item.name}</p>
+                      <p className="text-[11px] font-medium text-[#64748b] mt-1 uppercase tracking-wider">Qty: {item.quantity}</p>
                     </div>
-                    <p className="text-sm font-medium text-gray-900">₹{item.price.toLocaleString()}</p>
+                    <p className="text-sm font-semibold text-[#bae6fd]">₹{item.price.toLocaleString()}</p>
                   </div>
                 ))}
               </div>
@@ -246,41 +249,41 @@ const Profile = () => {
 
             {/* Tracking Information */}
             <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h4 className="text-sm font-medium text-gray-900">Tracking Information</h4>
+              <div className="flex justify-between items-center mb-5">
+                <h4 className="text-xs font-bold uppercase tracking-widest text-[#94a3b8]">Logistics</h4>
                 <a
                   href={getTrackingUrl(order.tracking)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center px-3 py-1 text-sm font-medium text-pink-600 hover:text-pink-700"
+                  className="inline-flex items-center px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[#93c5fd] hover:text-white bg-[#3b82f6]/10 hover:bg-[#3b82f6]/20 border border-[#3b82f6]/20 rounded-full transition-all"
                 >
-                  <EyeIcon className="h-4 w-4 mr-1" />
+                  <EyeIcon className="h-3 w-3 mr-1" />
                   Track Package
                 </a>
               </div>
               
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-3">
+              <div className="bg-[#0f172a] border border-[rgba(226,232,240,0.05)] rounded-xl p-5">
+                <div className="flex items-center justify-between mb-4 pb-4 border-b border-[rgba(226,232,240,0.05)]">
                   <div>
-                    <p className="text-sm font-medium text-gray-900">
-                      {order.tracking.carrier} - {order.tracking.number}
+                    <p className="text-sm font-semibold text-[#f8fafc]">
+                      {order.tracking.carrier}
                     </p>
-                    <p className="text-sm text-gray-500">Current Status: {order.tracking.status}</p>
+                    <p className="text-xs text-[#94a3b8] mt-1 font-mono">{order.tracking.number}</p>
                   </div>
-                  <TruckIcon className="h-6 w-6 text-gray-400" />
+                  <TruckIcon className="h-6 w-6 text-[#64748b]" />
                 </div>
                 
                 {/* Tracking Timeline */}
-                <div className="space-y-3">
+                <div className="space-y-4 relative before:absolute before:inset-0 before:ml-2.5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-[rgba(226,232,240,0.2)] before:via-[rgba(226,232,240,0.1)] before:to-transparent">
                   {order.tracking.updates.map((update, index) => (
-                    <div key={index} className="flex items-start">
-                      <div className="flex-shrink-0">
-                        <div className="w-2 h-2 bg-pink-500 rounded-full mt-2"></div>
+                    <div key={index} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                      <div className="flex items-center justify-center w-6 h-6 rounded-full border border-[rgba(226,232,240,0.2)] bg-[#0f172a] text-[#94a3b8] group-[.is-active]:text-[#f8fafc] group-[.is-active]:bg-[rgba(226,232,240,0.1)] shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10 transition-colors">
+                        <div className={`w-2 h-2 rounded-full ${index === 0 ? 'bg-[#bae6fd] shadow-[0_0_10px_#bae6fd]' : 'bg-[#334155]'}`}></div>
                       </div>
-                      <div className="ml-3 flex-1">
-                        <p className="text-sm font-medium text-gray-900">{update.status}</p>
-                        <p className="text-sm text-gray-500">{update.location}</p>
-                        <p className="text-xs text-gray-400">{update.date}</p>
+                      <div className="w-[calc(100%-2.5rem)] md:w-[calc(50%-1.5rem)] p-3 rounded-lg bg-[rgba(226,232,240,0.02)] border border-[rgba(226,232,240,0.05)] hover:border-[rgba(226,232,240,0.1)] transition-colors">
+                        <p className={`text-sm font-semibold ${index === 0 ? 'text-[#e2e8f0]' : 'text-[#94a3b8]'}`}>{update.status}</p>
+                        <p className="text-[11px] text-[#64748b] mt-1 mb-2 font-medium tracking-wide">{update.location}</p>
+                        <p className="text-[10px] text-[#475569] uppercase tracking-widest font-bold">{update.date}</p>
                       </div>
                     </div>
                   ))}
@@ -294,54 +297,60 @@ const Profile = () => {
   );
 
   const renderWishlistTab = () => (
-    <div className="text-center py-12">
-      <HeartIcon className="mx-auto h-12 w-12 text-gray-400" />
-      <h3 className="mt-2 text-sm font-medium text-gray-900">Your wishlist is empty</h3>
-      <p className="mt-1 text-sm text-gray-500">Start adding items to your wishlist.</p>
+    <div className="text-center py-20 bg-[#1e293b] rounded-2xl border border-[rgba(226,232,240,0.1)]">
+      <HeartIcon className="mx-auto h-16 w-16 text-[#64748b]" />
+      <h3 className="mt-6 text-xl font-display text-[#f8fafc]">Your wishlist is empty</h3>
+      <p className="mt-2 text-sm text-[#94a3b8]">Start curating your favorite pieces.</p>
     </div>
   );
 
   const renderSettingsTab = () => (
     <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Account Settings</h3>
-        <div className="space-y-4">
+      <div className="bg-[#1e293b] rounded-2xl border border-[rgba(226,232,240,0.1)] p-6 md:p-8">
+        <h3 className="text-xl font-display font-medium text-[#f8fafc] mb-6 border-b border-[rgba(226,232,240,0.1)] pb-4">Account Config</h3>
+        <div className="space-y-3">
           <button 
             onClick={() => setShowPasswordModal(true)}
-            className="w-full text-left px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+            className="w-full text-left p-5 border border-[rgba(226,232,240,0.08)] bg-[#0f172a]/50 rounded-xl hover:bg-[rgba(226,232,240,0.03)] hover:border-[rgba(226,232,240,0.15)] transition-all cursor-pointer group"
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-medium text-gray-900">Change Password</p>
-                <p className="text-sm text-gray-500">Update your account password</p>
+                <p className="font-semibold text-[#e2e8f0] group-hover:text-white transition-colors">Change Password</p>
+                <p className="text-[11px] font-medium uppercase tracking-wider text-[#64748b] mt-1">Update your access credentials</p>
               </div>
-              <CogIcon className="h-5 w-5 text-gray-400" />
+              <div className="w-10 h-10 rounded-full flex items-center justify-center bg-[rgba(226,232,240,0.05)] group-hover:scale-110 transition-transform">
+                 <CogIcon className="h-5 w-5 text-[#94a3b8]" />
+              </div>
             </div>
           </button>
           
           <button 
             onClick={() => setShowNotificationModal(true)}
-            className="w-full text-left px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+             className="w-full text-left p-5 border border-[rgba(226,232,240,0.08)] bg-[#0f172a]/50 rounded-xl hover:bg-[rgba(226,232,240,0.03)] hover:border-[rgba(226,232,240,0.15)] transition-all cursor-pointer group"
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-medium text-gray-900">Notification Preferences</p>
-                <p className="text-sm text-gray-500">Manage your email and SMS notifications</p>
+                <p className="font-semibold text-[#e2e8f0] group-hover:text-white transition-colors">Preferences</p>
+                <p className="text-[11px] font-medium uppercase tracking-wider text-[#64748b] mt-1">Manage email and drops</p>
               </div>
-              <CogIcon className="h-5 w-5 text-gray-400" />
+              <div className="w-10 h-10 rounded-full flex items-center justify-center bg-[rgba(226,232,240,0.05)] group-hover:scale-110 transition-transform">
+                 <CogIcon className="h-5 w-5 text-[#94a3b8]" />
+              </div>
             </div>
           </button>
           
           <button 
             onClick={() => setShowPrivacyModal(true)}
-            className="w-full text-left px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+             className="w-full text-left p-5 border border-[rgba(226,232,240,0.08)] bg-[#0f172a]/50 rounded-xl hover:bg-[rgba(226,232,240,0.03)] hover:border-[rgba(226,232,240,0.15)] transition-all cursor-pointer group"
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-medium text-gray-900">Privacy Settings</p>
-                <p className="text-sm text-gray-500">Control your privacy and data settings</p>
+                <p className="font-semibold text-[#e2e8f0] group-hover:text-white transition-colors">Privacy</p>
+                <p className="text-[11px] font-medium uppercase tracking-wider text-[#64748b] mt-1">Control your data footprint</p>
               </div>
-              <CogIcon className="h-5 w-5 text-gray-400" />
+              <div className="w-10 h-10 rounded-full flex items-center justify-center bg-[rgba(226,232,240,0.05)] group-hover:scale-110 transition-transform">
+                 <CogIcon className="h-5 w-5 text-[#94a3b8]" />
+              </div>
             </div>
           </button>
         </div>
@@ -351,42 +360,45 @@ const Profile = () => {
 
   if (!isSignedIn) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <UserIcon className="mx-auto h-12 w-12 text-gray-400" />
-          <h2 className="mt-2 text-lg font-medium text-gray-900">Please sign in to view your profile</h2>
-          <p className="mt-1 text-sm text-gray-500">You need to be logged in to access this page.</p>
+      <div className="min-h-screen bg-[#020617] flex items-center justify-center pt-28 pb-16">
+        <div className="text-center bg-[#1e293b] p-12 rounded-3xl border border-[rgba(226,232,240,0.1)] shadow-2xl max-w-sm w-full mx-4">
+          <div className="w-20 h-20 mx-auto bg-[#020617] rounded-full border border-[rgba(226,232,240,0.1)] flex items-center justify-center mb-6">
+             <UserIcon className="h-10 w-10 text-[#64748b]" />
+          </div>
+          <h2 className="text-2xl font-display font-medium text-[#f8fafc] mb-3">Authentication Required</h2>
+          <p className="text-[13px] text-[#94a3b8] leading-relaxed">Please sign in via the header to access your private collection and settings.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-[#020617] pt-32 pb-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">My Account</h1>
-          <p className="mt-2 text-gray-600">Manage your profile, orders, and preferences</p>
+        <div className="mb-12">
+          <div className="section-label mb-3 text-left justify-start">Portal</div>
+          <h1 className="font-display text-4xl md:text-5xl font-bold text-[#ffffff] mb-3">My Account</h1>
+          <p className="text-[#94a3b8]">Manage your profile, curation, and preferences cleanly.</p>
         </div>
 
-        <div className="lg:grid lg:grid-cols-12 lg:gap-8">
+        <div className="lg:grid lg:grid-cols-12 lg:gap-10">
           {/* Sidebar */}
           <div className="lg:col-span-3">
-            <nav className="space-y-1">
+            <nav className="space-y-2 bg-[#1e293b] p-3 rounded-2xl border border-[rgba(226,232,240,0.08)] sticky top-32">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
                 return (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+                    className={`w-full flex items-center px-5 py-3.5 text-[13px] uppercase tracking-widest font-bold rounded-xl transition-all duration-300 ${
                       activeTab === tab.id
-                        ? 'bg-pink-50 text-pink-700 border border-pink-200'
-                        : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                        ? 'bg-[rgba(226,232,240,0.1)] text-[#e2e8f0] border border-[rgba(226,232,240,0.2)] shadow-md'
+                        : 'text-[#64748b] hover:bg-[#0f172a]/50 hover:text-[#94a3b8] border border-transparent'
                     }`}
                   >
-                    <Icon className="h-5 w-5 mr-3" />
+                    <Icon className={`h-5 w-5 mr-3 transition-colors ${activeTab === tab.id ? 'text-[#e2e8f0]' : 'text-[#475569]'}`} />
                     {tab.name}
                   </button>
                 );
@@ -406,55 +418,55 @@ const Profile = () => {
 
       {/* Change Password Modal */}
       {showPasswordModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Change Password</h3>
-              <button
-                onClick={() => setShowPasswordModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                ✕
-              </button>
-            </div>
-            <form className="space-y-4">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-[#1e293b] border border-[rgba(226,232,240,0.15)] shadow-2xl rounded-3xl p-8 w-full max-w-md relative animate-fade-in">
+            <button
+              onClick={() => setShowPasswordModal(false)}
+              className="absolute top-6 right-6 w-8 h-8 rounded-full bg-[#0f172a] border border-[rgba(226,232,240,0.1)] flex items-center justify-center text-[#94a3b8] hover:text-white transition-colors"
+            >
+              ✕
+            </button>
+            <h3 className="text-2xl font-display font-medium text-white mb-6 pr-8">Change Password</h3>
+            <form className="space-y-5">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-[#94a3b8] mb-2">Current Password</label>
                 <input
                   type="password"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                  placeholder="Enter current password"
+                  className="input-dark w-full bg-[#0f172a]"
+                  placeholder="********"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-[#94a3b8] mb-2">New Password</label>
                 <input
                   type="password"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                  placeholder="Enter new password"
+                  className="input-dark w-full bg-[#0f172a]"
+                  placeholder="********"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+                 <label className="block text-[10px] font-bold uppercase tracking-widest text-[#94a3b8] mb-2">Confirm Protocol</label>
                 <input
                   type="password"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                  placeholder="Confirm new password"
+                  className="input-dark w-full bg-[#0f172a]"
+                   placeholder="********"
                 />
               </div>
-              <div className="flex space-x-3 pt-4">
-                <button
+              <div className="flex gap-3 pt-4 border-t border-[rgba(226,232,240,0.1)] mt-2">
+                 <button
                   type="button"
                   onClick={() => setShowPasswordModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                  className="flex-1 px-4 py-3 rounded-xl border border-[rgba(226,232,240,0.1)] text-xs font-bold uppercase tracking-widest text-[#94a3b8] hover:bg-[rgba(226,232,240,0.05)] hover:text-white transition-all"
                 >
                   Cancel
                 </button>
                 <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700"
+                  type="button"
+                  onClick={() => setShowPasswordModal(false)}
+                  className="flex-1 px-4 py-3 rounded-xl bg-silver-gradient text-black text-xs font-bold uppercase tracking-widest transition-transform hover:scale-105"
+                  style={{ background: 'linear-gradient(135deg, #94a3b8 0%, #e2e8f0 50%, #bae6fd 100%)' }}
                 >
-                  Update Password
+                  Confirm
                 </button>
               </div>
             </form>
@@ -464,61 +476,46 @@ const Profile = () => {
 
       {/* Notification Preferences Modal */}
       {showNotificationModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Notification Preferences</h3>
-              <button
-                onClick={() => setShowNotificationModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+           <div className="bg-[#1e293b] border border-[rgba(226,232,240,0.15)] shadow-2xl rounded-3xl p-8 w-full max-w-md relative animate-fade-in">
+             <button
+              onClick={() => setShowNotificationModal(false)}
+               className="absolute top-6 right-6 w-8 h-8 rounded-full bg-[#0f172a] border border-[rgba(226,232,240,0.1)] flex items-center justify-center text-[#94a3b8] hover:text-white transition-colors"
+            >
+              ✕
+            </button>
+            <h3 className="text-2xl font-display font-medium text-white mb-6 pr-8">Notifications</h3>
+            
+            <div className="space-y-6">
+              <div className="flex items-center justify-between p-4 rounded-xl border border-[rgba(226,232,240,0.05)] bg-[#0f172a]/50">
                 <div>
-                  <p className="font-medium text-gray-900">Email Notifications</p>
-                  <p className="text-sm text-gray-500">Receive order updates via email</p>
+                  <p className="text-sm font-semibold text-[#e2e8f0]">Orders</p>
+                  <p className="text-[10px] text-[#64748b] font-medium uppercase tracking-widest mt-1">Status & Delivery Drops</p>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input type="checkbox" className="sr-only peer" defaultChecked />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-pink-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-600"></div>
+                  <div className="w-10 h-5 bg-[#334155] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[rgba(226,232,240,0.2)] peer-checked:border peer-checked:border-[rgba(226,232,240,0.4)]"></div>
                 </label>
               </div>
-              <div className="flex items-center justify-between">
+              
+              <div className="flex items-center justify-between p-4 rounded-xl border border-[rgba(226,232,240,0.05)] bg-[#0f172a]/50">
                 <div>
-                  <p className="font-medium text-gray-900">SMS Notifications</p>
-                  <p className="text-sm text-gray-500">Receive order updates via SMS</p>
+                   <p className="text-sm font-semibold text-[#e2e8f0]">Promotional</p>
+                   <p className="text-[10px] text-[#64748b] font-medium uppercase tracking-widest mt-1">Exclusive Releases</p>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input type="checkbox" className="sr-only peer" />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-pink-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-600"></div>
+                   <div className="w-10 h-5 bg-[#334155] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[rgba(226,232,240,0.2)] peer-checked:border peer-checked:border-[rgba(226,232,240,0.4)]"></div>
                 </label>
               </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-gray-900">Promotional Emails</p>
-                  <p className="text-sm text-gray-500">Receive special offers and updates</p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" className="sr-only peer" defaultChecked />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-pink-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-600"></div>
-                </label>
-              </div>
-              <div className="flex space-x-3 pt-4">
-                <button
+
+              <div className="flex gap-3 pt-4 border-t border-[rgba(226,232,240,0.1)] mt-2">
+                 <button
                   type="button"
                   onClick={() => setShowNotificationModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                   className="flex-1 px-4 py-3 rounded-xl border border-[rgba(226,232,240,0.1)] text-xs font-bold uppercase tracking-widest text-[#94a3b8] hover:bg-[rgba(226,232,240,0.05)] hover:text-white transition-all"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className="flex-1 px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700"
-                >
-                  Save Preferences
+                  Done
                 </button>
               </div>
             </div>
@@ -528,61 +525,35 @@ const Profile = () => {
 
       {/* Privacy Settings Modal */}
       {showPrivacyModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Privacy Settings</h3>
-              <button
-                onClick={() => setShowPrivacyModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
+         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+           <div className="bg-[#1e293b] border border-[rgba(226,232,240,0.15)] shadow-2xl rounded-3xl p-8 w-full max-w-md relative animate-fade-in">
+             <button
+              onClick={() => setShowPrivacyModal(false)}
+               className="absolute top-6 right-6 w-8 h-8 rounded-full bg-[#0f172a] border border-[rgba(226,232,240,0.1)] flex items-center justify-center text-[#94a3b8] hover:text-white transition-colors"
+            >
+              ✕
+            </button>
+            <h3 className="text-2xl font-display font-medium text-white mb-6 pr-8">Telemetrics</h3>
+            
+            <div className="space-y-6">
+              <div className="flex items-center justify-between p-4 rounded-xl border border-[rgba(226,232,240,0.05)] bg-[#0f172a]/50">
                 <div>
-                  <p className="font-medium text-gray-900">Profile Visibility</p>
-                  <p className="text-sm text-gray-500">Allow others to see your profile</p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" className="sr-only peer" />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-pink-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-600"></div>
-                </label>
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-gray-900">Data Analytics</p>
-                  <p className="text-sm text-gray-500">Allow us to use your data for analytics</p>
+                   <p className="text-sm font-semibold text-[#e2e8f0]">Analytics Data</p>
+                   <p className="text-[10px] text-[#64748b] font-medium uppercase tracking-widest mt-1">Help us improve UI</p>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input type="checkbox" className="sr-only peer" defaultChecked />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-pink-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-600"></div>
+                   <div className="w-10 h-5 bg-[#334155] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[rgba(226,232,240,0.2)] peer-checked:border peer-checked:border-[rgba(226,232,240,0.4)]"></div>
                 </label>
               </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-gray-900">Third-party Sharing</p>
-                  <p className="text-sm text-gray-500">Allow sharing data with trusted partners</p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" className="sr-only peer" />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-pink-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-600"></div>
-                </label>
-              </div>
-              <div className="flex space-x-3 pt-4">
-                <button
+              
+              <div className="flex gap-3 pt-4 border-t border-[rgba(226,232,240,0.1)] mt-2">
+                 <button
                   type="button"
                   onClick={() => setShowPrivacyModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                   className="flex-1 px-4 py-3 rounded-xl border border-[rgba(226,232,240,0.1)] text-xs font-bold uppercase tracking-widest text-[#94a3b8] hover:bg-[rgba(226,232,240,0.05)] hover:text-white transition-all"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className="flex-1 px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700"
-                >
-                  Save Settings
+                  Done
                 </button>
               </div>
             </div>

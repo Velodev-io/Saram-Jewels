@@ -10,8 +10,11 @@ import {
   SparklesIcon,
 } from '@heroicons/react/24/outline';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 import PaymentGateway from '../components/payment/PaymentGateway';
 import PaymentSuccess from '../components/payment/PaymentSuccess';
+import AddressForm from '../components/cart/AddressForm';
+import apiService from '../services/api';
 
 /* ── Sparkle Component ── */
 const SparkleStar = ({ style }) => (
@@ -22,7 +25,9 @@ const SparkleStar = ({ style }) => (
 
 const Cart = () => {
   const { cart: cartItems, removeFromCart, updateQuantity, getCartTotal, clearCart } = useCart();
-  const [showPayment, setShowPayment] = useState(false);
+  const { user } = useAuth();
+  const [checkoutStep, setCheckoutStep] = useState('cart'); // 'cart', 'address', 'payment'
+  const [shippingAddress, setShippingAddress] = useState(null);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [paymentDetails, setPaymentDetails] = useState(null);
   const navigate = useNavigate();
@@ -32,22 +37,64 @@ const Cart = () => {
   const shipping = subtotal >= 999 ? 0 : 99;
   const total = subtotal + tax + shipping;
 
-  const handlePaymentSuccess = (details) => {
-    setPaymentDetails(details);
-    setPaymentSuccess(true);
-    setShowPayment(false);
-    clearCart();
+  const handleAddressComplete = (address) => {
+    setShippingAddress(address);
+    setCheckoutStep('payment');
+  };
+
+  const handlePaymentSuccess = async (details) => {
+    try {
+      // Save order to backend
+      const orderData = {
+        user_id: user?.id || 'guest',
+        user_email: user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress,
+        first_name: user?.firstName,
+        last_name: user?.lastName,
+        amount: total,
+        items: cartItems.map(item => ({
+          product_id: item.id,
+          quantity: item.quantity,
+          price: item.price
+        })),
+        shipping_address: shippingAddress,
+        payment_details: details,
+        payment_method: details.method || 'razorpay'
+      };
+      
+      const response = await apiService.createOrder(orderData);
+      
+      setPaymentDetails({ ...details, orderId: response.order_number || details.orderId });
+      setPaymentSuccess(true);
+      setCheckoutStep('cart');
+      clearCart();
+    } catch (error) {
+      console.error('Failed to save order:', error);
+      alert('Payment successful, but failed to save order details. Please contact support.');
+    }
   };
 
   if (paymentSuccess) return <PaymentSuccess paymentDetails={paymentDetails} />;
-  if (showPayment) {
+  
+  if (checkoutStep === 'address') {
+    return (
+      <div className="min-h-screen bg-[#020617] pt-32 px-6">
+        <AddressForm 
+          onComplete={handleAddressComplete} 
+          onBack={() => setCheckoutStep('cart')}
+          initialData={shippingAddress}
+        />
+      </div>
+    );
+  }
+
+  if (checkoutStep === 'payment') {
     return (
       <div className="min-h-screen bg-[#020617] py-24 px-4 flex items-center justify-center">
         <PaymentGateway
           amount={total}
           orderId={`order_${Date.now()}`}
           onPaymentSuccess={handlePaymentSuccess}
-          onPaymentFailure={(err) => { alert(`Payment failed: ${err}`); setShowPayment(false); }}
+          onPaymentFailure={(err) => { alert(`Payment failed: ${err}`); setCheckoutStep('cart'); }}
         />
       </div>
     );
@@ -237,7 +284,7 @@ const Cart = () => {
 
               <div className="space-y-4">
                 <button
-                  onClick={() => setShowPayment(true)}
+                  onClick={() => setCheckoutStep('address')}
                   className="btn-silver w-full py-5 rounded-2xl relative overflow-hidden group/btn"
                 >
                   <span className="relative z-10 flex items-center justify-center gap-3">

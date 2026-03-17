@@ -59,31 +59,105 @@ const stats = [
   { value: '4.9', label: 'Avg. Rating' },
 ];
 
-const testimonials = [
-  {
-    name: 'Priya S.',
-    city: 'Delhi',
-    rating: 5,
-    text: 'Absolutely stunning quality. The ring I ordered looked even better in person — it hasn\'t tarnished a bit after months of daily wear!',
-  },
-  {
-    name: 'Anjali M.',
-    city: 'Mumbai',
-    rating: 5,
-    text: 'Ordered a necklace set for my sister\'s wedding. The packaging was gorgeous and the piece was exactly as shown. Will definitely reorder!',
-  },
-  {
-    name: 'Riya K.',
-    city: 'Bangalore',
-    rating: 5,
-    text: 'Best American Diamond jewelry I have ever purchased. Affordable yet looks so premium. My go-to brand for gifting now.',
-  },
-];
+const ReviewModal = ({ isOpen, onClose, onSubmit }) => {
+  const [name, setName] = useState('');
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState('');
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#020617]/90 backdrop-blur-md p-4">
+      <div className="glass-card w-full max-w-lg p-8 rounded-3xl animate-premium-in">
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="font-display text-2xl font-bold text-white">Share Your Brilliance</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">✕</button>
+        </div>
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          if (rating === 0) {
+            alert("Please select a rating to share your brilliance!");
+            return;
+          }
+          onSubmit({ user_name: name, rating, comment });
+          setName(''); setRating(0); setComment('');
+        }} className="space-y-5">
+          <div>
+            <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Your Name</label>
+            <input 
+              type="text" 
+              required 
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="glass-input w-full px-4 py-3" 
+              placeholder="e.g. Mahira K."
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Rating</label>
+            <div className="flex gap-2">
+              {[1, 2, 3, 4, 5].map((s) => (
+                <StarIcon 
+                  key={s} 
+                  onClick={() => setRating(s)}
+                  className={`h-8 w-8 cursor-pointer transition-all ${s <= rating ? 'text-[#e2e8f0] fill-[#e2e8f0]' : 'text-slate-700 hover:text-slate-500'}`} 
+                />
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Your Experience</label>
+            <textarea 
+              required 
+              rows="4"
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              className="glass-input w-full px-4 py-3 resize-none" 
+              placeholder="Describe your Saram experience..."
+            />
+          </div>
+          <button type="submit" className="btn-silver w-full py-4 uppercase tracking-[0.2em] font-black">
+            Submit Review
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
 
 const Home = () => {
   const navigate = useNavigate();
   const heroRef = useRef(null);
   const [categories, setCategories] = useState([]);
+  const [reviews, setReviews] = useState([]);
+  const [isReviewOpen, setIsReviewOpen] = useState(false);
+
+  useEffect(() => {
+    const fetchReviews = async () => {
+      try {
+        const data = await apiService.getReviews();
+        setReviews(data);
+      } catch (e) {
+        console.error("Reviews err:", e);
+      }
+    };
+    fetchReviews();
+  }, []);
+
+  const handleReviewSubmit = async (data) => {
+    try {
+      await apiService.createReview(data);
+      setIsReviewOpen(false);
+      // Refresh reviews
+      const updated = await apiService.getReviews();
+      setReviews(updated);
+      window.dispatchEvent(new CustomEvent('showNotification', { 
+        detail: { message: 'Thank you for your review!', type: 'success' } 
+      }));
+    } catch (e) {
+      alert("Failed to submit review. Please try again.");
+    }
+  };
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -297,16 +371,73 @@ const Home = () => {
             ))}
           </div>
 
-          <div className="text-center mt-12">
+          <div className="text-center mt-12 flex flex-col items-center gap-6">
             <button
               onClick={() => navigate('/products')}
-              className="btn-outline"
+              className="btn-outline px-10"
             >
               View All Products
             </button>
+
+            {/* Testimonials Section immediately under */}
+            <div className="w-full mt-24">
+              <div className="text-center mb-16">
+                <div className="section-label justify-center mb-4">Vanguard Patrons</div>
+                <h2 className="font-display text-4xl md:text-5xl font-bold text-[#ffffff] mb-4">
+                  The <span className="text-silver-gradient">Saram</span> Experience
+                </h2>
+                <SilverDivider />
+              </div>
+
+              {reviews.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+                  {reviews.slice(0, 3).map((t, i) => (
+                    <div key={i} className="card p-8 group hover:translate-y-[-8px] transition-all duration-500">
+                      <div className="flex gap-1 mb-6">
+                        {[...Array(t.rating)].map((_, j) => (
+                          <StarIcon key={j} className="h-4 w-4 text-[#e2e8f0] fill-[#e2e8f0]" />
+                        ))}
+                      </div>
+                      <p className="text-[#94a3b8] leading-relaxed text-sm mb-8 italic min-h-[60px]">
+                        "{t.comment}"
+                      </p>
+                      <div className="flex items-center gap-3 border-t border-[rgba(226,232,240,0.1)] pt-5">
+                        <div className="w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center text-white text-sm font-bold border border-white/10 group-hover:border-white/30 transition-colors">
+                          {t.user_name?.charAt(0) || 'S'}
+                        </div>
+                        <div>
+                          <p className="text-[#f8fafc] font-semibold text-sm">{t.user_name}</p>
+                          <p className="text-[#64748b] text-[10px] uppercase tracking-widest">{new Date(t.created_at).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center text-slate-500 italic py-12">
+                  Be the first to share your brilliance.
+                </div>
+              )}
+
+              <div className="mt-12">
+                <button
+                  onClick={() => setIsReviewOpen(true)}
+                  className="btn-silver text-xs px-8 py-3 group"
+                >
+                  <SparklesIcon className="h-4 w-4 group-hover:rotate-12 transition-transform" />
+                  Write Your Review
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </section>
+
+      <ReviewModal 
+        isOpen={isReviewOpen} 
+        onClose={() => setIsReviewOpen(false)} 
+        onSubmit={handleReviewSubmit} 
+      />
 
       {/* ══════════════════════════════════════
           ABOUT / BRAND STORY
@@ -409,44 +540,7 @@ const Home = () => {
         </div>
       </section>
 
-      {/* ══════════════════════════════════════
-          TESTIMONIALS
-      ══════════════════════════════════════ */}
-      <section className="py-24 bg-[#0f172a] border-y border-[rgba(226,232,240,0.08)] px-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <div className="section-label justify-center mb-4">Customer Stories</div>
-            <h2 className="font-display text-5xl font-bold text-[#ffffff]">
-              Loved by <span className="text-silver-gradient">Thousands</span>
-            </h2>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {testimonials.map((t, i) => (
-              <div key={i} className="card p-8 group">
-                {/* Stars */}
-                <div className="flex gap-1 mb-6">
-                  {[...Array(t.rating)].map((_, j) => (
-                    <StarIcon key={j} className="h-4 w-4 text-[#e2e8f0] fill-[#e2e8f0]" />
-                  ))}
-                </div>
-                <p className="text-[#94a3b8] leading-relaxed text-sm mb-8 italic">
-                  "{t.text}"
-                </p>
-                <div className="flex items-center gap-3 border-t border-[rgba(226,232,240,0.1)] pt-5">
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#e2e8f0] to-[#94a3b8] flex items-center justify-center text-[#020617] text-sm font-bold">
-                    {t.name.charAt(0)}
-                  </div>
-                  <div>
-                    <p className="text-[#f8fafc] font-semibold text-sm">{t.name}</p>
-                    <p className="text-[#64748b] text-xs">{t.city}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* ══════════════════════════════════════
           CTA BANNER
@@ -497,7 +591,9 @@ const Home = () => {
                 {['FB', 'IG', 'YT'].map((s) => (
                   <a
                     key={s}
-                    href="#"
+                    href={`https://${s.toLowerCase()}.com`}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="w-9 h-9 rounded-full border border-[rgba(226,232,240,0.2)] flex items-center justify-center text-[#64748b] hover:border-[#e2e8f0] hover:text-[#e2e8f0] transition-all duration-200 text-xs font-bold"
                   >
                     {s}

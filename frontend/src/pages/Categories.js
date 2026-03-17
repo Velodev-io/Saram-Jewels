@@ -4,7 +4,6 @@ import apiService from '../services/api';
 import {
   SparklesIcon,
   ArrowRightIcon,
-  StarIcon,
   FireIcon,
 } from '@heroicons/react/24/outline';
 

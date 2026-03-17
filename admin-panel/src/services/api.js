@@ -75,6 +75,17 @@ class ApiService {
     const response = await api.put(`/orders/${id}/status`, { status });
     return response.data;
   }
+
+  // Reviews API
+  async getReviews() {
+    const response = await api.get('/reviews');
+    return response.data;
+  }
+
+  async deleteReview(id) {
+    const response = await api.delete(`/reviews/${id}`);
+    return response.data;
+  }
 }
 
 const apiService = new ApiService();

@@ -6,6 +6,12 @@ const clerkAuth = require('../middleware/clerkAuth');
 // Get current user profile (requires authentication)
 router.get('/profile', clerkAuth, userController.getCurrentUser);
 
+// Get all users (admin)
+router.get('/all', userController.getAllUsers);
+
+// Get user by ID
+router.get('/:id', userController.getUserProfile);
+
 // Get user by Clerk ID
 router.get('/clerk/:clerkUserId', userController.getUserByClerkId);
 

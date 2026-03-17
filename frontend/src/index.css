@@ -216,6 +216,33 @@ body {
   border: 1px solid rgba(226,232,240,0.15);
 }
 
+.glass-card {
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(226, 232, 240, 0.1);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.glass-input {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: #ffffff;
+  transition: all 0.3s ease;
+  outline: none;
+}
+
+.glass-input:focus {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(226, 232, 240, 0.4);
+  box-shadow: 0 0 20px rgba(226, 232, 240, 0.1);
+}
+
+.glass-input::placeholder {
+  color: rgba(226, 232, 240, 0.3);
+}
+
 /* ─── Animations & 3D Effects ───────────────────────────────── */
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(24px); }
@@ -248,6 +275,14 @@ body {
 .animate-slide-down  { animation: slideDown 0.3s ease-out; }
 .animate-float       { animation: float 6s ease-in-out infinite; }
 .animate-spin-slow   { animation: spin 2s linear infinite; }
+.animate-premium-in {
+  animation: premiumIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes premiumIn {
+  from { opacity: 0; transform: scale(0.95) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
 
 .sparkle {
   position: absolute;

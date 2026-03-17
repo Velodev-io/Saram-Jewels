@@ -5,6 +5,9 @@ const orderController = require('../controllers/orderController');
 // Create new order
 router.post('/create', orderController.createOrder);
 
+// Get all orders (admin)
+router.get('/all', orderController.getAllOrders);
+
 // Process payment
 router.post('/process-payment', orderController.processPayment);
 

@@ -103,10 +103,30 @@ class ApiService {
   // Order APIs
   async createOrder(orderData) {
     try {
-      const response = await api.post('/orders', orderData);
+      const response = await api.post('/orders/create', orderData);
       return response.data;
     } catch (error) {
       console.error('Error creating order:', error);
+      throw error;
+    }
+  }
+
+  async getOrders() {
+    try {
+      const response = await api.get('/orders/all');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      throw error;
+    }
+  }
+
+  async getUsers() {
+    try {
+      const response = await api.get('/users/all');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching users:', error);
       throw error;
     }
   }
@@ -230,6 +250,38 @@ class ApiService {
     if (!image) return null;
     if (typeof image === 'string') return image;
     return image.url || null;
+  }
+
+  // Review APIs
+  async getReviews(productId = null) {
+    try {
+      const params = productId ? { product_id: productId } : {};
+      const response = await api.get('/reviews', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching reviews:', error);
+      throw error;
+    }
+  }
+
+  async createReview(reviewData) {
+    try {
+      const response = await api.post('/reviews', reviewData);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating review:', error);
+      throw error;
+    }
+  }
+
+  async deleteReview(id) {
+    try {
+      const response = await api.delete(`/reviews/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting review:', error);
+      throw error;
+    }
   }
 }
 
