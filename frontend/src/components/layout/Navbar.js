@@ -262,7 +262,10 @@ const Navbar = () => {
           <div className="pb-8 animate-slide-down" ref={searchRef}>
             <div className="max-w-xl mx-auto">
               <form onSubmit={handleSearch} className="relative group">
-                <MagnifyingGlassIcon className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#94a3b8]" />
+                {/* Search Icon - Hidden when typing for cleaner look */}
+                {!searchQuery && (
+                  <MagnifyingGlassIcon className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#94a3b8] pointer-events-none transition-opacity duration-200" />
+                )}
                 <input
                   id="navbar-search"
                   type="text"
@@ -270,8 +273,21 @@ const Navbar = () => {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="What are you looking for today?"
                   autoFocus
-                  className="input-dark pl-12 pr-6 h-12 rounded-2xl border border-[rgba(226,232,240,0.1)] focus:border-[rgba(226,232,240,0.3)] bg-black/40 shadow-2xl"
+                  className={`input-dark pr-12 h-12 rounded-2xl border border-[rgba(226,232,240,0.1)] focus:border-[rgba(226,232,240,0.3)] bg-black/40 shadow-2xl transition-all ${
+                    searchQuery ? 'pl-6' : 'pl-14'
+                  }`}
                 />
+                
+                {/* Clear Button */}
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 p-2 text-[#94a3b8] hover:text-[#f8fafc] transition-colors"
+                  >
+                    <XMarkIcon className="h-4 w-4" />
+                  </button>
+                )}
               </form>
               <div className="flex justify-end mt-2">
                 <button
