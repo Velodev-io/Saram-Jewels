@@ -1,4 +1,4 @@
-const { User, Order } = require('../models');
+const { User, Order, sequelize } = require('../models');
 const { ensureUserExists } = require('../utils/userSync');
 
 // Get current user profile

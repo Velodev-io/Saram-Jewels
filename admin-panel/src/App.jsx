@@ -1664,306 +1664,305 @@ const Admin = () => {
     );
   };
 
-  // Order Details Modal
-  const renderOrderDetailsModal = () => {
-    if (!showOrderDetails) return null;
+// --- Separate Modal Components to follow Rules of Hooks ---
 
-    // Local state for full order data (including items)
-    const [fullOrder, setFullOrder] = useState(showOrderDetails.items?.length > 0 ? showOrderDetails : null);
-    const [loadingDetails, setLoadingDetails] = useState(!showOrderDetails.items?.length);
+const OrderDetailsModal = ({ order, isOpen, onClose, apiService }) => {
+  const [fullOrder, setFullOrder] = useState(order?.items?.length > 0 ? order : null);
+  const [loadingDetails, setLoadingDetails] = useState(order && !order.items?.length);
 
-    useEffect(() => {
-      const fetchFullOrder = async () => {
-        // If we already have items (unlikely with optimized API but for safety), skip
-        if (showOrderDetails.items?.length > 0) return;
+  useEffect(() => {
+    if (!order || order.items?.length > 0) return;
 
-        try {
-          const res = await apiService.getOrder(showOrderDetails.id);
-          if (res) {
-            setFullOrder(res);
-          }
-        } catch (err) {
-          console.error("Error fetching order details:", err);
-          setFullOrder(showOrderDetails); // Fallback
-        } finally {
-          setLoadingDetails(false);
+    const fetchFullOrder = async () => {
+      setLoadingDetails(true);
+      try {
+        const res = await apiService.getOrder(order.id);
+        if (res) {
+          setFullOrder(res);
         }
-      };
+      } catch (err) {
+        console.error("Error fetching order details:", err);
+        setFullOrder(order); // Fallback
+      } finally {
+        setLoadingDetails(false);
+      }
+    };
 
-      fetchFullOrder();
-    }, [showOrderDetails.id]);
+    fetchFullOrder();
+  }, [order?.id]);
 
-    const displayOrder = fullOrder || showOrderDetails;
+  if (!isOpen || !order) return null;
 
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-green-900/40 backdrop-blur-md border border-amber-500/20 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold">Order Details - {displayOrder.order_number || displayOrder.id.slice(-8).toUpperCase()}</h2>
-            <button
-              onClick={() => setShowOrderDetails(null)}
-              className="text-amber-200/50 hover:text-amber-200/80"
-            >
-              ✕
-            </button>
-          </div>
+  const displayOrder = fullOrder || order;
 
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-green-900/40 backdrop-blur-md border border-amber-500/20 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold">Order Details - {displayOrder.order_number || displayOrder.id.slice(-8).toUpperCase()}</h2>
+          <button
+            onClick={onClose}
+            className="text-amber-200/50 hover:text-amber-200/80"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-amber-200/80">Customer</label>
+              <p className="text-sm text-amber-100">{displayOrder.customer || (displayOrder.user ? (displayOrder.user.first_name + ' ' + displayOrder.user.last_name) : 'Guest')}</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-amber-200/80">Total</label>
+              <p className="text-sm text-amber-100">₹{parseFloat(displayOrder.total_amount || displayOrder.total).toLocaleString()}</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-amber-200/80">Date</label>
+              <p className="text-sm text-amber-100">{displayOrder.date || new Date(displayOrder.created_at).toLocaleDateString()}</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-amber-200/80">Status</label>
+              <select
+                id="status_select_input"
+                defaultValue={displayOrder.status?.toLowerCase() || 'pending'}
+                className="w-full bg-green-950/50 text-amber-100 placeholder-amber-200/50 px-3 py-2 border border-amber-500/40 rounded-lg focus:ring-2 focus:ring-amber-300"
+              >
+                <option value="pending">Pending</option>
+                <option value="processing">Processing</option>
+                <option value="shipped">Shipped</option>
+                <option value="delivered">Delivered</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+            <div className="col-span-2 grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-amber-200/80">Customer</label>
-                <p className="text-sm text-amber-100">{displayOrder.customer || (displayOrder.user ? (displayOrder.user.first_name + ' ' + displayOrder.user.last_name) : 'Guest')}</p>
+                <label className="block text-sm font-medium text-amber-200/80">Tracking Number</label>
+                <input
+                  type="text"
+                  id="tracking_number_input"
+                  defaultValue={displayOrder.tracking_number}
+                  placeholder="AWB / Ref #"
+                  className="w-full bg-green-950/50 text-amber-100 placeholder-amber-200/30 px-3 py-2 border border-amber-500/40 rounded-lg focus:ring-2 focus:ring-amber-300"
+                />
               </div>
               <div>
-                <label className="block text-sm font-medium text-amber-200/80">Total</label>
-                <p className="text-sm text-amber-100">₹{parseFloat(displayOrder.total_amount || displayOrder.total).toLocaleString()}</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-amber-200/80">Date</label>
-                <p className="text-sm text-amber-100">{displayOrder.date || new Date(displayOrder.created_at).toLocaleDateString()}</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-amber-200/80">Status</label>
+                <label className="block text-sm font-medium text-amber-200/80">Shipping Carrier</label>
                 <select
-                  id="status_select_input"
-                  defaultValue={displayOrder.status?.toLowerCase() || 'pending'}
-                  className="w-full bg-green-950/50 text-amber-100 placeholder-amber-200/50 px-3 py-2 border border-amber-500/40 rounded-lg focus:ring-2 focus:ring-amber-300"
+                  id="shipping_carrier_input"
+                  defaultValue={displayOrder.shipping_carrier || ''}
+                  className="w-full bg-green-950/50 text-amber-100 placeholder-amber-200/30 px-3 py-2 border border-amber-500/40 rounded-lg focus:ring-2 focus:ring-amber-300"
                 >
-                  <option value="pending">Pending</option>
-                  <option value="processing">Processing</option>
-                  <option value="shipped">Shipped</option>
-                  <option value="delivered">Delivered</option>
-                  <option value="cancelled">Cancelled</option>
+                  <option value="">Select Carrier</option>
+                  <option value="Delhivery">Delhivery</option>
+                  <option value="DTDC">DTDC</option>
+                  <option value="BlueDart">BlueDart</option>
+                  <option value="Delivery Partner">Delivery Partner</option>
                 </select>
               </div>
-              <div className="col-span-2 grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-amber-200/80">Tracking Number</label>
-                  <input
-                    type="text"
-                    id="tracking_number_input"
-                    defaultValue={displayOrder.tracking_number}
-                    placeholder="AWB / Ref #"
-                    className="w-full bg-green-950/50 text-amber-100 placeholder-amber-200/30 px-3 py-2 border border-amber-500/40 rounded-lg focus:ring-2 focus:ring-amber-300"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-amber-200/80">Shipping Carrier</label>
-                  <select
-                    id="shipping_carrier_input"
-                    defaultValue={displayOrder.shipping_carrier || ''}
-                    className="w-full bg-green-950/50 text-amber-100 placeholder-amber-200/30 px-3 py-2 border border-amber-500/40 rounded-lg focus:ring-2 focus:ring-amber-300"
-                  >
-                    <option value="">Select Carrier</option>
-                    <option value="Delhivery">Delhivery</option>
-                    <option value="DTDC">DTDC</option>
-                    <option value="BlueDart">BlueDart</option>
-                    <option value="Delivery Partner">Delivery Partner</option>
-                  </select>
-                </div>
-              </div>
+            </div>
 
-              <div className="flex justify-end gap-3 pb-2">
-                <button
-                  onClick={async () => {
-                    const status = document.getElementById('status_select_input').value;
-                    const tracking = document.getElementById('tracking_number_input').value;
-                    const carrier = document.getElementById('shipping_carrier_input').value;
-                    await apiService.updateOrderStatus(displayOrder.id, status, tracking, carrier);
-                    setShowOrderDetails(null); 
-                  }}
-                  className="px-6 py-2 bg-amber-500/20 text-amber-200 hover:bg-amber-500 hover:text-green-950 text-[10px] font-black uppercase tracking-widest border border-amber-500/30 rounded-lg transition-all"
-                >
-                  Save Acquisition Updates
-                </button>
+            <div className="flex justify-end gap-3 pb-2">
+              <button
+                onClick={async () => {
+                  const status = document.getElementById('status_select_input').value;
+                  const tracking = document.getElementById('tracking_number_input').value;
+                  const carrier = document.getElementById('shipping_carrier_input').value;
+                  await apiService.updateOrderStatus(displayOrder.id, status, tracking, carrier);
+                  onClose(); 
+                }}
+                className="px-6 py-2 bg-amber-500/20 text-amber-200 hover:bg-amber-500 hover:text-green-950 text-[10px] font-black uppercase tracking-widest border border-amber-500/30 rounded-lg transition-all"
+              >
+                Save Acquisition Updates
+              </button>
+            </div>
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-amber-200/80 uppercase tracking-widest text-[10px] mb-1">Payment Method</label>
+              <div className="px-3 py-2 bg-amber-500/5 border border-amber-500/10 rounded-lg text-amber-100 font-bold flex items-center gap-2">
+                 <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                 {(displayOrder.payment_method || 'CASH ON DELIVERY (COD)')?.toUpperCase()}
               </div>
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-amber-200/80 uppercase tracking-widest text-[10px] mb-1">Payment Method</label>
-                <div className="px-3 py-2 bg-amber-500/5 border border-amber-500/10 rounded-lg text-amber-100 font-bold flex items-center gap-2">
-                   <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                   {(displayOrder.payment_method || 'CASH ON DELIVERY (COD)')?.toUpperCase()}
-                </div>
-              </div>
+            </div>
 
-              {/* Shipping Address Section */}
-              <div className="col-span-2 bg-green-950/40 p-5 rounded-2xl border border-amber-500/10 mt-2 shadow-lg shadow-black/20">
-                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-500/80 mb-4">Logistics Destination</h4>
-                {displayOrder.shipping_address ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-[8px] font-black uppercase tracking-widest text-amber-500/40 mb-1">Receiver Identity</label>
-                        <p className="text-sm font-black text-amber-50">
-                          {displayOrder.shipping_address.firstName || displayOrder.shipping_address.name} {displayOrder.shipping_address.lastName || ''}
-                        </p>
-                      </div>
-                      <div>
-                        <label className="block text-[8px] font-black uppercase tracking-widest text-amber-500/40 mb-1">Primary Phone</label>
-                        <p className="text-sm font-bold text-emerald-400 tracking-wider font-mono">
-                          {displayOrder.shipping_address.phone}
-                        </p>
-                      </div>
+            {/* Shipping Address Section */}
+            <div className="col-span-2 bg-green-950/40 p-5 rounded-2xl border border-amber-500/10 mt-2 shadow-lg shadow-black/20">
+              <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-500/80 mb-4">Logistics Destination</h4>
+              {displayOrder.shipping_address ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-[8px] font-black uppercase tracking-widest text-amber-500/40 mb-1">Receiver Identity</label>
+                      <p className="text-sm font-black text-amber-50">
+                        {displayOrder.shipping_address.firstName || displayOrder.shipping_address.name} {displayOrder.shipping_address.lastName || ''}
+                      </p>
                     </div>
                     <div>
-                      <label className="block text-[8px] font-black uppercase tracking-widest text-amber-500/40 mb-1">Vault Registry Address</label>
-                      <div className="text-xs font-semibold text-amber-50/90 leading-relaxed bg-black/20 p-3 rounded-xl border border-white/5">
-                        {displayOrder.shipping_address.house_no && <span className="text-amber-300 font-black mr-1">{displayOrder.shipping_address.house_no},</span>}
-                        {displayOrder.shipping_address.address || displayOrder.shipping_address.addressLine1}
-                        {displayOrder.shipping_address.addressLine2 && <><br />{displayOrder.shipping_address.addressLine2}</>}
-                        <br />
-                        {displayOrder.shipping_address.locality && <>{displayOrder.shipping_address.locality}, </>}
-                        {displayOrder.shipping_address.city}, {displayOrder.shipping_address.state}
-                        <div className="mt-2 pt-2 border-t border-white/5 flex items-center justify-between">
-                           <span className="text-[9px] font-black text-amber-500/40 uppercase tracking-widest">Pincode:</span>
-                           <span className="text-amber-200 font-black tracking-widest">{displayOrder.shipping_address.zip || displayOrder.shipping_address.pincode || displayOrder.shipping_address.zipCode}</span>
-                        </div>
+                      <label className="block text-[8px] font-black uppercase tracking-widest text-amber-500/40 mb-1">Primary Phone</label>
+                      <p className="text-sm font-bold text-emerald-400 tracking-wider font-mono">
+                        {displayOrder.shipping_address.phone}
+                      </p>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[8px] font-black uppercase tracking-widest text-amber-500/40 mb-1">Vault Registry Address</label>
+                    <div className="text-xs font-semibold text-amber-50/90 leading-relaxed bg-black/20 p-3 rounded-xl border border-white/5">
+                      {displayOrder.shipping_address.house_no && <span className="text-amber-300 font-black mr-1">{displayOrder.shipping_address.house_no},</span>}
+                      {displayOrder.shipping_address.address || displayOrder.shipping_address.addressLine1}
+                      {displayOrder.shipping_address.addressLine2 && <><br />{displayOrder.shipping_address.addressLine2}</>}
+                      <br />
+                      {displayOrder.shipping_address.locality && <>{displayOrder.shipping_address.locality}, </>}
+                      {displayOrder.shipping_address.city}, {displayOrder.shipping_address.state}
+                      <div className="mt-2 pt-2 border-t border-white/5 flex items-center justify-between">
+                         <span className="text-[9px] font-black text-amber-500/40 uppercase tracking-widest">Pincode:</span>
+                         <span className="text-amber-200 font-black tracking-widest">{displayOrder.shipping_address.zip || displayOrder.shipping_address.pincode || displayOrder.shipping_address.zipCode}</span>
                       </div>
                     </div>
                   </div>
-                ) : (
-                  <p className="text-xs text-amber-200/40 italic">Legacy destination data not available.</p>
-                )}
-              </div>
+                </div>
+              ) : (
+                <p className="text-xs text-amber-200/40 italic">Legacy destination data not available.</p>
+              )}
             </div>
+          </div>
 
-            <div className="border-t pt-4">
-              <h3 className="font-medium text-amber-100 mb-2 uppercase tracking-widest text-[10px]">Acquisition Contents</h3>
-              <div className="bg-green-950/40 p-4 rounded-xl border border-white/5 space-y-3">
-                {loadingDetails ? (
-                  <div className="flex flex-col items-center justify-center py-8 gap-3">
-                    <div className="w-6 h-6 border-2 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
-                    <p className="text-[9px] font-black text-amber-500/40 uppercase tracking-widest">Hydrating Item Registry...</p>
-                  </div>
-                ) : (
-                  <>
-                    {displayOrder.items && displayOrder.items.length > 0 ? (
-                      displayOrder.items.map((item, idx) => (
-                        <div key={idx} className="flex justify-between items-center text-sm group">
-                          <div className="flex flex-col">
-                            <span className="text-amber-100 font-medium group-hover:text-amber-400 transition-colors">{item.product?.name || 'Jewelry Piece'}</span>
-                            <span className="text-[10px] text-amber-200/50 uppercase tracking-[0.1em]">Quantity: {item.quantity}</span>
-                          </div>
-                          <span className="text-amber-100 font-black">₹{parseFloat(item.price).toLocaleString()}</span>
+          <div className="border-t pt-4">
+            <h3 className="font-medium text-amber-100 mb-2 uppercase tracking-widest text-[10px]">Acquisition Contents</h3>
+            <div className="bg-green-950/40 p-4 rounded-xl border border-white/5 space-y-3">
+              {loadingDetails ? (
+                <div className="flex flex-col items-center justify-center py-8 gap-3">
+                  <div className="w-6 h-6 border-2 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
+                  <p className="text-[9px] font-black text-amber-500/40 uppercase tracking-widest">Hydrating Item Registry...</p>
+                </div>
+              ) : (
+                <>
+                  {displayOrder.items && displayOrder.items.length > 0 ? (
+                    displayOrder.items.map((item, idx) => (
+                      <div key={idx} className="flex justify-between items-center text-sm group">
+                        <div className="flex flex-col">
+                          <span className="text-amber-100 font-medium group-hover:text-amber-400 transition-colors">{item.product?.name || 'Jewelry Piece'}</span>
+                          <span className="text-[10px] text-amber-200/50 uppercase tracking-[0.1em]">Quantity: {item.quantity}</span>
                         </div>
-                      ))
-                    ) : (
-                      <p className="text-sm text-amber-200/40 italic">No pieces found in this acquisition.</p>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // Customer Profile Modal
-  const renderCustomerProfileModal = () => {
-    if (!showCustomerProfile) return null;
-
-    // Use a local state for modal orders to handle lazy loading
-    const [modalOrders, setModalOrders] = useState(showCustomerProfile.rawOrders || null);
-    const [modalLoading, setModalLoading] = useState(!showCustomerProfile.rawOrders);
-
-    useEffect(() => {
-      const fetchCustomerOrders = async () => {
-        if (showCustomerProfile.rawOrders) return;
-        
-        try {
-          const res = await apiService.getUserOrders(showCustomerProfile.id);
-          if (res.success) {
-            setModalOrders(res.data || []);
-          }
-        } catch (err) {
-          console.error("Error fetching modal orders:", err);
-          setModalOrders([]);
-        } finally {
-          setModalLoading(false);
-        }
-      };
-
-      fetchCustomerOrders();
-    }, [showCustomerProfile.id]);
-
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-green-900/40 backdrop-blur-md border border-amber-500/20 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold">Customer Profile - {showCustomerProfile.name}</h2>
-            <button
-              onClick={() => setShowCustomerProfile(null)}
-              className="text-amber-200/50 hover:text-amber-200/80"
-            >
-              ✕
-            </button>
-          </div>
-
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-6 bg-green-950/30 p-5 rounded-2xl border border-amber-500/10 mb-6">
-              <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-amber-500/60 mb-1">Full Identity</label>
-                <p className="text-sm font-bold text-amber-50">{showCustomerProfile.name}</p>
-              </div>
-              <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-amber-500/60 mb-1">Communication</label>
-                <p className="text-sm font-bold text-amber-100/70">{showCustomerProfile.email}</p>
-              </div>
-              <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-amber-500/60 mb-1">Acquisitions</label>
-                <p className="text-sm font-bold text-amber-50">{showCustomerProfile.orders} Orders</p>
-              </div>
-              <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-amber-500/60 mb-1">Lifetime Yield</label>
-                <p className="text-sm font-bold text-amber-50">₹{showCustomerProfile.totalSpent.toLocaleString()}</p>
-              </div>
-            </div>
-
-            <div className="border-t border-amber-500/10 pt-6">
-              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-500/80 mb-4">Historical Acquisitions</h3>
-              <div className="space-y-3">
-                {modalLoading ? (
-                  <div className="flex flex-col items-center justify-center py-12 gap-4">
-                     <div className="w-8 h-8 border-2 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
-                     <p className="text-[10px] font-black text-amber-500/40 uppercase tracking-widest">Hydrating Legacy Registry...</p>
-                  </div>
-                ) : (
-                  <>
-                    {(modalOrders || []).length === 0 ? (
-                      <div className="bg-green-950/20 border border-dashed border-amber-500/10 p-8 rounded-2xl text-center">
-                        <p className="text-xs text-amber-200/40 uppercase tracking-widest font-black">No legacy acquisitions found</p>
+                        <span className="text-amber-100 font-black">₹{parseFloat(item.price).toLocaleString()}</span>
                       </div>
-                    ) : (
-                      (modalOrders || []).map(order => (
-                        <div key={order.id} className="bg-green-950/40 border border-amber-500/5 p-4 rounded-xl flex justify-between items-center group hover:border-amber-500/20 transition-all shadow-lg shadow-black/20">
-                          <div>
-                            <p className="text-[10px] font-black text-amber-500/60 uppercase tracking-widest mb-1">
-                              SJ-{(order.id || '').substring(0, 8).toUpperCase()}
-                            </p>
-                            <p className="text-xs font-bold text-amber-200/60">{new Date(order.created_at || order.createdAt).toLocaleDateString()}</p>
-                          </div>
-                          <div className="text-right">
-                             <p className="text-sm font-black text-amber-50 mb-1">₹{parseFloat(order.total_amount).toLocaleString()}</p>
-                             <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${
-                               order.status === 'delivered' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 
-                               order.status === 'cancelled' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                             }`}>
-                               {order.status}
-                             </span>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </>
-                )}
-              </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-amber-200/40 italic">No pieces found in this acquisition.</p>
+                  )}
+                </>
+              )}
             </div>
           </div>
         </div>
       </div>
-    );
-  };
+    </div>
+  );
+};
+
+const CustomerProfileModal = ({ customer, isOpen, onClose, apiService }) => {
+  const [modalOrders, setModalOrders] = useState(customer?.rawOrders || null);
+  const [modalLoading, setModalLoading] = useState(customer && !customer.rawOrders);
+
+  useEffect(() => {
+    if (!customer || customer.rawOrders) return;
+
+    const fetchCustomerOrders = async () => {
+      setModalLoading(true);
+      try {
+        const res = await apiService.getUserOrders(customer.id);
+        if (res.success) {
+          setModalOrders(res.data || []);
+        }
+      } catch (err) {
+        console.error("Error fetching modal orders:", err);
+        setModalOrders([]);
+      } finally {
+        setModalLoading(false);
+      }
+    };
+
+    fetchCustomerOrders();
+  }, [customer?.id]);
+
+  if (!isOpen || !customer) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-green-900/40 backdrop-blur-md border border-amber-500/20 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold">Customer Profile - {customer.name}</h2>
+          <button
+            onClick={onClose}
+            className="text-amber-200/50 hover:text-amber-200/80"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-6 bg-green-950/30 p-5 rounded-2xl border border-amber-500/10 mb-6">
+            <div>
+              <label className="block text-[10px] font-black uppercase tracking-widest text-amber-500/60 mb-1">Full Identity</label>
+              <p className="text-sm font-bold text-amber-50">{customer.name}</p>
+            </div>
+            <div>
+              <label className="block text-[10px] font-black uppercase tracking-widest text-amber-500/60 mb-1">Communication</label>
+              <p className="text-sm font-bold text-amber-100/70">{customer.email}</p>
+            </div>
+            <div>
+              <label className="block text-[10px] font-black uppercase tracking-widest text-amber-500/60 mb-1">Acquisitions</label>
+              <p className="text-sm font-bold text-amber-50">{customer.orders} Orders</p>
+            </div>
+            <div>
+              <label className="block text-[10px] font-black uppercase tracking-widest text-amber-500/60 mb-1">Lifetime Yield</label>
+              <p className="text-sm font-bold text-amber-50">₹{customer.totalSpent.toLocaleString()}</p>
+            </div>
+          </div>
+
+          <div className="border-t border-amber-500/10 pt-6">
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-500/80 mb-4">Historical Acquisitions</h3>
+            <div className="space-y-3">
+              {modalLoading ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-4">
+                   <div className="w-8 h-8 border-2 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
+                   <p className="text-[10px] font-black text-amber-500/40 uppercase tracking-widest">Hydrating Legacy Registry...</p>
+                </div>
+              ) : (
+                <>
+                  {(modalOrders || []).length === 0 ? (
+                    <div className="bg-green-950/20 border border-dashed border-amber-500/10 p-8 rounded-2xl text-center">
+                      <p className="text-xs text-amber-200/40 uppercase tracking-widest font-black">No legacy acquisitions found</p>
+                    </div>
+                  ) : (
+                    (modalOrders || []).map(order => (
+                      <div key={order.id} className="bg-green-950/40 border border-amber-500/5 p-4 rounded-xl flex justify-between items-center group hover:border-amber-500/20 transition-all shadow-lg shadow-black/20">
+                        <div>
+                          <p className="text-[10px] font-black text-amber-500/60 uppercase tracking-widest mb-1">
+                            SJ-{(order.id || '').substring(0, 8).toUpperCase()}
+                          </p>
+                          <p className="text-xs font-bold text-amber-200/60">{new Date(order.created_at || order.createdAt).toLocaleDateString()}</p>
+                        </div>
+                        <div className="text-right">
+                           <p className="text-sm font-black text-amber-50 mb-1">₹{parseFloat(order.total_amount).toLocaleString()}</p>
+                           <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${
+                             order.status === 'delivered' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 
+                             order.status === 'cancelled' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                           }`}>
+                             {order.status}
+                           </span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
   // Bulk Stock Update Modal
   const renderBulkStockUpdateModal = () => {
@@ -2299,11 +2298,23 @@ const Admin = () => {
 
       {/* Modals */}
       {renderAddEditProductModal()}
-      {renderAddCategoryModal()}
-      {renderOrderDetailsModal()}
-      {renderCustomerProfileModal()}
-      {renderBulkStockUpdateModal()}
-      {renderImageZoomModal()}
+      {renderAddCategoryModal && renderAddCategoryModal()}
+      
+      <OrderDetailsModal 
+        order={showOrderDetails} 
+        isOpen={!!showOrderDetails} 
+        onClose={() => setShowOrderDetails(null)} 
+        apiService={apiService} 
+      />
+
+      <CustomerProfileModal 
+        customer={showCustomerProfile} 
+        isOpen={!!showCustomerProfile} 
+        onClose={() => setShowCustomerProfile(null)} 
+        apiService={apiService} 
+      />
+      {renderBulkStockUpdateModal && renderBulkStockUpdateModal()}
+      {renderImageZoomModal && renderImageZoomModal()}
     </div>
   );
 };
