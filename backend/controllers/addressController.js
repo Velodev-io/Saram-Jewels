@@ -4,8 +4,7 @@ const { ensureUserExists } = require('../utils/userSync');
 // Get all addresses for the authenticated user
 exports.getAddresses = async (req, res) => {
   try {
-    const clerkUserId = req.user.sub;
-    const user = await ensureUserExists(clerkUserId);
+    const user = req.localUser;
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
     const addresses = await Address.findAll({
@@ -23,8 +22,7 @@ exports.getAddresses = async (req, res) => {
 // Add a new address
 exports.addAddress = async (req, res) => {
   try {
-    const clerkUserId = req.user.sub;
-    const user = await ensureUserExists(clerkUserId);
+    const user = req.localUser;
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
     const { name, phone, address, city, state, zip, house_no, locality, country = 'India', label = 'Home', is_default = false } = req.body;
@@ -72,9 +70,8 @@ exports.addAddress = async (req, res) => {
 // Update an existing address
 exports.updateAddress = async (req, res) => {
   try {
-    const clerkUserId = req.user.sub;
     const { id } = req.params;
-    const user = await ensureUserExists(clerkUserId);
+    const user = req.localUser;
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
     const addr = await Address.findOne({ where: { id, user_id: user.id } });
@@ -98,9 +95,8 @@ exports.updateAddress = async (req, res) => {
 // Delete an address
 exports.deleteAddress = async (req, res) => {
   try {
-    const clerkUserId = req.user.sub;
     const { id } = req.params;
-    const user = await ensureUserExists(clerkUserId);
+    const user = req.localUser;
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
     const addr = await Address.findOne({ where: { id, user_id: user.id } });
@@ -128,9 +124,8 @@ exports.deleteAddress = async (req, res) => {
 // Set default address
 exports.setDefaultAddress = async (req, res) => {
   try {
-    const clerkUserId = req.user.sub;
     const { id } = req.params;
-    const user = await ensureUserExists(clerkUserId);
+    const user = req.localUser;
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
     const addr = await Address.findOne({ where: { id, user_id: user.id } });

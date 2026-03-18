@@ -81,8 +81,18 @@ class ApiService {
     return response.data;
   }
 
-  async updateOrderStatus(id, status) {
-    const response = await api.put(`/orders/${id}/status`, { status });
+  async getUserOrders(userId) {
+    const response = await api.get(`/orders/${userId}`);
+    return response.data;
+  }
+
+  async getOrder(id) {
+    const response = await api.get(`/orders/order/${id}`);
+    return response.data;
+  }
+
+  async updateOrderStatus(id, status, tracking_number, shipping_carrier) {
+    const response = await api.put(`/orders/${id}/status`, { status, tracking_number, shipping_carrier });
     return response.data;
   }
 

@@ -126,24 +126,42 @@ const Home = () => {
   const [categories, setCategories] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [isReviewOpen, setIsReviewOpen] = useState(false);
+  const [loadingHome, setLoadingHome] = useState(true);
 
   useEffect(() => {
-    const fetchReviews = async () => {
+    const fetchHomeData = async () => {
       try {
-        const data = await apiService.getReviews();
-        setReviews(data);
-      } catch (e) {
-        console.error("Reviews err:", e);
+        const [reviewsResult, categoriesResult] = await Promise.allSettled([
+          apiService.getReviews(),
+          apiService.getCategories()
+        ]);
+
+        if (reviewsResult.status === 'fulfilled') {
+          setReviews(reviewsResult.value || []);
+        }
+
+        if (categoriesResult.status === 'fulfilled') {
+          const response = categoriesResult.value;
+          const formatted = (response || []).slice(0, 4).map(c => ({
+            name: c.name || 'Category',
+            sub: c.description ? c.description.substring(0, 20) + '...' : 'Explore',
+            href: `/products?category=${c.id}`,
+            image: c.image || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=600&h=700&fit=crop',
+            tag: 'Featured'
+          }));
+          setCategories(formatted);
+        }
+      } finally {
+        setLoadingHome(false);
       }
     };
-    fetchReviews();
+    fetchHomeData();
   }, []);
 
   const handleReviewSubmit = async (data) => {
     try {
       await apiService.createReview(data);
       setIsReviewOpen(false);
-      // Refresh reviews
       const updated = await apiService.getReviews();
       setReviews(updated);
       window.dispatchEvent(new CustomEvent('showNotification', { 
@@ -153,25 +171,6 @@ const Home = () => {
       alert("Failed to submit review. Please try again.");
     }
   };
-
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const response = await apiService.getCategories();
-        const formatted = (response || []).slice(0, 4).map(c => ({
-          name: c.name || 'Category',
-          sub: c.description ? c.description.substring(0, 20) + '...' : 'Explore',
-          href: `/products?category=${c.id}`,
-          image: c.image || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=600&h=700&fit=crop',
-          tag: 'Featured'
-        }));
-        setCategories(formatted);
-      } catch (err) {
-        console.error("Error fetching categories:", err);
-      }
-    };
-    fetchCategories();
-  }, []);
 
   useEffect(() => {
     const el = heroRef.current;
@@ -337,41 +336,48 @@ const Home = () => {
 
           {/* Category Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {categories.map((cat, i) => (
-              <div key={i} className="card-3d">
-                <Link
-                  to={cat.href}
-                  className="group card overflow-hidden relative aspect-[3/4] block card-3d-inner"
-                >
-                  {/* Background image */}
-                <img
-                  src={cat.image}
-                  alt={cat.name}
-                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                />
-                {/* Dark gradient */}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#020617] via-[#020617]/40 to-transparent" />
-                {/* Gold border glow on hover */}
-                <div className="absolute inset-0 ring-0 group-hover:ring-1 ring-[#e2e8f0]/40 rounded-[20px] transition-all duration-300" />
+            {loadingHome ? (
+              [...Array(4)].map((_, i) => (
+                <div key={i} className="aspect-[3/4] rounded-[20px] bg-[#1e293b] animate-pulse border border-[#334155]/20" />
+              ))
+            ) : (
+              categories.map((cat, i) => (
+                <div key={i} className="card-3d">
+                  <Link
+                    to={cat.href}
+                    className="group card overflow-hidden relative aspect-[3/4] block card-3d-inner"
+                  >
+                    {/* Background image */}
+                    <img
+                      src={cat.image}
+                      alt={cat.name}
+                      loading="lazy"
+                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                    />
+                    {/* Dark gradient */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#020617] via-[#020617]/40 to-transparent" />
+                    {/* Gold border glow on hover */}
+                    <div className="absolute inset-0 ring-0 group-hover:ring-1 ring-[#e2e8f0]/40 rounded-[20px] transition-all duration-300" />
 
-                {/* Tag */}
-                <div className="absolute top-4 left-4">
-                  <span className="badge-silver text-[10px]">{cat.tag}</span>
-                </div>
+                    {/* Tag */}
+                    <div className="absolute top-4 left-4">
+                      <span className="badge-silver text-[10px]">{cat.tag}</span>
+                    </div>
 
-                {/* Text */}
-                <div className="absolute bottom-0 left-0 right-0 p-6 transform translate-z-10 translate-y-3 group-hover:translate-y-0 transition-transform duration-500">
-                  <h3 className="font-display text-2xl font-bold text-[#ffffff] mb-1 drop-shadow-lg">
-                    {cat.name}
-                  </h3>
-                  <p className="text-[#e2e8f0] text-sm font-medium drop-shadow-md">{cat.sub}</p>
-                  <div className="mt-4 flex items-center gap-2 text-xs uppercase tracking-widest text-[#e2e8f0] opacity-0 -translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
-                    Shop Now <ArrowRightIcon className="h-3 w-3 relative top-px" />
-                  </div>
+                    {/* Text */}
+                    <div className="absolute bottom-0 left-0 right-0 p-6 transform translate-z-10 translate-y-3 group-hover:translate-y-0 transition-transform duration-500">
+                      <h3 className="font-display text-2xl font-bold text-[#ffffff] mb-1 drop-shadow-lg">
+                        {cat.name}
+                      </h3>
+                      <p className="text-[#e2e8f0] text-sm font-medium drop-shadow-md">{cat.sub}</p>
+                      <div className="mt-4 flex items-center gap-2 text-xs uppercase tracking-widest text-[#e2e8f0] opacity-0 -translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
+                        Shop Now <ArrowRightIcon className="h-3 w-3 relative top-px" />
+                      </div>
+                    </div>
+                  </Link>
                 </div>
-                </Link>
-              </div>
-            ))}
+              ))
+            )}
           </div>
 
           <div className="text-center mt-12 flex flex-col items-center gap-6">

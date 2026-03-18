@@ -1,12 +1,10 @@
-const { User } = require('../models');
+const { User, Order } = require('../models');
 const { ensureUserExists } = require('../utils/userSync');
 
 // Get current user profile
 exports.getCurrentUser = async (req, res) => {
   try {
-    const clerkUserId = req.user.sub;
-    const user = await ensureUserExists(clerkUserId);
-    res.json(user);
+    res.json(req.localUser);
   } catch (error) {
     console.error('Error fetching current user:', error);
     res.status(500).json({ success: false, message: 'Error fetching user profile', error: error.message });
@@ -116,10 +114,29 @@ exports.deleteUser = async (req, res) => {
   }
 };
 
-// Get all users (admin)
 exports.getAllUsers = async (req, res) => {
   try {
     const users = await User.findAll({
+      attributes: {
+        include: [
+          [
+            sequelize.literal(`(
+              SELECT COUNT(*)
+              FROM orders AS o
+              WHERE o.user_id = "User".id
+            )`),
+            'ordersCount'
+          ],
+          [
+            sequelize.literal(`(
+              SELECT COALESCE(SUM(total_amount), 0)
+              FROM orders AS o
+              WHERE o.user_id = "User".id
+            )`),
+            'totalSpent'
+          ]
+        ]
+      },
       order: [['created_at', 'DESC']]
     });
     res.json(users);
@@ -132,15 +149,15 @@ exports.getAllUsers = async (req, res) => {
 // Update current user profile
 exports.updateCurrentUser = async (req, res) => {
   try {
-    const clerkUserId = req.user.sub;
-    const { phone } = req.body;
-    let user = await User.findOne({ where: { clerk_user_id: clerkUserId } });
-    
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
+    const user = req.localUser;
+    if (!user) return res.status(404).json({ message: 'User not found' });
 
-    await user.update({ phone, updated_at: new Date() });
+    const { phone, promotional_emails } = req.body;
+    const updateData = { updated_at: new Date() };
+    if (phone !== undefined) updateData.phone = phone;
+    if (promotional_emails !== undefined) updateData.promotional_emails = promotional_emails;
+
+    await user.update(updateData);
     res.json(user);
   } catch (error) {
     console.error('Error updating user:', error);

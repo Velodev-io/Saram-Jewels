@@ -43,6 +43,14 @@ const Order = sequelize.define('Order', {
     type: DataTypes.JSON,
     allowNull: true
   },
+  tracking_number: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  shipping_carrier: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
   created_at: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW

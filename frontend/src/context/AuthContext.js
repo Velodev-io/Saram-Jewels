@@ -148,10 +148,10 @@ export const AuthProvider = ({ children }) => {
     clerkAvailable,
     login,
     signup,
-    loginWithGoogle,
     signupWithGoogle,
     logout,
-    validatePassword
+    validatePassword,
+    getToken
   };
 
   return (

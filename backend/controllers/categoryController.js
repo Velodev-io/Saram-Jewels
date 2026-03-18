@@ -6,11 +6,7 @@ const { processJewelryImage } = require('../utils/imageProcessor');
 exports.getCategories = async (req, res) => {
   try {
     const categories = await Category.findAll({
-      include: [{
-        model: Product,
-        as: 'products',
-        attributes: ['id']
-      }]
+      order: [['name', 'ASC']]
     });
     res.json(categories);
   } catch (error) {

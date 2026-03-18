@@ -260,18 +260,19 @@ exports.processPayment = async (req, res) => {
 exports.getAllOrders = async (req, res) => {
   try {
     const orders = await Order.findAll({
+      attributes: ['id', 'user_id', 'total_amount', 'status', 'payment_method', 'payment_status', 'shipping_address', 'tracking_number', 'shipping_carrier', 'created_at'],
       include: [
-        {
-          model: OrderItem,
-          as: 'items',
-          include: [{ model: Product, as: 'product' }]
-        },
-        { model: User, as: 'user' }
+        { model: User, as: 'user', attributes: ['first_name', 'last_name', 'email'] }
       ],
       order: [['created_at', 'DESC']]
     });
     
-    res.json(orders);
+    const ordersWithNumber = orders.map(o => ({
+      ...o.toJSON(),
+      order_number: o.id.slice(-8).toUpperCase()
+    }));
+    
+    res.json(ordersWithNumber);
   } catch (error) {
     console.error('Error fetching all orders:', error);
     res.status(500).json({ message: 'Error fetching orders', error: error.message });
@@ -282,17 +283,10 @@ exports.getAllOrders = async (req, res) => {
 // Get currently authenticated user's orders
 exports.getMyOrders = async (req, res) => {
   try {
-    const clerk_user_id = req.user?.sub;
-    console.log('🔍 Fetching orders for Clerk User:', clerk_user_id);
-    
-    // Find our internal user first
-    const user = await User.findOne({ where: { clerk_user_id } });
+    const user = req.localUser;
     if (!user) {
-      console.log('❌ No internal user found for Clerk User ID:', clerk_user_id);
       return res.json({ success: true, data: [] });
     }
-    
-    console.log('✅ Found internal user:', user.id, 'for Clerk ID:', clerk_user_id);
     
     const orders = await Order.findAll({
       where: { user_id: user.id },
@@ -306,7 +300,12 @@ exports.getMyOrders = async (req, res) => {
       order: [['created_at', 'DESC']]
     });
     
-    res.json({ success: true, data: orders });
+    const ordersWithNumber = orders.map(o => ({
+      ...o.toJSON(),
+      order_number: o.id.slice(-8).toUpperCase()
+    }));
+    
+    res.json({ success: true, data: ordersWithNumber });
   } catch (error) {
     console.error('Error fetching my orders:', error);
     res.status(500).json({ success: false, message: 'Error fetching orders', error: error.message });
@@ -330,7 +329,12 @@ exports.getUserOrders = async (req, res) => {
       order: [['created_at', 'DESC']]
     });
     
-    res.json({ success: true, data: orders });
+    const ordersWithNumber = orders.map(o => ({
+      ...o.toJSON(),
+      order_number: o.id.slice(-8).toUpperCase()
+    }));
+    
+    res.json({ success: true, data: ordersWithNumber });
   } catch (error) {
     console.error('Error fetching orders:', error);
     res.status(500).json({ success: false, message: 'Error fetching orders', error: error.message });
@@ -368,7 +372,7 @@ exports.getOrderById = async (req, res) => {
 exports.updateOrderStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const { status, tracking_number, shipping_carrier } = req.body;
     
     const order = await Order.findByPk(id);
     
@@ -376,9 +380,14 @@ exports.updateOrderStatus = async (req, res) => {
       return res.status(404).json({ message: 'Order not found' });
     }
     
-    await order.update({ status });
+    const updateData = {};
+    if (status) updateData.status = status;
+    if (tracking_number !== undefined) updateData.tracking_number = tracking_number;
+    if (shipping_carrier !== undefined) updateData.shipping_carrier = shipping_carrier;
+
+    await order.update(updateData);
     
-    res.json(order);
+    res.json({ success: true, order });
   } catch (error) {
     console.error('Error updating order:', error);
     res.status(500).json({ message: 'Error updating order', error: error.message });

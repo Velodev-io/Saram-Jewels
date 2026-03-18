@@ -14,9 +14,13 @@ import apiService from '../services/api';
 import AddressSelector from '../components/address/AddressSelector';
 
 export default function Profile() {
-  const { user, isSignedIn } = useAuth();
+  const { user, isSignedIn, getToken } = useAuth();
   const location = useLocation();
-  const [activeTab, setActiveTab] = useState('profile');
+  const [activeTab, setActiveTab] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab');
+    return ['profile', 'orders', 'wishlist', 'settings'].includes(tab) ? tab : 'profile';
+  });
   const [orders, setOrders] = useState([]);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showNotificationModal, setShowNotificationModal] = useState(false);
@@ -24,51 +28,59 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [phone, setPhone] = useState('');
   const [phoneUpdating, setPhoneUpdating] = useState(false);
+  const [promotionalEmails, setPromotionalEmails] = useState(true);
+  const [preferencesUpdating, setPreferencesUpdating] = useState(false);
 
-  // Set initial active tab based on URL query parameter
-  useEffect(() => {
-    const urlParams = new URLSearchParams(location.search);
-    const tabParam = urlParams.get('tab');
-    if (tabParam && ['profile', 'orders', 'wishlist', 'settings'].includes(tabParam)) {
-      setActiveTab(tabParam);
-    }
-  }, [location.search]);
 
-  // Fetch Real Order Data
+
+  // Fetch profile data + orders in parallel
   useEffect(() => {
     const fetchProfileData = async () => {
       try {
         if (isSignedIn) {
-          // Fetch real user data (including phone) from backend
-          const userProfile = await apiService.getCurrentUser();
-          if (userProfile && userProfile.phone) {
-            setPhone(userProfile.phone);
+          // Fire both API calls simultaneously instead of sequentially
+          const [profileResult, ordersResult] = await Promise.allSettled([
+            apiService.getCurrentUser(),
+            apiService.getUserOrders()
+          ]);
+
+          // Process profile
+          if (profileResult.status === 'fulfilled' && profileResult.value) {
+            const userProfile = profileResult.value;
+            if (userProfile.phone) setPhone(userProfile.phone);
+            if (userProfile.promotional_emails !== undefined) {
+              setPromotionalEmails(userProfile.promotional_emails);
+            }
           }
-          // Fetch real orders
-          const userOrders = await apiService.getUserOrders();
-          const ordersArray = userOrders?.data || (Array.isArray(userOrders) ? userOrders : []);
-          
-          if (ordersArray && ordersArray.length >= 0) {
-            // map real orders to state
-            const mapped = ordersArray.map(o => ({
-              id: o.order_number || o.id,
-              date: o.created_at,
-              status: o.status,
-              total: o.total_amount,
-              items: o.items ? o.items.map(i => ({
-                name: i.product?.name || 'Product',
-                price: i.price,
-                quantity: i.quantity
-              })) : [],
-              tracking: {
-                number: o.tracking_number || '',
-                carrier: o.shipping_carrier || 'Delivery Partner',
-                updates: [
-                  { date: new Date(o.created_at).toLocaleDateString(), status: 'Order Confirmed', location: '' }
-                ]
-              }
-            }));
-            setOrders(mapped);
+
+          // Process orders
+          if (ordersResult.status === 'fulfilled') {
+            const userOrders = ordersResult.value;
+            const ordersArray = userOrders?.data || (Array.isArray(userOrders) ? userOrders : []);
+            
+            if (ordersArray && ordersArray.length >= 0) {
+              const mapped = ordersArray.map(o => ({
+                id: o.order_number || o.id,
+                date: o.created_at,
+                status: o.status,
+                total: o.total_amount,
+                items: o.items ? o.items.map(i => ({
+                  name: i.product?.name || 'Product',
+                  price: i.price,
+                  quantity: i.quantity
+                })) : [],
+                tracking: {
+                  number: o.tracking_number || '',
+                  carrier: o.shipping_carrier || 'Delivery Partner',
+                  updates: [
+                    ...(o.status === 'delivered' ? [{ date: new Date(o.updated_at).toLocaleDateString(), status: 'Delivered', location: 'Destination' }] : []),
+                    ...(o.status === 'shipped' || o.status === 'delivered' ? [{ date: new Date(o.updated_at).toLocaleDateString(), status: 'Shipped', location: 'In Transit' }] : []),
+                    { date: new Date(o.created_at).toLocaleDateString(), status: 'Order Confirmed', location: 'Warehouse' }
+                  ]
+                }
+              }));
+              setOrders(mapped);
+            }
           }
         }
       } catch (err) {
@@ -80,13 +92,41 @@ export default function Profile() {
     fetchProfileData();
   }, [isSignedIn]);
 
+  // Persist user communication preferences to backend
+
+
+  const updatePreferences = async (newVal) => {
+    try {
+      setPreferencesUpdating(true);
+      setPromotionalEmails(newVal);
+      // Ensure fresh token for API call
+      if (getToken) {
+        const token = await getToken();
+        if (token) localStorage.setItem('clerk-token', token);
+      }
+      await apiService.updateUser({ promotional_emails: newVal });
+    } catch (err) {
+      console.error("Error updating preferences:", err.response?.data || err.message);
+      // rollback on error
+      setPromotionalEmails(!newVal);
+    } finally {
+      setPreferencesUpdating(false);
+    }
+  };
+
   const handlePhoneUpdate = async () => {
     if (!phone) return;
     setPhoneUpdating(true);
     try {
+      // Ensure fresh token for API call
+      if (getToken) {
+        const token = await getToken();
+        if (token) localStorage.setItem('clerk-token', token);
+      }
       await apiService.updateUser({ phone });
       alert('Phone updated successfully');
     } catch (err) {
+      console.error("Error updating phone:", err.response?.data || err.message);
       alert('Failed to update phone');
     } finally {
       setPhoneUpdating(false);
@@ -171,6 +211,15 @@ export default function Profile() {
 
       <div className="bg-[#1e293b] rounded-2xl border border-[rgba(226,232,240,0.1)] p-6 md:p-8">
         <h3 className="text-xl font-display font-medium text-[#f8fafc] mb-6 border-b border-[rgba(226,232,240,0.1)] pb-4">Saved Addresses</h3>
+        {/* Database indexing optimization note for 'addresses' table: */}
+        {/*
+          tableName: 'addresses',
+          indexes: [
+            { fields: ['user_id'] },
+            { fields: ['is_default'] },
+            { fields: ['created_at'] }
+          ]
+        */}
         <AddressSelector mode="manage" user={user} />
       </div>
     </div>
@@ -295,51 +344,90 @@ export default function Profile() {
         <h3 className="text-xl font-display font-medium text-[#f8fafc] mb-6 border-b border-[rgba(226,232,240,0.1)] pb-4">Account Config</h3>
         <div className="space-y-3">
           <button 
-            onClick={() => setShowPasswordModal(true)}
+            onClick={() => window.open('https://accounts.saramjewels.com/user', '_blank')}
             className="w-full text-left p-5 border border-[rgba(226,232,240,0.08)] bg-[#0f172a]/50 rounded-xl hover:bg-[rgba(226,232,240,0.03)] hover:border-[rgba(226,232,240,0.15)] transition-all cursor-pointer group"
           >
             <div className="flex items-center justify-between">
-              <div>
-                <p className="font-semibold text-[#e2e8f0] group-hover:text-white transition-colors">Change Password</p>
-                <p className="text-[11px] font-medium uppercase tracking-wider text-[#64748b] mt-1">Update your access credentials</p>
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-full bg-[#0f172a] border border-[rgba(226,232,240,0.1)] flex items-center justify-center text-[#94a3b8] group-hover:text-[#bae6fd] group-hover:border-[#bae6fd]/30 transition-colors">
+                  <CogIcon className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-[#f8fafc]">Security & Password</p>
+                  <p className="text-[10px] text-[#64748b] font-medium uppercase tracking-widest mt-1">Manage your access via Clerk</p>
+                </div>
               </div>
-              <div className="w-10 h-10 rounded-full flex items-center justify-center bg-[rgba(226,232,240,0.05)] group-hover:scale-110 transition-transform">
-                 <CogIcon className="h-5 w-5 text-[#94a3b8]" />
-              </div>
+              <EyeIcon className="h-4 w-4 text-[#475569] group-hover:text-[#94a3b8]" />
             </div>
           </button>
-          
+
           <button 
-            onClick={() => setShowNotificationModal(true)}
+             onClick={() => setShowNotificationModal(true)}
              className="w-full text-left p-5 border border-[rgba(226,232,240,0.08)] bg-[#0f172a]/50 rounded-xl hover:bg-[rgba(226,232,240,0.03)] hover:border-[rgba(226,232,240,0.15)] transition-all cursor-pointer group"
           >
             <div className="flex items-center justify-between">
-              <div>
-                <p className="font-semibold text-[#e2e8f0] group-hover:text-white transition-colors">Preferences</p>
-                <p className="text-[11px] font-medium uppercase tracking-wider text-[#64748b] mt-1">Manage email and drops</p>
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-full bg-[#0f172a] border border-[rgba(226,232,240,0.1)] flex items-center justify-center text-[#94a3b8] group-hover:text-[#bae6fd] group-hover:border-[#bae6fd]/30 transition-colors">
+                  <ShoppingBagIcon className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-[#f8fafc]">Preferences</p>
+                  <p className="text-[10px] text-[#64748b] font-medium uppercase tracking-widest mt-1">Manage communication protocols</p>
+                </div>
               </div>
-              <div className="w-10 h-10 rounded-full flex items-center justify-center bg-[rgba(226,232,240,0.05)] group-hover:scale-110 transition-transform">
-                 <CogIcon className="h-5 w-5 text-[#94a3b8]" />
-              </div>
-            </div>
-          </button>
-          
-          <button 
-            onClick={() => setShowPrivacyModal(true)}
-             className="w-full text-left p-5 border border-[rgba(226,232,240,0.08)] bg-[#0f172a]/50 rounded-xl hover:bg-[rgba(226,232,240,0.03)] hover:border-[rgba(226,232,240,0.15)] transition-all cursor-pointer group"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-semibold text-[#e2e8f0] group-hover:text-white transition-colors">Privacy</p>
-                <p className="text-[11px] font-medium uppercase tracking-wider text-[#64748b] mt-1">Control your data footprint</p>
-              </div>
-              <div className="w-10 h-10 rounded-full flex items-center justify-center bg-[rgba(226,232,240,0.05)] group-hover:scale-110 transition-transform">
-                 <CogIcon className="h-5 w-5 text-[#94a3b8]" />
-              </div>
+               <EyeIcon className="h-4 w-4 text-[#475569] group-hover:text-[#94a3b8]" />
             </div>
           </button>
         </div>
       </div>
+
+      {/* Preferences Modal (Consolidated Notifications) */}
+      {showNotificationModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+           <div className="bg-[#1e293b] border border-[rgba(226,232,240,0.15)] shadow-2xl rounded-3xl p-8 w-full max-w-md relative animate-fade-in">
+             <button
+              onClick={() => setShowNotificationModal(false)}
+               className="absolute top-6 right-6 w-8 h-8 rounded-full bg-[#0f172a] border border-[rgba(226,232,240,0.1)] flex items-center justify-center text-[#94a3b8] hover:text-white transition-colors"
+            >
+              ✕
+            </button>
+            <h3 className="text-2xl font-display font-medium text-white mb-6 pr-8">Preferences</h3>
+            
+            <div className="space-y-6">
+              <div className="flex items-center justify-between p-5 rounded-2xl border border-[rgba(226,232,240,0.05)] bg-[#0f172a]/30">
+                <div>
+                  <p className="text-sm font-semibold text-[#e2e8f0]">Promotional Alerts</p>
+                  <p className="text-[10px] text-[#64748b] font-medium uppercase tracking-widest mt-1">New collections & limited releases</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    className="sr-only peer" 
+                    checked={promotionalEmails}
+                    onChange={(e) => updatePreferences(e.target.checked)}
+                    disabled={preferencesUpdating}
+                  />
+                  <div className="w-11 h-6 bg-[#334155] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#3b82f6]"></div>
+                </label>
+              </div>
+
+              <div className="px-5 py-4 rounded-xl border border-dashed border-white/10 bg-white/5">
+                <p className="text-[10px] text-[#94a3b8] font-medium uppercase tracking-[0.1em] leading-relaxed">
+                  <span className="text-[#bae6fd] font-black">Mandatory:</span> Transactional emails regarding orders and security are active by default for your protection.
+                </p>
+              </div>
+
+              <button 
+                onClick={() => setShowNotificationModal(false)}
+                className="w-full py-4 rounded-2xl bg-silver-gradient text-black text-xs font-black uppercase tracking-widest transition-all hover:scale-[1.02] active:scale-95 shadow-xl shadow-white/5"
+                style={{ background: 'linear-gradient(135deg, #94a3b8 0%, #e2e8f0 50%, #bae6fd 100%)' }}
+              >
+                Close Protocol
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 
@@ -400,151 +488,7 @@ export default function Profile() {
           </div>
         </div>
       </div>
-
-      {/* Change Password Modal */}
-      {showPasswordModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-[#1e293b] border border-[rgba(226,232,240,0.15)] shadow-2xl rounded-3xl p-8 w-full max-w-md relative animate-fade-in">
-            <button
-              onClick={() => setShowPasswordModal(false)}
-              className="absolute top-6 right-6 w-8 h-8 rounded-full bg-[#0f172a] border border-[rgba(226,232,240,0.1)] flex items-center justify-center text-[#94a3b8] hover:text-white transition-colors"
-            >
-              ✕
-            </button>
-            <h3 className="text-2xl font-display font-medium text-white mb-6 pr-8">Change Password</h3>
-            <form className="space-y-5">
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-widest text-[#94a3b8] mb-2">Current Password</label>
-                <input
-                  type="password"
-                  className="input-dark w-full bg-[#0f172a]"
-                  placeholder="********"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-widest text-[#94a3b8] mb-2">New Password</label>
-                <input
-                  type="password"
-                  className="input-dark w-full bg-[#0f172a]"
-                  placeholder="********"
-                />
-              </div>
-              <div>
-                 <label className="block text-[10px] font-bold uppercase tracking-widest text-[#94a3b8] mb-2">Confirm Protocol</label>
-                <input
-                  type="password"
-                  className="input-dark w-full bg-[#0f172a]"
-                   placeholder="********"
-                />
-              </div>
-              <div className="flex gap-3 pt-4 border-t border-[rgba(226,232,240,0.1)] mt-2">
-                 <button
-                  type="button"
-                  onClick={() => setShowPasswordModal(false)}
-                  className="flex-1 px-4 py-3 rounded-xl border border-[rgba(226,232,240,0.1)] text-xs font-bold uppercase tracking-widest text-[#94a3b8] hover:bg-[rgba(226,232,240,0.05)] hover:text-white transition-all"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowPasswordModal(false)}
-                  className="flex-1 px-4 py-3 rounded-xl bg-silver-gradient text-black text-xs font-bold uppercase tracking-widest transition-transform hover:scale-105"
-                  style={{ background: 'linear-gradient(135deg, #94a3b8 0%, #e2e8f0 50%, #bae6fd 100%)' }}
-                >
-                  Confirm
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Notification Preferences Modal */}
-      {showNotificationModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-           <div className="bg-[#1e293b] border border-[rgba(226,232,240,0.15)] shadow-2xl rounded-3xl p-8 w-full max-w-md relative animate-fade-in">
-             <button
-              onClick={() => setShowNotificationModal(false)}
-               className="absolute top-6 right-6 w-8 h-8 rounded-full bg-[#0f172a] border border-[rgba(226,232,240,0.1)] flex items-center justify-center text-[#94a3b8] hover:text-white transition-colors"
-            >
-              ✕
-            </button>
-            <h3 className="text-2xl font-display font-medium text-white mb-6 pr-8">Notifications</h3>
-            
-            <div className="space-y-6">
-              <div className="flex items-center justify-between p-4 rounded-xl border border-[rgba(226,232,240,0.05)] bg-[#0f172a]/50">
-                <div>
-                  <p className="text-sm font-semibold text-[#e2e8f0]">Orders</p>
-                  <p className="text-[10px] text-[#64748b] font-medium uppercase tracking-widest mt-1">Status & Delivery Drops</p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" className="sr-only peer" defaultChecked />
-                  <div className="w-10 h-5 bg-[#334155] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[rgba(226,232,240,0.2)] peer-checked:border peer-checked:border-[rgba(226,232,240,0.4)]"></div>
-                </label>
-              </div>
-              
-              <div className="flex items-center justify-between p-4 rounded-xl border border-[rgba(226,232,240,0.05)] bg-[#0f172a]/50">
-                <div>
-                   <p className="text-sm font-semibold text-[#e2e8f0]">Promotional</p>
-                   <p className="text-[10px] text-[#64748b] font-medium uppercase tracking-widest mt-1">Exclusive Releases</p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" className="sr-only peer" />
-                   <div className="w-10 h-5 bg-[#334155] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[rgba(226,232,240,0.2)] peer-checked:border peer-checked:border-[rgba(226,232,240,0.4)]"></div>
-                </label>
-              </div>
-
-              <div className="flex gap-3 pt-4 border-t border-[rgba(226,232,240,0.1)] mt-2">
-                 <button
-                  type="button"
-                  onClick={() => setShowNotificationModal(false)}
-                   className="flex-1 px-4 py-3 rounded-xl border border-[rgba(226,232,240,0.1)] text-xs font-bold uppercase tracking-widest text-[#94a3b8] hover:bg-[rgba(226,232,240,0.05)] hover:text-white transition-all"
-                >
-                  Done
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Privacy Settings Modal */}
-      {showPrivacyModal && (
-         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-           <div className="bg-[#1e293b] border border-[rgba(226,232,240,0.15)] shadow-2xl rounded-3xl p-8 w-full max-w-md relative animate-fade-in">
-             <button
-              onClick={() => setShowPrivacyModal(false)}
-               className="absolute top-6 right-6 w-8 h-8 rounded-full bg-[#0f172a] border border-[rgba(226,232,240,0.1)] flex items-center justify-center text-[#94a3b8] hover:text-white transition-colors"
-            >
-              ✕
-            </button>
-            <h3 className="text-2xl font-display font-medium text-white mb-6 pr-8">Telemetrics</h3>
-            
-            <div className="space-y-6">
-              <div className="flex items-center justify-between p-4 rounded-xl border border-[rgba(226,232,240,0.05)] bg-[#0f172a]/50">
-                <div>
-                   <p className="text-sm font-semibold text-[#e2e8f0]">Analytics Data</p>
-                   <p className="text-[10px] text-[#64748b] font-medium uppercase tracking-widest mt-1">Help us improve UI</p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" className="sr-only peer" defaultChecked />
-                   <div className="w-10 h-5 bg-[#334155] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[rgba(226,232,240,0.2)] peer-checked:border peer-checked:border-[rgba(226,232,240,0.4)]"></div>
-                </label>
-              </div>
-              
-              <div className="flex gap-3 pt-4 border-t border-[rgba(226,232,240,0.1)] mt-2">
-                 <button
-                  type="button"
-                  onClick={() => setShowPrivacyModal(false)}
-                   className="flex-1 px-4 py-3 rounded-xl border border-[rgba(226,232,240,0.1)] text-xs font-bold uppercase tracking-widest text-[#94a3b8] hover:bg-[rgba(226,232,240,0.05)] hover:text-white transition-all"
-                >
-                  Done
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
-};
+}
+

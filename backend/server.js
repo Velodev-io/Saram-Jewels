@@ -43,12 +43,12 @@ const reviewRoutes = require('./routes/reviewRoutes');
 const addressRoutes = require('./routes/addressRoutes');
 
 // Use routes
-app.use('/api/products', productRoutes);
+app.use('/api/products', cacheSuccess, productRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/contact', contactRoutes);
-app.use('/api/categories', categoryRoutes);
+app.use('/api/categories', cacheSuccess, categoryRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/addresses', addressRoutes);
 

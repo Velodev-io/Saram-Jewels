@@ -29,6 +29,10 @@ const User = sequelize.define('User', {
     type: DataTypes.STRING,
     allowNull: true
   },
+  promotional_emails: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true
+  },
   created_at: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW

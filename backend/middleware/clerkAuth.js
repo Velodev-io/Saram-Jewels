@@ -16,8 +16,13 @@ const clerkAuth = async (req, res, next) => {
     });
 
     console.log('✅ Token verified. sub:', payload.sub);
-    console.log('🔍 Full Payload preview:', JSON.stringify({ ...payload, exp: '...' }, null, 2));
     req.user = payload;
+    
+    // Optimization: Sync/Fetch local user once per request
+    const { ensureUserExists } = require('../utils/userSync');
+    const localUser = await ensureUserExists(payload.sub);
+    req.localUser = localUser;
+    
     next();
   } catch (error) {
     console.error('❌ Clerk authentication error:', error.message);

@@ -78,6 +78,7 @@ const ProductCard = ({ product, viewMode, onAddToCart, onWishlistToggle, inCart,
           <img
             src={product.images[0]}
             alt={product.name}
+            loading="lazy"
             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
             onError={(e) => { e.target.style.display = 'none'; }}
           />
@@ -134,6 +135,7 @@ const ProductCard = ({ product, viewMode, onAddToCart, onWishlistToggle, inCart,
         <img
           src={product.images[0]}
           alt={product.name}
+          loading="lazy"
           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
           onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block'; }}
         />
@@ -220,7 +222,7 @@ const ProductList = () => {
 
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([{ id: 'all', name: 'All' }]);
-  const [, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -263,11 +265,34 @@ const ProductList = () => {
       } catch (err) {
         console.error("Error fetching data:", err);
       } finally {
-        setLoading(false);
+        setTimeout(() => setLoading(false), 400); // Slight delay for smoother transition
       }
     };
     fetchData();
   }, []);
+
+  const CategorySkeleton = () => (
+    <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 mb-8">
+      {[...Array(5)].map((_, i) => (
+        <div key={i} className="flex-shrink-0 w-24 h-9 bg-[#1e293b] rounded-full animate-pulse" />
+      ))}
+    </div>
+  );
+
+  const ProductSkeleton = () => (
+    <div className={viewMode === 'list' ? 'flex flex-col gap-4' : 'grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5'}>
+       {[...Array(6)].map((_, i) => (
+         <div key={i} className="bg-[#1e293b] rounded-[20px] overflow-hidden border border-[#334155]/20 animate-pulse">
+            <div className="aspect-square bg-[#0f172a]" />
+            <div className="p-5 space-y-3">
+               <div className="h-2 w-16 bg-[#334155] rounded" />
+               <div className="h-4 w-3/4 bg-[#334155] rounded" />
+               <div className="h-3 w-1/2 bg-[#334155] rounded" />
+            </div>
+         </div>
+       ))}
+    </div>
+  );
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -341,21 +366,23 @@ const ProductList = () => {
         </div>
 
         {/* Category Pills */}
-        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 mb-8">
-          {categories.map((cat) => (
-            <button
-              key={cat.id}
-              onClick={() => setSelectedCategory(cat.id)}
-              className={`flex-shrink-0 px-5 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
-                selectedCategory === cat.id
-                  ? 'bg-[#e2e8f0] text-[#020617] shadow-[0_0_16px_rgba(226,232,240,0.3)]'
-                  : 'bg-[#1e293b] border border-[#334155] text-[#94a3b8] hover:border-[rgba(226,232,240,0.3)] hover:text-[#e2e8f0]'
-              }`}
-            >
-              {cat.name}
-            </button>
-          ))}
-        </div>
+        {loading ? <CategorySkeleton /> : (
+          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 mb-8">
+            {categories.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => setSelectedCategory(cat.id)}
+                className={`flex-shrink-0 px-5 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+                  selectedCategory === cat.id
+                    ? 'bg-[#e2e8f0] text-[#020617] shadow-[0_0_16px_rgba(226,232,240,0.3)]'
+                    : 'bg-[#1e293b] border border-[#334155] text-[#94a3b8] hover:border-[rgba(226,232,240,0.3)] hover:text-[#e2e8f0]'
+                }`}
+              >
+                {cat.name}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="flex gap-8">
           {/* ── Sidebar Filters (Desktop) ── */}
@@ -478,38 +505,40 @@ const ProductList = () => {
             )}
 
             {/* Products */}
-            {sorted.length === 0 ? (
-              <div className="text-center py-24">
-                <SparklesIcon className="h-16 w-16 text-[#e2e8f0]/20 mx-auto mb-6" />
-                <h3 className="font-display text-2xl text-[#ffffff] mb-2">No pieces found</h3>
-                <p className="text-[#64748b] mb-8">
-                  {searchQuery ? `No results for "${searchQuery}"` : 'No items in this category.'}
-                </p>
-                <button
-                  onClick={() => { setSearchQuery(''); setSelectedCategory('all'); }}
-                  className="btn-outline"
-                >
-                  Clear Filters
-                </button>
-              </div>
-            ) : (
-              <div className={
-                viewMode === 'list'
-                  ? 'flex flex-col gap-4'
-                  : 'grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5'
-              }>
-                {sorted.map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    viewMode={viewMode}
-                    onAddToCart={handleAddToCart}
-                    onWishlistToggle={handleWishlistToggle}
-                    inCart={isInCart(product.id)}
-                    inWishlist={isInWishlist(product.id)}
-                  />
-                ))}
-              </div>
+            {loading ? <ProductSkeleton /> : (
+              sorted.length === 0 ? (
+                <div className="text-center py-24">
+                  <SparklesIcon className="h-16 w-16 text-[#e2e8f0]/20 mx-auto mb-6" />
+                  <h3 className="font-display text-2xl text-[#ffffff] mb-2">No pieces found</h3>
+                  <p className="text-[#64748b] mb-8">
+                    {searchQuery ? `No results for "${searchQuery}"` : 'No items in this category.'}
+                  </p>
+                  <button
+                    onClick={() => { setSearchQuery(''); setSelectedCategory('all'); }}
+                    className="btn-outline"
+                  >
+                    Clear Filters
+                  </button>
+                </div>
+              ) : (
+                <div className={
+                  viewMode === 'list'
+                    ? 'flex flex-col gap-4'
+                    : 'grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5'
+                }>
+                  {sorted.map((product) => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      viewMode={viewMode}
+                      onAddToCart={handleAddToCart}
+                      onWishlistToggle={handleWishlistToggle}
+                      inCart={isInCart(product.id)}
+                      inWishlist={isInWishlist(product.id)}
+                    />
+                  ))}
+                </div>
+              )
             )}
           </div>
         </div>

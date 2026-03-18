@@ -83,23 +83,29 @@ const Admin = () => {
         if (ordersRes.status === 'fulfilled' && ordersRes.value) {
           const ordersArray = Array.isArray(ordersRes.value) ? ordersRes.value : (ordersRes.value.data || []);
           setOrders(ordersArray.map(o => ({
-            id: o.order_number || o.id,
+            id: o.id, // KEEP AS UUID FOR API CALLS
+            displayId: o.order_number || o.id.slice(-8).toUpperCase(),
             customer: o.user ? (o.user.first_name + ' ' + o.user.last_name).trim() || o.user.email : 'Guest',
             total: parseFloat(o.total_amount) || 0,
-            status: o.status === 'processing' ? 'Processing' : o.status === 'pending' ? 'Pending' : o.status === 'completed' ? 'Delivered' : 'Cancelled',
-            date: new Date(o.createdAt).toLocaleDateString(),
-            payment_method: o.payment_method || 'COD'
+            status: o.status ? o.status.charAt(0).toUpperCase() + o.status.slice(1) : 'Pending',
+            date: new Date(o.created_at || o.createdAt).toLocaleDateString(),
+            payment_method: o.payment_method || 'COD',
+            items: o.items || [],
+            tracking_number: o.tracking_number,
+            shipping_carrier: o.shipping_carrier,
+            shipping_address: o.shipping_address
           })));
         }
 
-        // Map customers
+        // Map customers (Optimized: No rawOrders in initial load)
         if (customersRes.status === 'fulfilled') {
           setCustomers(customersRes.value.map(c => ({
             id: c.id,
-            name: (c.first_name + ' ' + c.last_name).trim() || 'Unknown',
+            name: ((c.first_name || '') + ' ' + (c.last_name || '')).trim() || c.email || 'Unknown',
             email: c.email,
-            orders: c.orders?.length || 0,
-            totalSpent: c.orders?.reduce((sum, o) => sum + parseFloat(o.total_amount), 0) || 0
+            orders: parseInt(c.ordersCount) || 0,
+            totalSpent: parseFloat(c.totalSpent) || 0,
+            promotionalEmails: c.promotional_emails
           })));
         }
 
@@ -215,8 +221,19 @@ const Admin = () => {
   };
 
   const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.sku.toLowerCase().includes(searchQuery.toLowerCase())
+    product.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    product.sku?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    product.category?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  
+  const filteredOrders = orders.filter(order =>
+    order.displayId?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    order.customer?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredCustomers = customers.filter(customer =>
+     customer.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+     customer.email?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   // Product Management Functions
@@ -337,17 +354,31 @@ const Admin = () => {
   };
 
   // Order Management Functions
-  const updateOrderStatus = async (orderId, status) => {
+  const updateOrderStatus = async (orderId, status, tracking_number = null, shipping_carrier = null) => {
     try {
-      await apiService.updateOrderStatus(orderId, status);
-      setOrders(orders.map(order =>
-        order.id === orderId ? { ...order, status: status === 'processing' ? 'Processing' : status === 'pending' ? 'Pending' : status === 'completed' ? 'Delivered' : 'Cancelled' } : order
-      ));
+      const dbStatus = status.toLowerCase();
+      const response = await apiService.updateOrderStatus(orderId, {
+        status: dbStatus,
+        tracking_number,
+        shipping_carrier
+      });
+      
+      const displayStatus = status.charAt(0).toUpperCase() + status.slice(1);
+      const updatedOrder = {
+        ...orders.find(o => o.id === orderId),
+        status: displayStatus,
+        tracking_number,
+        shipping_carrier
+      };
+
+      setOrders(orders.map(order => order.id === orderId ? updatedOrder : order));
+      
       if (showOrderDetails && showOrderDetails.id === orderId) {
-        setShowOrderDetails({ ...showOrderDetails, status: status === 'processing' ? 'Processing' : status === 'pending' ? 'Pending' : status === 'completed' ? 'Delivered' : 'Cancelled' });
+        setShowOrderDetails(updatedOrder);
       }
     } catch (e) {
       console.error(e);
+      alert('Failed to update acquisition protocol.');
     }
   };
 
@@ -765,6 +796,19 @@ const Admin = () => {
         <p className="text-slate-400 mt-1">Monitor sales and manage fulfillment pipeline.</p>
       </div>
 
+      <div className="glass-card p-4">
+        <div className="relative group">
+          <MagnifyingGlassIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-amber-400 transition-colors" />
+          <input
+            type="text"
+            placeholder="Search acquisitions by ID or customer name..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="glass-input w-full pl-12 pr-4 py-3"
+          />
+        </div>
+      </div>
+
       <div className="glass-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-amber-500/10">
@@ -779,9 +823,9 @@ const Admin = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-amber-500/5">
-              {orders.map((order) => (
+              {filteredOrders.map((order) => (
                 <tr key={order.id} className="hover:bg-amber-500/[0.02] transition-colors group text-sm">
-                  <td className="px-6 py-4 whitespace-nowrap font-black text-amber-50">{order.id}</td>
+                  <td className="px-6 py-4 whitespace-nowrap font-black text-amber-50">{order.displayId}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-amber-200/80 font-bold">{order.customer}</td>
                   <td className="px-6 py-4 whitespace-nowrap font-black text-amber-100 italic">₹{order.total.toLocaleString()}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -814,6 +858,19 @@ const Admin = () => {
         <p className="text-amber-200/60 mt-1">Manage relationships and track lifetime value.</p>
       </div>
 
+      <div className="glass-card p-4">
+        <div className="relative group">
+          <MagnifyingGlassIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-gold-400 transition-colors" />
+          <input
+            type="text"
+            placeholder="Identify client by name or email registry..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="glass-input w-full pl-12 pr-4 py-3"
+          />
+        </div>
+      </div>
+
       <div className="glass-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-amber-500/10">
@@ -821,23 +878,29 @@ const Admin = () => {
               <tr className="bg-green-950/80">
                 <th className="px-6 py-5 text-left text-xs font-black text-amber-400 uppercase tracking-widest">Client Identity</th>
                 <th className="px-6 py-5 text-left text-xs font-black text-amber-400 uppercase tracking-widest">Communication</th>
+                <th className="px-6 py-5 text-left text-xs font-black text-amber-400 uppercase tracking-widest">Email Drops</th>
                 <th className="px-6 py-5 text-left text-xs font-black text-amber-400 uppercase tracking-widest">Acquisitions</th>
                 <th className="px-6 py-5 text-left text-xs font-black text-amber-400 uppercase tracking-widest">Lifetime Yield</th>
                 <th className="px-6 py-5 text-right text-xs font-black text-amber-400 uppercase tracking-widest">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-amber-500/5">
-              {customers.map((customer) => (
+              {filteredCustomers.map((customer) => (
                 <tr key={customer.id} className="hover:bg-amber-500/[0.02] transition-colors group">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-3">
                       <div className="h-9 w-9 bg-amber-500/10 rounded-full flex items-center justify-center font-black text-amber-500 text-xs border border-amber-500/10 uppercase">
-                        {customer.name.charAt(0)}
+                        {customer.name?.charAt(0) || '?'}
                       </div>
                       <div className="text-sm font-bold text-amber-50">{customer.name}</div>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-amber-200/60 font-mono italic">{customer.email}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${customer.promotionalEmails ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
+                      {customer.promotionalEmails ? 'Promotional ON' : 'Promotional OFF'}
+                    </span>
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-amber-50">{customer.orders} Orders</td>
                   <td className="px-6 py-4 whitespace-nowrap font-black text-amber-100">₹{customer.totalSpent.toLocaleString()}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-right">
@@ -1605,11 +1668,38 @@ const Admin = () => {
   const renderOrderDetailsModal = () => {
     if (!showOrderDetails) return null;
 
+    // Local state for full order data (including items)
+    const [fullOrder, setFullOrder] = useState(showOrderDetails.items?.length > 0 ? showOrderDetails : null);
+    const [loadingDetails, setLoadingDetails] = useState(!showOrderDetails.items?.length);
+
+    useEffect(() => {
+      const fetchFullOrder = async () => {
+        // If we already have items (unlikely with optimized API but for safety), skip
+        if (showOrderDetails.items?.length > 0) return;
+
+        try {
+          const res = await apiService.getOrder(showOrderDetails.id);
+          if (res) {
+            setFullOrder(res);
+          }
+        } catch (err) {
+          console.error("Error fetching order details:", err);
+          setFullOrder(showOrderDetails); // Fallback
+        } finally {
+          setLoadingDetails(false);
+        }
+      };
+
+      fetchFullOrder();
+    }, [showOrderDetails.id]);
+
+    const displayOrder = fullOrder || showOrderDetails;
+
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-green-900/40 backdrop-blur-md border border-amber-500/20 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold">Order Details - {showOrderDetails.id}</h2>
+            <h2 className="text-xl font-semibold">Order Details - {displayOrder.order_number || displayOrder.id.slice(-8).toUpperCase()}</h2>
             <button
               onClick={() => setShowOrderDetails(null)}
               className="text-amber-200/50 hover:text-amber-200/80"
@@ -1622,44 +1712,145 @@ const Admin = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-amber-200/80">Customer</label>
-                <p className="text-sm text-amber-100">{showOrderDetails.customer}</p>
+                <p className="text-sm text-amber-100">{displayOrder.customer || (displayOrder.user ? (displayOrder.user.first_name + ' ' + displayOrder.user.last_name) : 'Guest')}</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-amber-200/80">Total</label>
-                <p className="text-sm text-amber-100">₹{showOrderDetails.total.toLocaleString()}</p>
+                <p className="text-sm text-amber-100">₹{parseFloat(displayOrder.total_amount || displayOrder.total).toLocaleString()}</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-amber-200/80">Date</label>
-                <p className="text-sm text-amber-100">{showOrderDetails.date}</p>
+                <p className="text-sm text-amber-100">{displayOrder.date || new Date(displayOrder.created_at).toLocaleDateString()}</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-amber-200/80">Status</label>
                 <select
-                  value={showOrderDetails.status}
-                  onChange={(e) => updateOrderStatus(showOrderDetails.id, e.target.value)}
+                  id="status_select_input"
+                  defaultValue={displayOrder.status?.toLowerCase() || 'pending'}
                   className="w-full bg-green-950/50 text-amber-100 placeholder-amber-200/50 px-3 py-2 border border-amber-500/40 rounded-lg focus:ring-2 focus:ring-amber-300"
                 >
-                  <option value="Pending">Pending</option>
-                  <option value="Processing">Processing</option>
-                  <option value="Shipped">Shipped</option>
-                  <option value="In Transit">In Transit</option>
-                  <option value="Delivered">Delivered</option>
-                  <option value="Cancelled">Cancelled</option>
+                  <option value="pending">Pending</option>
+                  <option value="processing">Processing</option>
+                  <option value="shipped">Shipped</option>
+                  <option value="delivered">Delivered</option>
+                  <option value="cancelled">Cancelled</option>
                 </select>
+              </div>
+              <div className="col-span-2 grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-amber-200/80">Tracking Number</label>
+                  <input
+                    type="text"
+                    id="tracking_number_input"
+                    defaultValue={displayOrder.tracking_number}
+                    placeholder="AWB / Ref #"
+                    className="w-full bg-green-950/50 text-amber-100 placeholder-amber-200/30 px-3 py-2 border border-amber-500/40 rounded-lg focus:ring-2 focus:ring-amber-300"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-amber-200/80">Shipping Carrier</label>
+                  <select
+                    id="shipping_carrier_input"
+                    defaultValue={displayOrder.shipping_carrier || ''}
+                    className="w-full bg-green-950/50 text-amber-100 placeholder-amber-200/30 px-3 py-2 border border-amber-500/40 rounded-lg focus:ring-2 focus:ring-amber-300"
+                  >
+                    <option value="">Select Carrier</option>
+                    <option value="Delhivery">Delhivery</option>
+                    <option value="DTDC">DTDC</option>
+                    <option value="BlueDart">BlueDart</option>
+                    <option value="Delivery Partner">Delivery Partner</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pb-2">
+                <button
+                  onClick={async () => {
+                    const status = document.getElementById('status_select_input').value;
+                    const tracking = document.getElementById('tracking_number_input').value;
+                    const carrier = document.getElementById('shipping_carrier_input').value;
+                    await apiService.updateOrderStatus(displayOrder.id, status, tracking, carrier);
+                    setShowOrderDetails(null); 
+                  }}
+                  className="px-6 py-2 bg-amber-500/20 text-amber-200 hover:bg-amber-500 hover:text-green-950 text-[10px] font-black uppercase tracking-widest border border-amber-500/30 rounded-lg transition-all"
+                >
+                  Save Acquisition Updates
+                </button>
               </div>
               <div className="col-span-2">
                 <label className="block text-sm font-medium text-amber-200/80 uppercase tracking-widest text-[10px] mb-1">Payment Method</label>
                 <div className="px-3 py-2 bg-amber-500/5 border border-amber-500/10 rounded-lg text-amber-100 font-bold flex items-center gap-2">
                    <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                   {showOrderDetails.payment_method?.toUpperCase() || 'CASH ON DELIVERY (COD)'}
+                   {(displayOrder.payment_method || 'CASH ON DELIVERY (COD)')?.toUpperCase()}
                 </div>
+              </div>
+
+              {/* Shipping Address Section */}
+              <div className="col-span-2 bg-green-950/40 p-5 rounded-2xl border border-amber-500/10 mt-2 shadow-lg shadow-black/20">
+                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-500/80 mb-4">Logistics Destination</h4>
+                {displayOrder.shipping_address ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-[8px] font-black uppercase tracking-widest text-amber-500/40 mb-1">Receiver Identity</label>
+                        <p className="text-sm font-black text-amber-50">
+                          {displayOrder.shipping_address.firstName || displayOrder.shipping_address.name} {displayOrder.shipping_address.lastName || ''}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="block text-[8px] font-black uppercase tracking-widest text-amber-500/40 mb-1">Primary Phone</label>
+                        <p className="text-sm font-bold text-emerald-400 tracking-wider font-mono">
+                          {displayOrder.shipping_address.phone}
+                        </p>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[8px] font-black uppercase tracking-widest text-amber-500/40 mb-1">Vault Registry Address</label>
+                      <div className="text-xs font-semibold text-amber-50/90 leading-relaxed bg-black/20 p-3 rounded-xl border border-white/5">
+                        {displayOrder.shipping_address.house_no && <span className="text-amber-300 font-black mr-1">{displayOrder.shipping_address.house_no},</span>}
+                        {displayOrder.shipping_address.address || displayOrder.shipping_address.addressLine1}
+                        {displayOrder.shipping_address.addressLine2 && <><br />{displayOrder.shipping_address.addressLine2}</>}
+                        <br />
+                        {displayOrder.shipping_address.locality && <>{displayOrder.shipping_address.locality}, </>}
+                        {displayOrder.shipping_address.city}, {displayOrder.shipping_address.state}
+                        <div className="mt-2 pt-2 border-t border-white/5 flex items-center justify-between">
+                           <span className="text-[9px] font-black text-amber-500/40 uppercase tracking-widest">Pincode:</span>
+                           <span className="text-amber-200 font-black tracking-widest">{displayOrder.shipping_address.zip || displayOrder.shipping_address.pincode || displayOrder.shipping_address.zipCode}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-amber-200/40 italic">Legacy destination data not available.</p>
+                )}
               </div>
             </div>
 
             <div className="border-t pt-4">
-              <h3 className="font-medium text-amber-100 mb-2">Order Items</h3>
-              <div className="bg-green-950 p-4 rounded-lg">
-                <p className="text-sm text-amber-200/70">Order items would be displayed here</p>
+              <h3 className="font-medium text-amber-100 mb-2 uppercase tracking-widest text-[10px]">Acquisition Contents</h3>
+              <div className="bg-green-950/40 p-4 rounded-xl border border-white/5 space-y-3">
+                {loadingDetails ? (
+                  <div className="flex flex-col items-center justify-center py-8 gap-3">
+                    <div className="w-6 h-6 border-2 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
+                    <p className="text-[9px] font-black text-amber-500/40 uppercase tracking-widest">Hydrating Item Registry...</p>
+                  </div>
+                ) : (
+                  <>
+                    {displayOrder.items && displayOrder.items.length > 0 ? (
+                      displayOrder.items.map((item, idx) => (
+                        <div key={idx} className="flex justify-between items-center text-sm group">
+                          <div className="flex flex-col">
+                            <span className="text-amber-100 font-medium group-hover:text-amber-400 transition-colors">{item.product?.name || 'Jewelry Piece'}</span>
+                            <span className="text-[10px] text-amber-200/50 uppercase tracking-[0.1em]">Quantity: {item.quantity}</span>
+                          </div>
+                          <span className="text-amber-100 font-black">₹{parseFloat(item.price).toLocaleString()}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-amber-200/40 italic">No pieces found in this acquisition.</p>
+                    )}
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -1671,6 +1862,30 @@ const Admin = () => {
   // Customer Profile Modal
   const renderCustomerProfileModal = () => {
     if (!showCustomerProfile) return null;
+
+    // Use a local state for modal orders to handle lazy loading
+    const [modalOrders, setModalOrders] = useState(showCustomerProfile.rawOrders || null);
+    const [modalLoading, setModalLoading] = useState(!showCustomerProfile.rawOrders);
+
+    useEffect(() => {
+      const fetchCustomerOrders = async () => {
+        if (showCustomerProfile.rawOrders) return;
+        
+        try {
+          const res = await apiService.getUserOrders(showCustomerProfile.id);
+          if (res.success) {
+            setModalOrders(res.data || []);
+          }
+        } catch (err) {
+          console.error("Error fetching modal orders:", err);
+          setModalOrders([]);
+        } finally {
+          setModalLoading(false);
+        }
+      };
+
+      fetchCustomerOrders();
+    }, [showCustomerProfile.id]);
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -1686,29 +1901,62 @@ const Admin = () => {
           </div>
 
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-6 bg-green-950/30 p-5 rounded-2xl border border-amber-500/10 mb-6">
               <div>
-                <label className="block text-sm font-medium text-amber-200/80">Name</label>
-                <p className="text-sm text-amber-100">{showCustomerProfile.name}</p>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-amber-500/60 mb-1">Full Identity</label>
+                <p className="text-sm font-bold text-amber-50">{showCustomerProfile.name}</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-amber-200/80">Email</label>
-                <p className="text-sm text-amber-100">{showCustomerProfile.email}</p>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-amber-500/60 mb-1">Communication</label>
+                <p className="text-sm font-bold text-amber-100/70">{showCustomerProfile.email}</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-amber-200/80">Total Orders</label>
-                <p className="text-sm text-amber-100">{showCustomerProfile.orders}</p>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-amber-500/60 mb-1">Acquisitions</label>
+                <p className="text-sm font-bold text-amber-50">{showCustomerProfile.orders} Orders</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-amber-200/80">Total Spent</label>
-                <p className="text-sm text-amber-100">₹{showCustomerProfile.totalSpent.toLocaleString()}</p>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-amber-500/60 mb-1">Lifetime Yield</label>
+                <p className="text-sm font-bold text-amber-50">₹{showCustomerProfile.totalSpent.toLocaleString()}</p>
               </div>
             </div>
 
-            <div className="border-t pt-4">
-              <h3 className="font-medium text-amber-100 mb-2">Order History</h3>
-              <div className="bg-green-950 p-4 rounded-lg">
-                <p className="text-sm text-amber-200/70">Order history would be displayed here</p>
+            <div className="border-t border-amber-500/10 pt-6">
+              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-500/80 mb-4">Historical Acquisitions</h3>
+              <div className="space-y-3">
+                {modalLoading ? (
+                  <div className="flex flex-col items-center justify-center py-12 gap-4">
+                     <div className="w-8 h-8 border-2 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
+                     <p className="text-[10px] font-black text-amber-500/40 uppercase tracking-widest">Hydrating Legacy Registry...</p>
+                  </div>
+                ) : (
+                  <>
+                    {(modalOrders || []).length === 0 ? (
+                      <div className="bg-green-950/20 border border-dashed border-amber-500/10 p-8 rounded-2xl text-center">
+                        <p className="text-xs text-amber-200/40 uppercase tracking-widest font-black">No legacy acquisitions found</p>
+                      </div>
+                    ) : (
+                      (modalOrders || []).map(order => (
+                        <div key={order.id} className="bg-green-950/40 border border-amber-500/5 p-4 rounded-xl flex justify-between items-center group hover:border-amber-500/20 transition-all shadow-lg shadow-black/20">
+                          <div>
+                            <p className="text-[10px] font-black text-amber-500/60 uppercase tracking-widest mb-1">
+                              SJ-{(order.id || '').substring(0, 8).toUpperCase()}
+                            </p>
+                            <p className="text-xs font-bold text-amber-200/60">{new Date(order.created_at || order.createdAt).toLocaleDateString()}</p>
+                          </div>
+                          <div className="text-right">
+                             <p className="text-sm font-black text-amber-50 mb-1">₹{parseFloat(order.total_amount).toLocaleString()}</p>
+                             <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${
+                               order.status === 'delivered' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 
+                               order.status === 'cancelled' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                             }`}>
+                               {order.status}
+                             </span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </>
+                )}
               </div>
             </div>
           </div>

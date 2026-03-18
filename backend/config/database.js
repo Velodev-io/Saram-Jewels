@@ -20,8 +20,17 @@ const sequelize = new Sequelize(DATABASE_URL, {
       require: true,
       rejectUnauthorized: false,
     },
+    statement_timeout: 10000,   // 10s max per query
+    idle_in_transaction_session_timeout: 15000,
   },
-  logging: false, // Set to console.log to see SQL queries
+  pool: {
+    max: 10,       // Up to 10 simultaneous connections
+    min: 3,        // Keep 3 warm connections alive (eliminates cold-start SSL)
+    acquire: 30000,
+    idle: 10000,
+    evict: 1000,   // Check for idle connections every second
+  },
+  logging: false,
   define: {
     underscored: true,
     timestamps: true,
