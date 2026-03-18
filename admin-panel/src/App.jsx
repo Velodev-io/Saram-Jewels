@@ -16,13 +16,591 @@ import {
   MagnifyingGlassIcon,
   ChatBubbleBottomCenterTextIcon,
   ChevronLeftIcon,
-  ChevronRightIcon
+  ChevronRightIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import { SignIn } from '@clerk/clerk-react';
 import { useAuth } from './context/AuthContext';
 import { useSiteSettings } from './context/SiteSettingsContext';
 import apiService from './services/api';
+
+const BulkStockUpdateModal = ({ isOpen, onClose, products, updateBulkStock, getStockStatus, setZoomedImage }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-green-900/40 backdrop-blur-md border border-amber-500/20 rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold text-amber-100">Bulk Stock Update</h2>
+          <button onClick={onClose} className="text-amber-200/50 hover:text-amber-100 text-xl font-bold">×</button>
+        </div>
+
+        <div className="space-y-4">
+          <div className="bg-green-950 p-4 rounded-lg">
+            <p className="text-sm text-amber-200/70 mb-4">Update stock levels for multiple products at once. Changes will be applied on-blur.</p>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-amber-500/20">
+              <thead className="bg-green-950">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-amber-200/50 uppercase">Product</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-amber-200/50 uppercase">Current Stock</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-amber-200/50 uppercase">New Stock</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-amber-200/50 uppercase">Status</th>
+                </tr>
+              </thead>
+              <tbody className="bg-green-900/40 divide-y divide-amber-500/20">
+                {products.map((product) => (
+                  <tr key={product.id}>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center">
+                        <img
+                          src={product.image}
+                          alt={product.name}
+                          className="h-8 w-8 rounded object-cover mr-3 cursor-pointer hover:opacity-80 transition-opacity"
+                          onClick={() => setZoomedImage(product.image)}
+                          title="Click to zoom"
+                        />
+                        <div>
+                          <div className="text-sm font-medium text-amber-100">{product.name}</div>
+                          <div className="text-xs text-amber-200/50">{product.sku}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-amber-100">{product.stock}</td>
+                    <td className="px-4 py-3">
+                      <input
+                        type="number"
+                        min="0"
+                        defaultValue={product.stock}
+                        onBlur={(e) => {
+                          const newStock = parseInt(e.target.value) || 0;
+                          if (newStock !== product.stock) {
+                            updateBulkStock(product.id, newStock);
+                          }
+                        }}
+                        className="w-20 px-2 py-1 text-sm bg-green-950/50 border border-amber-500/40 rounded text-amber-100 focus:ring-2 focus:ring-amber-300"
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex px-2 py-1 text-[10px] font-black uppercase rounded-full ${getStockStatus(product.stock).color}`}>
+                        {getStockStatus(product.stock).text}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex justify-end space-x-3 pt-4 border-t border-white/10">
+            <button onClick={onClose} className="px-6 py-2 border border-amber-500/40 rounded-lg text-amber-200/80 hover:bg-green-950 text-xs font-bold uppercase">Cancel</button>
+            <button onClick={onClose} className="btn-primary px-8">Propagate Updates</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const ImageZoomModal = ({ zoomedImage, setZoomedImage }) => {
+  if (!zoomedImage) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-[200]">
+      <div className="relative max-w-4xl max-h-[90vh] p-4">
+        <button onClick={() => setZoomedImage(null)} className="absolute top-2 right-2 z-10 text-white font-bold bg-black/50 rounded-full w-10 h-10 flex items-center justify-center hover:bg-white hover:text-black transition-all">×</button>
+        <div className="relative overflow-hidden rounded-lg">
+          <img src={zoomedImage} alt="Zoomed product" className="max-w-full max-h-[80vh] object-contain cursor-zoom-in" onMouseEnter={(e) => e.target.style.transform = 'scale(1.5)'} onMouseLeave={(e) => e.target.style.transform = 'scale(1)'} style={{ transition: 'transform 0.3s ease' }} />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+const AddEditProductModal = ({ isOpen, editingProduct, showAddProduct, onClose, categories, apiService, setProducts, products }) => {
+  const [productImages, setProductImages] = useState([]);
+  const [selectedImages, setSelectedImages] = useState([]);
+
+  useEffect(() => {
+    if (editingProduct) {
+      if (Array.isArray(editingProduct.images)) {
+        setProductImages(editingProduct.images.map((url, idx) => ({
+          id: `existing-${idx}-${Date.now()}`,
+          url,
+          name: `Existing Image ${idx + 1}`
+        })));
+      } else if (editingProduct.image) {
+        setProductImages([{
+          id: `existing-main-${Date.now()}`,
+          url: editingProduct.image,
+          name: 'Main Image'
+        }]);
+      }
+    } else {
+      setProductImages([]);
+      setSelectedImages([]);
+    }
+  }, [editingProduct]);
+
+  if (!isOpen && !showAddProduct && !editingProduct) return null;
+  const product = editingProduct || {};
+
+  return (
+    <div className="fixed inset-0 bg-[#020617]/95 backdrop-blur-xl flex items-start justify-center z-[100] p-4 overflow-y-auto pt-10 pb-20">
+      <div className="glass-card p-10 w-full max-w-3xl animate-premium-in border-white/10 shadow-[0_0_100px_rgba(0,0,0,0.9)] relative mb-10">
+        <div className="flex justify-between items-center mb-8 pb-4 border-b border-white/10">
+          <div>
+            <h2 className="text-2xl font-black text-gradient-gold uppercase tracking-tight">
+              {editingProduct ? 'Curate Piece' : 'Catalogue New Piece'}
+            </h2>
+            <p className="text-[10px] font-bold text-silver-dark uppercase tracking-widest mt-1">Registry Entry #{product.id ? product.id.slice(-8).toUpperCase() : 'NEW'}</p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full transition-colors group">
+            <XMarkIcon className="w-6 h-6 text-silver-dark group-hover:text-white transition-colors" />
+          </button>
+        </div>
+
+        <form onSubmit={async (e) => {
+          e.preventDefault();
+          const formData = new FormData(e.target);
+          const productData = {
+            name: formData.get('name'),
+            description: formData.get('description'),
+            price: parseFloat(formData.get('price')),
+            category_id: parseInt(formData.get('category')),
+            sku: formData.get('sku'),
+            stock: parseInt(formData.get('stock') || 0),
+            status: parseInt(formData.get('stock')) > 0 ? 'active' : 'inactive',
+            image: productImages[0]?.url || 'https://via.placeholder.com/300'
+          };
+
+          try {
+            if (editingProduct) {
+              await apiService.updateProduct(editingProduct.id, productData);
+              setProducts(products.map(p => p.id === editingProduct.id ? { ...p, ...productData, category: categories.find(c => c.id === productData.category_id)?.name } : p));
+            } else {
+              const res = await apiService.addProduct(productData);
+              if (res.success) {
+                 setProducts([{ ...res.data, category: categories.find(c => c.id === productData.category_id)?.name }, ...products]);
+              }
+            }
+            onClose();
+          } catch (err) {
+            console.error('Operation failed:', err);
+            alert('The vault registry rejected the entry. Please check data alignment.');
+          }
+        }} className="space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-6">
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-silver-dark mb-2">Piece Title</label>
+                <input name="name" defaultValue={product.name} required className="input-dark bg-white/5 focus:bg-white/10 border-white/10 focus:border-gradient-gold" placeholder="Imperial Necklace..." />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-silver-dark mb-2">Designation SKU</label>
+                <input name="sku" defaultValue={product.sku} required className="input-dark bg-white/5 border-white/10" placeholder="SKU-XXXX..." />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-silver-dark mb-2">Valuation (₹)</label>
+                  <input name="price" type="number" step="0.01" defaultValue={product.price} required className="input-dark bg-white/5 border-white/10" placeholder="0.00" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-silver-dark mb-2">Vault Count</label>
+                  <input name="stock" type="number" defaultValue={product.stock} required className="input-dark bg-white/5 border-white/10" placeholder="0" />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-silver-dark mb-2">Collection Registry</label>
+                <select name="category" defaultValue={product.category_id} required className="input-dark bg-white/5 border-white/10 appearance-none">
+                  {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-silver-dark mb-2">Curator Notes</label>
+                <textarea name="description" defaultValue={product.description} rows="4" className="input-dark bg-white/5 border-white/10 resize-none" placeholder="Detailed lineage and material composition..."></textarea>
+              </div>
+            </div>
+          </div>
+
+          <div>
+             <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-silver-dark mb-4">Visual Documentation</label>
+             <div className="grid grid-cols-4 gap-4">
+                {productImages.map((img, idx) => (
+                  <div key={img.id} className="aspect-square rounded-xl border border-white/10 bg-white/5 relative group overflow-hidden">
+                    <img src={img.url} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                    <button type="button" onClick={() => setProductImages(prev => prev.filter(p => p.id !== img.id))} className="absolute top-2 right-2 bg-black/60 p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                      <XMarkIcon className="w-3 h-3 text-white" />
+                    </button>
+                  </div>
+                ))}
+                <label className="aspect-square rounded-xl border border-dashed border-white/20 hover:border-gradient-gold hover:bg-white/5 transition-all cursor-pointer flex flex-col items-center justify-center group">
+                   <PlusIcon className="w-6 h-6 text-silver-dark group-hover:text-gradient-gold transition-colors mb-2" />
+                   <span className="text-[8px] font-black text-silver-dark uppercase tracking-widest">Enlist Image</span>
+                   <input type="file" multiple className="hidden" onChange={(e) => {
+                     const files = Array.from(e.target.files);
+                     files.forEach(file => {
+                       const reader = new FileReader();
+                       reader.onloadend = () => {
+                         setProductImages(prev => [...prev, { id: Date.now() + Math.random(), url: reader.result, name: file.name }]);
+                       };
+                       reader.readAsDataURL(file);
+                     });
+                   }} />
+                </label>
+             </div>
+          </div>
+
+          <div className="flex justify-end gap-x-6 pt-10 border-t border-white/10">
+            <button type="button" onClick={onClose} className="text-[10px] font-black text-silver-dark uppercase tracking-widest hover:text-white transition-colors">
+              Abort changes
+            </button>
+            <button type="submit" className="btn-silver px-12">
+              {editingProduct ? 'Finalize Curation' : 'Initialize Piece'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+const AddCategoryModal = ({ isOpen, onClose, apiService, setCategories }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-[#020617]/95 backdrop-blur-xl flex items-center justify-center z-[100] p-4">
+      <div className="glass-card p-10 w-full max-w-md animate-premium-in border-white/10">
+        <h2 className="text-xl font-black text-gradient-gold uppercase tracking-widest mb-8">Establish Collection</h2>
+        <form onSubmit={async (e) => {
+           e.preventDefault();
+           const name = new FormData(e.target).get('categoryName');
+           try {
+             await apiService.addCategory({ name, slug: name.toLowerCase().replace(/ /g, '-') });
+             const freshCats = await apiService.getCategories();
+             setCategories(freshCats);
+             onClose();
+           } catch (err) {
+             console.error('Failed to estabish collection:', err);
+           }
+        }}>
+          <div className="mb-8">
+            <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-silver-dark mb-3">Collection Identifier</label>
+            <input name="categoryName" required className="input-dark bg-white/5 border-white/10 text-lg" placeholder="e.g. Victorian Opulence" />
+          </div>
+          <div className="flex justify-end gap-6">
+             <button type="button" onClick={onClose} className="text-[10px] font-black text-silver-dark uppercase tracking-widest hover:text-white transition-colors">Abort</button>
+             <button type="submit" className="btn-silver py-3 px-8 text-[10px]">Establish Registry</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+const OrderDetailsModal = ({ order, isOpen, onClose, apiService, onUpdateOrderStatus }) => {
+  const [fullOrder, setFullOrder] = useState(order?.items?.length > 0 ? order : null);
+  const [loadingDetails, setLoadingDetails] = useState(order && !order.items?.length);
+
+  useEffect(() => {
+    if (!order || order.items?.length > 0) return;
+
+    const fetchFullOrder = async () => {
+      setLoadingDetails(true);
+      try {
+        const res = await apiService.getOrder(order.id);
+        if (res) {
+          setFullOrder(res);
+        }
+      } catch (err) {
+        console.error("Error fetching order details:", err);
+        setFullOrder(order); // Fallback
+      } finally {
+        setLoadingDetails(false);
+      }
+    };
+
+    fetchFullOrder();
+  }, [order?.id]);
+
+  if (!isOpen || !order) return null;
+
+  const displayOrder = fullOrder || order;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-green-900/40 backdrop-blur-md border border-amber-500/20 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold">Order Details - {displayOrder.order_number || displayOrder.id.slice(-8).toUpperCase()}</h2>
+          <button
+            onClick={onClose}
+            className="text-amber-200/50 hover:text-amber-200/80"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-amber-200/80">Customer</label>
+              <p className="text-sm text-amber-100">{displayOrder.customer || (displayOrder.user ? (displayOrder.user.first_name + ' ' + displayOrder.user.last_name) : 'Guest')}</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-amber-200/80">Total</label>
+              <p className="text-sm text-amber-100">₹{parseFloat(displayOrder.total_amount || displayOrder.total).toLocaleString()}</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-amber-200/80">Date</label>
+              <p className="text-sm text-amber-100">{displayOrder.date || new Date(displayOrder.created_at).toLocaleDateString()}</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-amber-200/80">Status</label>
+              <select
+                id="status_select_input"
+                defaultValue={displayOrder.status?.toLowerCase() || 'pending'}
+                className="w-full bg-green-950/50 text-amber-100 placeholder-amber-200/50 px-3 py-2 border border-amber-500/40 rounded-lg focus:ring-2 focus:ring-amber-300"
+              >
+                <option value="pending">Pending</option>
+                <option value="processing">Processing</option>
+                <option value="shipped">Shipped</option>
+                <option value="delivered">Delivered</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+            <div className="col-span-2 grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-amber-200/80">Tracking Number</label>
+                <input
+                  type="text"
+                  id="tracking_number_input"
+                  defaultValue={displayOrder.tracking_number}
+                  placeholder="AWB / Ref #"
+                  className="w-full bg-green-950/50 text-amber-100 placeholder-amber-200/30 px-3 py-2 border border-amber-500/40 rounded-lg focus:ring-2 focus:ring-amber-300"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-amber-200/80">Shipping Carrier</label>
+                <select
+                  id="shipping_carrier_input"
+                  defaultValue={displayOrder.shipping_carrier || ''}
+                  className="w-full bg-green-950/50 text-amber-100 placeholder-amber-200/30 px-3 py-2 border border-amber-500/40 rounded-lg focus:ring-2 focus:ring-amber-300"
+                >
+                  <option value="">Select Carrier</option>
+                  <option value="Delhivery">Delhivery</option>
+                  <option value="DTDC">DTDC</option>
+                  <option value="BlueDart">BlueDart</option>
+                  <option value="Delivery Partner">Delivery Partner</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pb-2">
+              <button
+                onClick={async () => {
+                  const status = document.getElementById('status_select_input').value;
+                  const tracking = document.getElementById('tracking_number_input').value;
+                  const carrier = document.getElementById('shipping_carrier_input').value;
+                  await onUpdateOrderStatus(displayOrder.id, status, tracking, carrier);
+                  onClose(); 
+                }}
+                className="px-6 py-2 bg-amber-500/20 text-amber-200 hover:bg-amber-500 hover:text-green-950 text-[10px] font-black uppercase tracking-widest border border-amber-500/30 rounded-lg transition-all"
+              >
+                Save Acquisition Updates
+              </button>
+            </div>
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-amber-200/80 uppercase tracking-widest text-[10px] mb-1">Payment Method</label>
+              <div className="px-3 py-2 bg-amber-500/5 border border-amber-500/10 rounded-lg text-amber-100 font-bold flex items-center gap-2">
+                 <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                 {(displayOrder.payment_method || 'CASH ON DELIVERY (COD)')?.toUpperCase()}
+              </div>
+            </div>
+
+            <div className="col-span-2 bg-green-950/40 p-5 rounded-2xl border border-amber-500/10 mt-2 shadow-lg shadow-black/20">
+              <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-500/80 mb-4">Logistics Destination</h4>
+              {displayOrder.shipping_address ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-[8px] font-black uppercase tracking-widest text-amber-500/40 mb-1">Receiver Identity</label>
+                      <p className="text-sm font-black text-amber-50">
+                        {displayOrder.shipping_address.firstName || displayOrder.shipping_address.name} {displayOrder.shipping_address.lastName || ''}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-[8px] font-black uppercase tracking-widest text-amber-500/40 mb-1">Primary Phone</label>
+                      <p className="text-sm font-bold text-emerald-400 tracking-wider font-mono">
+                        {displayOrder.shipping_address.phone}
+                      </p>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[8px] font-black uppercase tracking-widest text-amber-500/40 mb-1">Vault Registry Address</label>
+                    <div className="text-xs font-semibold text-amber-50/90 leading-relaxed bg-black/20 p-3 rounded-xl border border-white/5">
+                      {displayOrder.shipping_address.house_no && <span className="text-amber-300 font-black mr-1">{displayOrder.shipping_address.house_no},</span>}
+                      {displayOrder.shipping_address.address || displayOrder.shipping_address.addressLine1}
+                      {displayOrder.shipping_address.addressLine2 && <><br />{displayOrder.shipping_address.addressLine2}</>}
+                      <br />
+                      {displayOrder.shipping_address.locality && <>{displayOrder.shipping_address.locality}, </>}
+                      {displayOrder.shipping_address.city}, {displayOrder.shipping_address.state}
+                      <div className="mt-2 pt-2 border-t border-white/5 flex items-center justify-between">
+                         <span className="text-[9px] font-black text-amber-500/40 uppercase tracking-widest">Pincode:</span>
+                         <span className="text-amber-200 font-black tracking-widest">{displayOrder.shipping_address.zip || displayOrder.shipping_address.pincode || displayOrder.shipping_address.zipCode}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-amber-200/40 italic">Legacy destination data not available.</p>
+              )}
+            </div>
+          </div>
+
+          <div className="border-t pt-4">
+            <h3 className="font-medium text-amber-100 mb-2 uppercase tracking-widest text-[10px]">Acquisition Contents</h3>
+            <div className="bg-green-950/40 p-4 rounded-xl border border-white/5 space-y-3">
+              {loadingDetails ? (
+                <div className="flex flex-col items-center justify-center py-8 gap-3">
+                  <div className="w-6 h-6 border-2 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
+                  <p className="text-[9px] font-black text-amber-500/40 uppercase tracking-widest">Hydrating Item Registry...</p>
+                </div>
+              ) : (
+                <>
+                  {displayOrder.items && displayOrder.items.length > 0 ? (
+                    displayOrder.items.map((item, idx) => (
+                      <div key={idx} className="flex justify-between items-center text-sm group">
+                        <div className="flex flex-col">
+                          <span className="text-amber-100 font-medium group-hover:text-amber-400 transition-colors">{item.product?.name || 'Jewelry Piece'}</span>
+                          <span className="text-[10px] text-amber-200/50 uppercase tracking-[0.1em]">Quantity: {item.quantity}</span>
+                        </div>
+                        <span className="text-amber-100 font-black">₹{parseFloat(item.price).toLocaleString()}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-amber-200/40 italic">No pieces found in this acquisition.</p>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const CustomerProfileModal = ({ customer, isOpen, onClose, apiService }) => {
+  const [modalOrders, setModalOrders] = useState(customer?.rawOrders || null);
+  const [modalLoading, setModalLoading] = useState(customer && !customer.rawOrders);
+
+  useEffect(() => {
+    if (!customer || customer.rawOrders) return;
+
+    const fetchCustomerOrders = async () => {
+      setModalLoading(true);
+      try {
+        const res = await apiService.getUserOrders(customer.id);
+        if (res.success) {
+          setModalOrders(res.data || []);
+        }
+      } catch (err) {
+        console.error("Error fetching modal orders:", err);
+        setModalOrders([]);
+      } finally {
+        setModalLoading(false);
+      }
+    };
+
+    fetchCustomerOrders();
+  }, [customer?.id]);
+
+  if (!isOpen || !customer) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-green-900/40 backdrop-blur-md border border-amber-500/20 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold">Customer Profile - {customer.name}</h2>
+          <button
+            onClick={onClose}
+            className="text-amber-200/50 hover:text-amber-200/80"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-6 bg-green-950/30 p-5 rounded-2xl border border-amber-500/10 mb-6">
+            <div>
+              <label className="block text-[10px] font-black uppercase tracking-widest text-amber-500/60 mb-1">Full Identity</label>
+              <p className="text-sm font-bold text-amber-50">{customer.name}</p>
+            </div>
+            <div>
+              <label className="block text-[10px] font-black uppercase tracking-widest text-amber-500/60 mb-1">Communication</label>
+              <p className="text-sm font-bold text-amber-100/70">{customer.email}</p>
+            </div>
+            <div>
+              <label className="block text-[10px] font-black uppercase tracking-widest text-amber-500/60 mb-1">Acquisitions</label>
+              <p className="text-sm font-bold text-amber-50">{customer.orders} Orders</p>
+            </div>
+            <div>
+              <label className="block text-[10px] font-black uppercase tracking-widest text-amber-500/60 mb-1">Lifetime Yield</label>
+              <p className="text-sm font-bold text-amber-50">₹{customer.totalSpent.toLocaleString()}</p>
+            </div>
+          </div>
+
+          <div className="border-t border-amber-500/10 pt-6">
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-500/80 mb-4">Historical Acquisitions</h3>
+            <div className="space-y-3">
+              {modalLoading ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-4">
+                   <div className="w-8 h-8 border-2 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
+                   <p className="text-[10px] font-black text-amber-500/40 uppercase tracking-widest">Hydrating Legacy Registry...</p>
+                </div>
+              ) : (
+                <>
+                  {(modalOrders || []).length === 0 ? (
+                    <div className="bg-green-950/20 border border-dashed border-amber-500/10 p-8 rounded-2xl text-center">
+                      <p className="text-xs text-amber-200/40 uppercase tracking-widest font-black">No legacy acquisitions found</p>
+                    </div>
+                  ) : (
+                    (modalOrders || []).map(order => (
+                      <div key={order.id} className="bg-green-950/40 border border-amber-500/5 p-4 rounded-xl flex justify-between items-center group hover:border-amber-500/20 transition-all shadow-lg shadow-black/20">
+                        <div>
+                          <p className="text-[10px] font-black text-amber-500/60 uppercase tracking-widest mb-1">
+                            SJ-{(order.id || '').substring(0, 8).toUpperCase()}
+                          </p>
+                          <p className="text-xs font-bold text-amber-200/60">{new Date(order.created_at || order.createdAt).toLocaleDateString()}</p>
+                        </div>
+                        <div className="text-right">
+                           <p className="text-sm font-black text-amber-50 mb-1">₹{parseFloat(order.total_amount).toLocaleString()}</p>
+                           <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${
+                             order.status === 'delivered' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 
+                             order.status === 'cancelled' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                           }`}>
+                             {order.status}
+                           </span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const Admin = () => {
   const { user, isSignedIn } = useAuth();
@@ -158,9 +736,8 @@ const Admin = () => {
     }
   }, [editingProduct]);
 
-  // Check if user is admin - for now, allow any signed-in user
-  // TODO: Add proper admin role checking later
-  const isAdmin = isSignedIn;
+  // Check if user is admin - Enforce real admin claim
+  const isAdmin = isSignedIn && user?.publicMetadata?.role === 'admin';
 
   if (!isAdmin) {
     return (
@@ -986,109 +1563,8 @@ const Admin = () => {
     </div>
   );
 
-  const renderAddCategoryModal = () => {
-    if (!showAddCategory) return null;
+  // End of old Category Modal logic
 
-    return (
-      <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-[100] p-4 md:p-8">
-        <div className="glass-card p-0 w-full max-w-lg max-h-[90vh] overflow-y-auto animate-premium-in border-amber-500/20 shadow-[0_0_50px_rgba(0,0,0,0.5)]">
-          <div className="p-8">
-            <div className="flex justify-between items-center mb-10 pb-4 border-b border-amber-500/10">
-              <div>
-                <h3 className="text-2xl font-black text-gradient-gold uppercase tracking-tighter">Found New Collection</h3>
-                <p className="text-[10px] font-bold text-amber-200/40 uppercase tracking-[0.2em] mt-1">Expansion of the Saram Legacy</p>
-              </div>
-              <button
-                onClick={() => { setShowAddCategory(false); setImagePreview(null); }}
-                className="w-10 h-10 flex items-center justify-center rounded-full bg-green-950/50 text-amber-200/40 hover:text-amber-100 border border-amber-500/10 transition-all"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={async (e) => {
-              e.preventDefault();
-              const submitButton = e.target.querySelector('button[type="submit"]');
-              const originalText = submitButton.innerText;
-              submitButton.innerText = 'Manifesting...';
-              submitButton.disabled = true;
-
-              const formData = new FormData(e.target);
-              const success = await addCategory({
-                name: formData.get('name'),
-                description: formData.get('description'),
-                image: imagePreview || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=600&h=600&fit=crop'
-              });
-
-              if (!success) {
-                submitButton.innerText = originalText;
-                submitButton.disabled = false;
-              }
-            }}>
-              <div className="space-y-8">
-                <div>
-                  <label className="block text-[10px] font-black text-amber-400 uppercase tracking-[0.2em] mb-3">Collection Designation</label>
-                  <input
-                    name="name"
-                    required
-                    placeholder="e.g. Imperial Heritage"
-                    className="glass-input w-full px-5 py-4 text-sm font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black text-amber-400 uppercase tracking-[0.2em] mb-3">Historical Narrative</label>
-                  <textarea
-                    name="description"
-                    rows="4"
-                    placeholder="Detail the essence and craftsmanship of this curation..."
-                    className="glass-input w-full px-5 py-4 text-sm font-bold resize-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black text-amber-400 uppercase tracking-[0.2em] mb-3">Visual Anchor</label>
-                  <div className="flex gap-6 items-center p-4 bg-green-950/40 border border-amber-500/10 rounded-2xl">
-                    <div className="relative group">
-                      <img
-                        src={imagePreview || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=200&h=200&fit=crop'}
-                        className={`w-20 h-20 rounded-xl object-cover border-2 ${imagePreview ? 'border-amber-400 shadow-lg shadow-amber-500/20' : 'border-amber-500/10 opacity-30'}`}
-                        alt="Preview"
-                      />
-                      {imagePreview && (
-                        <div className="absolute inset-0 bg-black/60 rounded-xl opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer">
-                          <PlusIcon className="h-6 w-6 text-amber-200" />
-                        </div>
-                      )}
-                    </div>
-                    <label className="flex-1 cursor-pointer">
-                      <div className="glass-card p-4 text-center text-[10px] font-black uppercase text-amber-200/40 hover:text-amber-100 transition-all border-dashed border-2 border-amber-500/10 hover:border-amber-500/30">
-                        {imagePreview ? 'Re-select Visual' : 'Upload Collection Visual'}
-                      </div>
-                      <input type="file" className="hidden" onChange={handleImageUpload} accept="image/*" />
-                    </label>
-                  </div>
-                </div>
-                <div className="flex gap-4 pt-6 border-t border-amber-500/10">
-                  <button
-                    type="button"
-                    onClick={() => { setShowAddCategory(false); setImagePreview(null); }}
-                    className="btn-secondary flex-1 py-4 uppercase tracking-widest text-[10px] font-black"
-                  >
-                    Rescind
-                  </button>
-                  <button
-                    type="submit"
-                    className="btn-primary flex-1 py-4 uppercase tracking-widest text-[10px] font-black"
-                  >
-                    Found Collection
-                  </button>
-                </div>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
-    );
-  };
 
   const renderInventory = () => (
     <div className="space-y-6">
@@ -1449,785 +1925,7 @@ const Admin = () => {
   const renderAddEditProductModal = () => {
     if (!showAddProduct && !editingProduct) return null;
     const product = editingProduct || {};
-
-    return (
-      <div className="fixed inset-0 bg-[#020617]/95 backdrop-blur-xl flex items-start justify-center z-[100] p-4 overflow-y-auto pt-10 pb-20">
-        <div className="glass-card p-10 w-full max-w-3xl animate-premium-in border-white/10 shadow-[0_0_100px_rgba(0,0,0,0.9)] relative mb-10">
-          <div className="flex justify-between items-center mb-8 pb-4 border-b border-white/10">
-            <div>
-              <h2 className="text-2xl font-black text-gradient-gold uppercase tracking-tight">
-                {editingProduct ? 'Curate Piece' : 'Catalogue New Piece'}
-              </h2>
-              <p className="text-xs text-amber-200/40 font-bold uppercase tracking-widest mt-1">Product Manifest</p>
-            </div>
-            <button
-              onClick={() => {
-                setShowAddProduct(false);
-                setEditingProduct(null);
-                setSelectedImages([]);
-                setProductImages([]);
-              }}
-              className="w-10 h-10 flex items-center justify-center rounded-full bg-green-950/50 text-amber-200/40 hover:text-amber-100 border border-amber-500/10 transition-all font-bold"
-            >
-              x
-            </button>
-          </div>
-
-          <form
-            onSubmit={async (e) => {
-              e.preventDefault();
-              const submitButton = e.target.querySelector('button[type="submit"]');
-              const originalText = submitButton?.innerText || 'Save';
-              if (submitButton) {
-                submitButton.innerText = 'Processing...';
-                submitButton.disabled = true;
-              }
-
-              try {
-                const formData = new FormData(e.target);
-                const allImages = [
-                  ...productImages.map(img => img.url),
-                  ...selectedImages.map(img => img.url)
-                ].filter(Boolean);
-
-                const productData = {
-                  name: formData.get('name'),
-                  category_id: formData.get('category_id'),
-                  price: parseFloat(formData.get('price') || 0),
-                  originalPrice: parseFloat(formData.get('originalPrice') || 0),
-                  stock: parseInt(formData.get('stock') || 0),
-                  sku: formData.get('sku'),
-                  is_featured: formData.get('is_featured') === 'on',
-                  images: allImages,
-                  image: allImages[0] || 'https://via.placeholder.com/600'
-                };
-
-                if (editingProduct) {
-                  await updateProduct(editingProduct.id, productData);
-                } else {
-                  await addProduct(productData);
-                }
-
-                setShowAddProduct(false);
-                setEditingProduct(null);
-                setSelectedImages([]);
-                setProductImages([]);
-              } catch (error) {
-                console.error('Form submission failed:', error);
-              } finally {
-                if (submitButton) {
-                  submitButton.innerText = originalText;
-                  submitButton.disabled = false;
-                }
-              }
-            }}
-          >
-            <div className="grid grid-cols-2 gap-6">
-              <div>
-                <label className="block text-xs font-black text-amber-400 uppercase tracking-widest mb-2">Item Designation</label>
-                <input
-                  name="name"
-                  type="text"
-                  defaultValue={product.name}
-                  required
-                  placeholder="e.g. Royal Heritage Ring"
-                  className="glass-input w-full px-4 py-3"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-amber-200/80 mb-1">Category</label>
-                <select
-                  name="category_id"
-                  defaultValue={product.category_id}
-                  required
-                  className="glass-input w-full px-4 py-3 appearance-none"
-                >
-                  <option value="" className="bg-green-950">Select Realm</option>
-                  {categories.map(cat => (
-                    <option key={cat.id} value={cat.id} className="bg-green-950">{cat.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-amber-200/80 mb-1">Price (₹)</label>
-                <input
-                  name="price"
-                  type="number"
-                  step="0.01"
-                  defaultValue={product.price}
-                  required
-                  className="w-full bg-green-950/50 text-amber-100 placeholder-amber-200/50 px-3 py-2 border border-amber-500/40 rounded-lg focus:ring-2 focus:ring-amber-300"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-amber-200/80 mb-1">Original Price (₹)</label>
-                <input
-                  name="originalPrice"
-                  type="number"
-                  step="0.01"
-                  defaultValue={product.originalPrice}
-                  required
-                  className="w-full bg-green-950/50 text-amber-100 placeholder-amber-200/50 px-3 py-2 border border-amber-500/40 rounded-lg focus:ring-2 focus:ring-amber-300"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-amber-200/80 mb-1">Stock</label>
-                <input
-                  name="stock"
-                  type="number"
-                  defaultValue={product.stock}
-                  required
-                  className="w-full bg-green-950/50 text-amber-100 placeholder-amber-200/50 px-3 py-2 border border-amber-500/40 rounded-lg focus:ring-2 focus:ring-amber-300"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-amber-200/80 mb-1">SKU</label>
-                <input
-                  name="sku"
-                  type="text"
-                  defaultValue={product.sku}
-                  required
-                  className="w-full bg-green-950/50 text-amber-100 placeholder-amber-200/50 px-3 py-2 border border-amber-500/40 rounded-lg focus:ring-2 focus:ring-amber-300"
-                />
-              </div>
-              <div className="col-span-2 flex items-center gap-3 p-4 bg-amber-500/5 rounded-xl border border-amber-500/10">
-                <input
-                  id="is_featured"
-                  name="is_featured"
-                  type="checkbox"
-                  defaultChecked={product.is_featured}
-                  className="w-5 h-5 rounded border-amber-500/40 text-amber-500 focus:ring-amber-500 bg-green-950/50"
-                />
-                <label htmlFor="is_featured" className="text-sm font-black text-amber-50 uppercase tracking-widest cursor-pointer">
-                  Featured Piece (Vanguard Collection)
-                </label>
-              </div>
-
-              <div className="col-span-2 mt-4 space-y-6">
-                <label className="block text-xs font-black text-amber-400 uppercase tracking-widest">Product Imagery</label>
-
-                {/* Unified Upload Area */}
-                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-amber-500/20 rounded-2xl cursor-pointer hover:bg-amber-500/5 transition-all">
-                  <PlusIcon className="w-8 h-8 text-amber-400 mb-2" />
-                  <span className="text-[10px] font-black uppercase text-amber-200/50">Add Photos</span>
-                  <input type="file" multiple accept="image/*" onChange={handleMultipleImageUpload} className="hidden" />
-                </label>
-
-                {/* Previews */}
-                {(selectedImages.length > 0 || productImages.length > 0) && (
-                  <div className="grid grid-cols-4 gap-3">
-                    {selectedImages.map(img => (
-                      <div key={img.id} className="relative group rounded-lg overflow-hidden h-20 border border-amber-500/20">
-                        <img src={img.url} className="w-full h-full object-cover" />
-                        <button type="button" onClick={() => removeImage(img.id, true)} className="absolute inset-0 bg-red-500/80 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[8px] font-black">REMOVE</button>
-                      </div>
-                    ))}
-                    {productImages.map((img, idx) => (
-                      <div key={img.id} className={`relative group rounded-lg overflow-hidden h-20 border ${idx === 0 ? 'border-amber-400 font-bold' : 'border-amber-500/20'}`}>
-                        <img src={img.url} className="w-full h-full object-cover" />
-                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center gap-1">
-                          <button type="button" onClick={() => setMainImage(idx)} className="text-[8px] bg-amber-400 text-green-950 px-1 rounded font-bold">SET MAIN</button>
-                          <button type="button" onClick={() => removeImage(img.id, false)} className="text-[8px] bg-red-500 text-white px-1 rounded font-bold">DELETE</button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="flex justify-end space-x-3 mt-6">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowAddProduct(false);
-                  setEditingProduct(null);
-                  setSelectedImage(null);
-                  setImagePreview(null);
-                  setSelectedImages([]);
-                  setProductImages([]);
-                }}
-                className="px-4 py-2 border border-amber-500/40 rounded-lg text-amber-200/80 hover:bg-green-950"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-gradient-to-r from-amber-200 to-amber-400 text-green-950 font-semibold rounded-lg hover:from-amber-300 hover:to-amber-500 shadow-lg shadow-amber-500/20 transition-all duration-300 transform hover:-translate-y-0.5"
-              >
-                {editingProduct ? 'Update Product' : 'Add Product'}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    );
-  };
-
-// --- Separate Modal Components to follow Rules of Hooks ---
-
-const OrderDetailsModal = ({ order, isOpen, onClose, apiService }) => {
-  const [fullOrder, setFullOrder] = useState(order?.items?.length > 0 ? order : null);
-  const [loadingDetails, setLoadingDetails] = useState(order && !order.items?.length);
-
-  useEffect(() => {
-    if (!order || order.items?.length > 0) return;
-
-    const fetchFullOrder = async () => {
-      setLoadingDetails(true);
-      try {
-        const res = await apiService.getOrder(order.id);
-        if (res) {
-          setFullOrder(res);
-        }
-      } catch (err) {
-        console.error("Error fetching order details:", err);
-        setFullOrder(order); // Fallback
-      } finally {
-        setLoadingDetails(false);
-      }
-    };
-
-    fetchFullOrder();
-  }, [order?.id]);
-
-  if (!isOpen || !order) return null;
-
-  const displayOrder = fullOrder || order;
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-green-900/40 backdrop-blur-md border border-amber-500/20 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">Order Details - {displayOrder.order_number || displayOrder.id.slice(-8).toUpperCase()}</h2>
-          <button
-            onClick={onClose}
-            className="text-amber-200/50 hover:text-amber-200/80"
-          >
-            ✕
-          </button>
-        </div>
-
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-amber-200/80">Customer</label>
-              <p className="text-sm text-amber-100">{displayOrder.customer || (displayOrder.user ? (displayOrder.user.first_name + ' ' + displayOrder.user.last_name) : 'Guest')}</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-amber-200/80">Total</label>
-              <p className="text-sm text-amber-100">₹{parseFloat(displayOrder.total_amount || displayOrder.total).toLocaleString()}</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-amber-200/80">Date</label>
-              <p className="text-sm text-amber-100">{displayOrder.date || new Date(displayOrder.created_at).toLocaleDateString()}</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-amber-200/80">Status</label>
-              <select
-                id="status_select_input"
-                defaultValue={displayOrder.status?.toLowerCase() || 'pending'}
-                className="w-full bg-green-950/50 text-amber-100 placeholder-amber-200/50 px-3 py-2 border border-amber-500/40 rounded-lg focus:ring-2 focus:ring-amber-300"
-              >
-                <option value="pending">Pending</option>
-                <option value="processing">Processing</option>
-                <option value="shipped">Shipped</option>
-                <option value="delivered">Delivered</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-            </div>
-            <div className="col-span-2 grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-amber-200/80">Tracking Number</label>
-                <input
-                  type="text"
-                  id="tracking_number_input"
-                  defaultValue={displayOrder.tracking_number}
-                  placeholder="AWB / Ref #"
-                  className="w-full bg-green-950/50 text-amber-100 placeholder-amber-200/30 px-3 py-2 border border-amber-500/40 rounded-lg focus:ring-2 focus:ring-amber-300"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-amber-200/80">Shipping Carrier</label>
-                <select
-                  id="shipping_carrier_input"
-                  defaultValue={displayOrder.shipping_carrier || ''}
-                  className="w-full bg-green-950/50 text-amber-100 placeholder-amber-200/30 px-3 py-2 border border-amber-500/40 rounded-lg focus:ring-2 focus:ring-amber-300"
-                >
-                  <option value="">Select Carrier</option>
-                  <option value="Delhivery">Delhivery</option>
-                  <option value="DTDC">DTDC</option>
-                  <option value="BlueDart">BlueDart</option>
-                  <option value="Delivery Partner">Delivery Partner</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 pb-2">
-              <button
-                onClick={async () => {
-                  const status = document.getElementById('status_select_input').value;
-                  const tracking = document.getElementById('tracking_number_input').value;
-                  const carrier = document.getElementById('shipping_carrier_input').value;
-                  await apiService.updateOrderStatus(displayOrder.id, status, tracking, carrier);
-                  onClose(); 
-                }}
-                className="px-6 py-2 bg-amber-500/20 text-amber-200 hover:bg-amber-500 hover:text-green-950 text-[10px] font-black uppercase tracking-widest border border-amber-500/30 rounded-lg transition-all"
-              >
-                Save Acquisition Updates
-              </button>
-            </div>
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-amber-200/80 uppercase tracking-widest text-[10px] mb-1">Payment Method</label>
-              <div className="px-3 py-2 bg-amber-500/5 border border-amber-500/10 rounded-lg text-amber-100 font-bold flex items-center gap-2">
-                 <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                 {(displayOrder.payment_method || 'CASH ON DELIVERY (COD)')?.toUpperCase()}
-              </div>
-            </div>
-
-            {/* Shipping Address Section */}
-            <div className="col-span-2 bg-green-950/40 p-5 rounded-2xl border border-amber-500/10 mt-2 shadow-lg shadow-black/20">
-              <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-500/80 mb-4">Logistics Destination</h4>
-              {displayOrder.shipping_address ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-[8px] font-black uppercase tracking-widest text-amber-500/40 mb-1">Receiver Identity</label>
-                      <p className="text-sm font-black text-amber-50">
-                        {displayOrder.shipping_address.firstName || displayOrder.shipping_address.name} {displayOrder.shipping_address.lastName || ''}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="block text-[8px] font-black uppercase tracking-widest text-amber-500/40 mb-1">Primary Phone</label>
-                      <p className="text-sm font-bold text-emerald-400 tracking-wider font-mono">
-                        {displayOrder.shipping_address.phone}
-                      </p>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-[8px] font-black uppercase tracking-widest text-amber-500/40 mb-1">Vault Registry Address</label>
-                    <div className="text-xs font-semibold text-amber-50/90 leading-relaxed bg-black/20 p-3 rounded-xl border border-white/5">
-                      {displayOrder.shipping_address.house_no && <span className="text-amber-300 font-black mr-1">{displayOrder.shipping_address.house_no},</span>}
-                      {displayOrder.shipping_address.address || displayOrder.shipping_address.addressLine1}
-                      {displayOrder.shipping_address.addressLine2 && <><br />{displayOrder.shipping_address.addressLine2}</>}
-                      <br />
-                      {displayOrder.shipping_address.locality && <>{displayOrder.shipping_address.locality}, </>}
-                      {displayOrder.shipping_address.city}, {displayOrder.shipping_address.state}
-                      <div className="mt-2 pt-2 border-t border-white/5 flex items-center justify-between">
-                         <span className="text-[9px] font-black text-amber-500/40 uppercase tracking-widest">Pincode:</span>
-                         <span className="text-amber-200 font-black tracking-widest">{displayOrder.shipping_address.zip || displayOrder.shipping_address.pincode || displayOrder.shipping_address.zipCode}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-xs text-amber-200/40 italic">Legacy destination data not available.</p>
-              )}
-            </div>
-          </div>
-
-          <div className="border-t pt-4">
-            <h3 className="font-medium text-amber-100 mb-2 uppercase tracking-widest text-[10px]">Acquisition Contents</h3>
-            <div className="bg-green-950/40 p-4 rounded-xl border border-white/5 space-y-3">
-              {loadingDetails ? (
-                <div className="flex flex-col items-center justify-center py-8 gap-3">
-                  <div className="w-6 h-6 border-2 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
-                  <p className="text-[9px] font-black text-amber-500/40 uppercase tracking-widest">Hydrating Item Registry...</p>
-                </div>
-              ) : (
-                <>
-                  {displayOrder.items && displayOrder.items.length > 0 ? (
-                    displayOrder.items.map((item, idx) => (
-                      <div key={idx} className="flex justify-between items-center text-sm group">
-                        <div className="flex flex-col">
-                          <span className="text-amber-100 font-medium group-hover:text-amber-400 transition-colors">{item.product?.name || 'Jewelry Piece'}</span>
-                          <span className="text-[10px] text-amber-200/50 uppercase tracking-[0.1em]">Quantity: {item.quantity}</span>
-                        </div>
-                        <span className="text-amber-100 font-black">₹{parseFloat(item.price).toLocaleString()}</span>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-amber-200/40 italic">No pieces found in this acquisition.</p>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const CustomerProfileModal = ({ customer, isOpen, onClose, apiService }) => {
-  const [modalOrders, setModalOrders] = useState(customer?.rawOrders || null);
-  const [modalLoading, setModalLoading] = useState(customer && !customer.rawOrders);
-
-  useEffect(() => {
-    if (!customer || customer.rawOrders) return;
-
-    const fetchCustomerOrders = async () => {
-      setModalLoading(true);
-      try {
-        const res = await apiService.getUserOrders(customer.id);
-        if (res.success) {
-          setModalOrders(res.data || []);
-        }
-      } catch (err) {
-        console.error("Error fetching modal orders:", err);
-        setModalOrders([]);
-      } finally {
-        setModalLoading(false);
-      }
-    };
-
-    fetchCustomerOrders();
-  }, [customer?.id]);
-
-  if (!isOpen || !customer) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-green-900/40 backdrop-blur-md border border-amber-500/20 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">Customer Profile - {customer.name}</h2>
-          <button
-            onClick={onClose}
-            className="text-amber-200/50 hover:text-amber-200/80"
-          >
-            ✕
-          </button>
-        </div>
-
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-6 bg-green-950/30 p-5 rounded-2xl border border-amber-500/10 mb-6">
-            <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-amber-500/60 mb-1">Full Identity</label>
-              <p className="text-sm font-bold text-amber-50">{customer.name}</p>
-            </div>
-            <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-amber-500/60 mb-1">Communication</label>
-              <p className="text-sm font-bold text-amber-100/70">{customer.email}</p>
-            </div>
-            <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-amber-500/60 mb-1">Acquisitions</label>
-              <p className="text-sm font-bold text-amber-50">{customer.orders} Orders</p>
-            </div>
-            <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-amber-500/60 mb-1">Lifetime Yield</label>
-              <p className="text-sm font-bold text-amber-50">₹{customer.totalSpent.toLocaleString()}</p>
-            </div>
-          </div>
-
-          <div className="border-t border-amber-500/10 pt-6">
-            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-500/80 mb-4">Historical Acquisitions</h3>
-            <div className="space-y-3">
-              {modalLoading ? (
-                <div className="flex flex-col items-center justify-center py-12 gap-4">
-                   <div className="w-8 h-8 border-2 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
-                   <p className="text-[10px] font-black text-amber-500/40 uppercase tracking-widest">Hydrating Legacy Registry...</p>
-                </div>
-              ) : (
-                <>
-                  {(modalOrders || []).length === 0 ? (
-                    <div className="bg-green-950/20 border border-dashed border-amber-500/10 p-8 rounded-2xl text-center">
-                      <p className="text-xs text-amber-200/40 uppercase tracking-widest font-black">No legacy acquisitions found</p>
-                    </div>
-                  ) : (
-                    (modalOrders || []).map(order => (
-                      <div key={order.id} className="bg-green-950/40 border border-amber-500/5 p-4 rounded-xl flex justify-between items-center group hover:border-amber-500/20 transition-all shadow-lg shadow-black/20">
-                        <div>
-                          <p className="text-[10px] font-black text-amber-500/60 uppercase tracking-widest mb-1">
-                            SJ-{(order.id || '').substring(0, 8).toUpperCase()}
-                          </p>
-                          <p className="text-xs font-bold text-amber-200/60">{new Date(order.created_at || order.createdAt).toLocaleDateString()}</p>
-                        </div>
-                        <div className="text-right">
-                           <p className="text-sm font-black text-amber-50 mb-1">₹{parseFloat(order.total_amount).toLocaleString()}</p>
-                           <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${
-                             order.status === 'delivered' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 
-                             order.status === 'cancelled' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                           }`}>
-                             {order.status}
-                           </span>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-  // Bulk Stock Update Modal
-  const renderBulkStockUpdateModal = () => {
-    if (!showBulkStockUpdate) return null;
-
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-green-900/40 backdrop-blur-md border border-amber-500/20 rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold">Bulk Stock Update</h2>
-            <button
-              onClick={() => setShowBulkStockUpdate(false)}
-              className="text-amber-200/50 hover:text-amber-200/80"
-            >
-              ✕
-            </button>
-          </div>
-
-          <div className="space-y-4">
-            <div className="bg-green-950 p-4 rounded-lg">
-              <p className="text-sm text-amber-200/70 mb-4">
-                Update stock levels for multiple products at once. Changes will be applied immediately.
-              </p>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-amber-500/20">
-                <thead className="bg-green-950">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-amber-200/50 uppercase">Product</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-amber-200/50 uppercase">Current Stock</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-amber-200/50 uppercase">New Stock</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-amber-200/50 uppercase">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-green-900/40 backdrop-blur-md border border-amber-500/20 divide-y divide-amber-500/20">
-                  {products.map((product) => (
-                    <tr key={product.id}>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center">
-                          <img
-                            src={product.image}
-                            alt={product.name}
-                            className="h-8 w-8 rounded object-cover mr-3 cursor-pointer hover:opacity-80 transition-opacity"
-                            onClick={() => setZoomedImage(product.image)}
-                            title="Click to zoom"
-                          />
-                          <div>
-                            <div className="text-sm font-medium text-amber-100">{product.name}</div>
-                            <div className="text-sm text-amber-200/50">{product.sku}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-amber-100">{product.stock}</td>
-                      <td className="px-4 py-3">
-                        <input
-                          type="number"
-                          min="0"
-                          defaultValue={product.stock}
-                          onChange={(e) => {
-                            const newStock = parseInt(e.target.value) || 0;
-                            updateBulkStock(product.id, newStock);
-                          }}
-                          className="w-20 px-2 py-1 border border-amber-500/40 rounded focus:ring-2 focus:ring-amber-300"
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStockStatus(product.stock).color}`}>
-                          {getStockStatus(product.stock).text}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="flex justify-end space-x-3 pt-4 border-t">
-              <button
-                onClick={() => setShowBulkStockUpdate(false)}
-                className="px-4 py-2 border border-amber-500/40 rounded-lg text-amber-200/80 hover:bg-green-950"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  setShowBulkStockUpdate(false);
-                  alert('Stock levels updated successfully!');
-                }}
-                className="px-4 py-2 bg-gradient-to-r from-amber-200 to-amber-400 text-green-950 font-semibold rounded-lg hover:from-amber-300 hover:to-amber-500 shadow-lg shadow-amber-500/20 transition-all duration-300 transform hover:-translate-y-0.5"
-              >
-                Save Changes
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // Image Zoom Modal
-  const renderImageZoomModal = () => {
-    if (!zoomedImage) return null;
-
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
-        <div className="relative max-w-4xl max-h-[90vh] p-4">
-          {/* Close Button */}
-          <button
-            onClick={() => setZoomedImage(null)}
-            className="absolute top-2 right-2 z-10 text-green-950 font-semibold hover:text-gray-300 text-2xl font-bold bg-black bg-opacity-50 rounded-full w-10 h-10 flex items-center justify-center"
-          >
-            ×
-          </button>
-
-          {/* Image Container with Zoom */}
-          <div className="relative overflow-hidden rounded-lg">
-            <img
-              src={zoomedImage}
-              alt="Zoomed product"
-              className="w-full bg-green-950/50 text-amber-100 placeholder-amber-200/50 h-auto max-h-[80vh] object-contain cursor-zoom-in"
-              style={{
-                transform: 'scale(1)',
-                transition: 'transform 0.3s ease'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.transform = 'scale(1.5)';
-                e.target.style.cursor = 'zoom-out';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.transform = 'scale(1)';
-                e.target.style.cursor = 'zoom-in';
-              }}
-              onWheel={(e) => {
-                e.preventDefault();
-                const scale = parseFloat(e.target.style.transform.replace('scale(', '').replace(')', '')) || 1;
-                const newScale = e.deltaY > 0 ? Math.max(0.5, scale - 0.1) : Math.min(3, scale + 0.1);
-                e.target.style.transform = `scale(${newScale})`;
-              }}
-            />
-          </div>
-
-          {/* Zoom Controls */}
-          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
-            <button
-              onClick={(e) => {
-                const img = e.target.parentElement.previousElementSibling.querySelector('img');
-                const scale = parseFloat(img.style.transform.replace('scale(', '').replace(')', '')) || 1;
-                const newScale = Math.max(0.5, scale - 0.2);
-                img.style.transform = `scale(${newScale})`;
-              }}
-              className="bg-green-900/40 backdrop-blur-md border border-amber-500/20 bg-opacity-80 hover:bg-opacity-100 text-amber-200/90 px-3 py-1 rounded-lg text-sm font-medium"
-            >
-              Zoom Out
-            </button>
-            <button
-              onClick={(e) => {
-                const img = e.target.parentElement.previousElementSibling.querySelector('img');
-                const scale = parseFloat(img.style.transform.replace('scale(', '').replace(')', '')) || 1;
-                const newScale = Math.min(3, scale + 0.2);
-                img.style.transform = `scale(${newScale})`;
-              }}
-              className="bg-green-900/40 backdrop-blur-md border border-amber-500/20 bg-opacity-80 hover:bg-opacity-100 text-amber-200/90 px-3 py-1 rounded-lg text-sm font-medium"
-            >
-              Zoom In
-            </button>
-            <button
-              onClick={(e) => {
-                const img = e.target.parentElement.previousElementSibling.querySelector('img');
-                img.style.transform = 'scale(1)';
-              }}
-              className="bg-green-900/40 backdrop-blur-md border border-amber-500/20 bg-opacity-80 hover:bg-opacity-100 text-amber-200/90 px-3 py-1 rounded-lg text-sm font-medium"
-            >
-              Reset
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const deleteReview = async (id) => {
-    if (window.confirm('Are you sure you want to delete this review?')) {
-      try {
-        await apiService.deleteReview(id);
-        setReviews(reviews.filter(r => r.id !== id));
-      } catch (e) {
-        console.error('Delete review error:', e);
-      }
-    }
-  };
-
-  const renderReviews = () => (
-    <div className="space-y-8 animate-premium-in">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-3xl font-extrabold text-gradient-silver">Client Chronicles</h2>
-          <p className="text-slate-400 mt-1">Manage user feedback and monitor brand sentiment.</p>
-        </div>
-        <div className="glass-card px-6 py-3 border-white/5 flex items-center gap-4">
-          <div className="text-center">
-            <div className="text-xl font-black text-white">{reviews.length}</div>
-            <div className="text-[10px] text-slate-500 uppercase font-bold tracking-widest">Total Reviews</div>
-          </div>
-          <div className="w-px h-8 bg-white/10" />
-          <div className="text-center">
-            <div className="text-xl font-black text-sky-400">
-              {(reviews.reduce((acc, r) => acc + r.rating, 0) / (reviews.length || 1)).toFixed(1)}
-            </div>
-            <div className="text-[10px] text-slate-500 uppercase font-bold tracking-widest">Avg Rating</div>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {reviews.map((review) => (
-          <div key={review.id} className="glass-card p-6 group transition-all hover:bg-white/[0.02]">
-            <div className="flex justify-between items-start mb-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-slate-800 flex items-center justify-center text-white font-bold border border-white/5">
-                  {review.user_name?.charAt(0) || 'S'}
-                </div>
-                <div>
-                  <h4 className="text-slate-100 font-bold">{review.user_name}</h4>
-                  <p className="text-[10px] text-slate-500 uppercase font-bold tracking-widest">
-                    {new Date(review.created_at || Date.now()).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-              <div className="flex flex-col items-end gap-2">
-                <div className="flex gap-0.5">
-                  {[1, 2, 3, 4, 5].map((s) => (
-                    <StarIconSolid
-                      key={s}
-                      className={`h-3 w-3 ${s <= review.rating ? 'text-sky-400' : 'text-slate-700'}`}
-                    />
-                  ))}
-                </div>
-                <button
-                  onClick={() => deleteReview(review.id)}
-                  className="p-2 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 rounded-lg opacity-0 group-hover:opacity-100 transition-all border border-rose-500/20"
-                >
-                  <TrashIcon className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-            <div className="relative">
-              <div className="absolute -left-2 -top-2 text-4xl text-white/5 font-serif">“</div>
-              <p className="text-slate-400 text-sm leading-relaxed relative z-10 pl-2">
-                {review.comment}
-              </p>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {reviews.length === 0 && (
-        <div className="glass-card py-24 text-center">
-          <ChatBubbleBottomCenterTextIcon className="h-16 w-16 text-slate-700 mx-auto mb-6 opacity-20" />
-          <h3 className="text-xl font-bold text-slate-500">No Chronicles Shared Yet</h3>
-          <p className="text-slate-600 mt-2 text-sm italic">User feedback will appear here as they experience Saram.</p>
-        </div>
-      )}
-    </div>
-  );
+  // End of helper functions
 
   return (
     <div className="min-h-screen bg-[#020617] text-slate-100 selection:bg-white/10">
@@ -2296,15 +1994,31 @@ const CustomerProfileModal = ({ customer, isOpen, onClose, apiService }) => {
         </div>
       </div>
 
-      {/* Modals */}
-      {renderAddEditProductModal()}
-      {renderAddCategoryModal && renderAddCategoryModal()}
+      {/* Standalone Modals */}
+      <AddEditProductModal 
+        isOpen={showAddProduct || !!editingProduct}
+        editingProduct={editingProduct}
+        showAddProduct={showAddProduct}
+        onClose={() => { setShowAddProduct(false); setEditingProduct(null); }}
+        categories={categories}
+        apiService={apiService}
+        setProducts={setProducts}
+        products={products}
+      />
+
+      <AddCategoryModal 
+        isOpen={showAddCategory}
+        onClose={() => setShowAddCategory(false)}
+        apiService={apiService}
+        setCategories={setCategories}
+      />
       
       <OrderDetailsModal 
         order={showOrderDetails} 
         isOpen={!!showOrderDetails} 
         onClose={() => setShowOrderDetails(null)} 
         apiService={apiService} 
+        onUpdateOrderStatus={updateOrderStatus}
       />
 
       <CustomerProfileModal 
@@ -2313,8 +2027,18 @@ const CustomerProfileModal = ({ customer, isOpen, onClose, apiService }) => {
         onClose={() => setShowCustomerProfile(null)} 
         apiService={apiService} 
       />
-      {renderBulkStockUpdateModal && renderBulkStockUpdateModal()}
-      {renderImageZoomModal && renderImageZoomModal()}
+      <BulkStockUpdateModal 
+        isOpen={showBulkStockUpdate} 
+        onClose={() => setShowBulkStockUpdate(false)} 
+        products={products} 
+        updateBulkStock={updateProductStock} 
+        getStockStatus={getStockStatus} 
+        setZoomedImage={setZoomedImage} 
+      />
+      <ImageZoomModal 
+        zoomedImage={zoomedImage} 
+        setZoomedImage={setZoomedImage} 
+      />
     </div>
   );
 };
