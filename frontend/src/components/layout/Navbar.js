@@ -93,7 +93,7 @@ const Navbar = () => {
     >
       {/* Top announcement bar */}
       <div className="bg-[#e2e8f0] text-[#020617] text-center text-xs font-semibold tracking-widest uppercase py-2 px-4">
-        ✦ &nbsp;Free shipping on orders above ₹999 &nbsp;✦&nbsp; Anti-tarnish American Diamond &nbsp;✦
+        ✦ &nbsp;Free shipping on orders above ₹499 &nbsp;✦&nbsp; Anti-tarnish American Diamond &nbsp;✦
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -259,25 +259,30 @@ const Navbar = () => {
 
         {/* ── Search Bar ── */}
         {isSearchOpen && (
-          <div className="pb-4 animate-slide-down" ref={searchRef}>
-            <form onSubmit={handleSearch} className="relative max-w-2xl mx-auto">
-              <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-[#64748b]" />
-              <input
-                id="navbar-search"
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search rings, necklaces, earrings..."
-                autoFocus
-                className="input-dark pl-11 pr-24 h-12 rounded-full"
-              />
-              <button
-                type="submit"
-                className="absolute right-2 top-1/2 -translate-y-1/2 btn-silver py-2 px-5 text-xs"
-              >
-                Search
-              </button>
-            </form>
+          <div className="pb-8 animate-slide-down" ref={searchRef}>
+            <div className="max-w-xl mx-auto">
+              <form onSubmit={handleSearch} className="relative group">
+                <MagnifyingGlassIcon className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#94a3b8]" />
+                <input
+                  id="navbar-search"
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="What are you looking for today?"
+                  autoFocus
+                  className="input-dark pl-12 pr-6 h-12 rounded-2xl border border-[rgba(226,232,240,0.1)] focus:border-[rgba(226,232,240,0.3)] bg-black/40 shadow-2xl"
+                />
+              </form>
+              <div className="flex justify-end mt-2">
+                <button
+                  type="submit"
+                  onClick={handleSearch}
+                  className="btn-silver py-2 px-5 text-[9px] font-black tracking-[0.2em] uppercase rounded-full shadow-lg"
+                >
+                  SEARCH
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

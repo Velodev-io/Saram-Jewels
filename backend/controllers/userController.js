@@ -1,28 +1,15 @@
 const { User } = require('../models');
+const { ensureUserExists } = require('../utils/userSync');
 
 // Get current user profile
 exports.getCurrentUser = async (req, res) => {
   try {
-    const clerkUserId = req.user.sub; // From Clerk JWT token
-    
-    const user = await User.findOne({ where: { clerk_user_id: clerkUserId } });
-    
-    if (!user) {
-      // Create user if doesn't exist
-      const newUser = await User.create({
-        clerk_user_id: clerkUserId,
-        email: req.user.email,
-        first_name: req.user.first_name,
-        last_name: req.user.last_name
-      });
-      
-      return res.json(newUser);
-    }
-    
+    const clerkUserId = req.user.sub;
+    const user = await ensureUserExists(clerkUserId);
     res.json(user);
   } catch (error) {
     console.error('Error fetching current user:', error);
-    res.status(500).json({ message: 'Error fetching user profile', error: error.message });
+    res.status(500).json({ success: false, message: 'Error fetching user profile', error: error.message });
   }
 };
 
@@ -142,15 +129,21 @@ exports.getAllUsers = async (req, res) => {
   }
 };
 
-// Get all users (admin)
-exports.getAllUsers = async (req, res) => {
+// Update current user profile
+exports.updateCurrentUser = async (req, res) => {
   try {
-    const users = await User.findAll({
-      order: [['created_at', 'DESC']]
-    });
-    res.json(users);
+    const clerkUserId = req.user.sub;
+    const { phone } = req.body;
+    let user = await User.findOne({ where: { clerk_user_id: clerkUserId } });
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    await user.update({ phone, updated_at: new Date() });
+    res.json(user);
   } catch (error) {
-    console.error('Error fetching users:', error);
-    res.status(500).json({ message: 'Error fetching users', error: error.message });
+    console.error('Error updating user:', error);
+    res.status(500).json({ message: 'Error updating user', error: error.message });
   }
 };

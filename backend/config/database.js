@@ -3,36 +3,36 @@ const dotenv = require('dotenv');
 
 dotenv.config();
 
-// Use a fallback database URL for development if not provided
-const databaseUrl = process.env.DATABASE_URL;
+const DATABASE_URL = process.env.DATABASE_URL;
 
-const sequelize = databaseUrl 
-  ? new Sequelize(databaseUrl, {
-      dialect: 'postgres',
-      logging: false,
-      dialectOptions: {
-        ssl: process.env.NODE_ENV === 'production' ? {
-          require: true,
-          rejectUnauthorized: false
-        } : false
-      }
-    })
-  : new Sequelize({
-      dialect: 'sqlite',
-      storage: './database.sqlite',
-      logging: false
-    });
+if (!DATABASE_URL || DATABASE_URL === 'postgres://user:password@hostname:5432/dbname?sslmode=require') {
+  console.error('❌ Error: DATABASE_URL must be correctly set in backend/.env for NeonDB');
+  process.exit(1);
+}
 
-const testConnection = async () => {
-  try {
-    await sequelize.authenticate();
-    console.log('Database connection established successfully');
-  } catch (error) {
-    console.error('Unable to connect to the database:', error);
-    console.log('Continuing without database connection for development...');
-  }
-};
+console.log('📡 Connecting to NeonDB (PostgreSQL)...');
 
-testConnection();
+const sequelize = new Sequelize(DATABASE_URL, {
+  dialect: 'postgres',
+  protocol: 'postgres',
+  dialectOptions: {
+    ssl: {
+      require: true,
+      rejectUnauthorized: false,
+    },
+  },
+  logging: false, // Set to console.log to see SQL queries
+  define: {
+    underscored: true,
+    timestamps: true,
+  },
+});
+
+sequelize.authenticate()
+  .then(() => console.log('✅ Connected to NeonDB (PostgreSQL) successfully'))
+  .catch(err => {
+    console.error('❌ NeonDB connection failed:', err.message);
+    process.exit(1);
+  });
 
 module.exports = sequelize;

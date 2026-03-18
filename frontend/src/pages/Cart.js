@@ -13,7 +13,7 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import PaymentGateway from '../components/payment/PaymentGateway';
 import PaymentSuccess from '../components/payment/PaymentSuccess';
-import AddressForm from '../components/cart/AddressForm';
+import AddressSelector from '../components/address/AddressSelector';
 import apiService from '../services/api';
 
 /* ── Sparkle Component ── */
@@ -34,7 +34,7 @@ const Cart = () => {
 
   const subtotal = getCartTotal();
   const tax = subtotal * 0.03;
-  const shipping = subtotal >= 999 ? 0 : 99;
+  const shipping = subtotal >= 499 ? 0 : 150;
   const total = subtotal + tax + shipping;
 
   const handleAddressComplete = (address) => {
@@ -63,7 +63,15 @@ const Cart = () => {
       
       const response = await apiService.createOrder(orderData);
       
-      setPaymentDetails({ ...details, orderId: response.order_number || details.orderId });
+      setPaymentDetails({ 
+        ...details, 
+        orderId: response.order_number || details.orderId, 
+        items: cartItems, 
+        amount: total,
+        subtotal,
+        tax,
+        shipping
+      });
       setPaymentSuccess(true);
       setCheckoutStep('cart');
       clearCart();
@@ -78,10 +86,10 @@ const Cart = () => {
   if (checkoutStep === 'address') {
     return (
       <div className="min-h-screen bg-[#020617] pt-32 px-6">
-        <AddressForm 
+        <AddressSelector 
           onComplete={handleAddressComplete} 
           onBack={() => setCheckoutStep('cart')}
-          initialData={shippingAddress}
+          user={user}
         />
       </div>
     );
@@ -265,7 +273,7 @@ const Cart = () => {
                 {shipping > 0 && (
                   <div className="bg-[#bae6fd]/5 border border-[#bae6fd]/10 rounded-2xl px-5 py-4 mt-4 animate-pulse-silver">
                     <p className="text-[#bae6fd] text-[10px] font-bold uppercase tracking-widest text-center">
-                      Add ₹{(999 - subtotal).toLocaleString()} for Complimentary Shipping
+                      Add ₹{(499 - subtotal).toLocaleString()} for Complimentary Shipping
                     </p>
                   </div>
                 )}

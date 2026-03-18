@@ -65,6 +65,16 @@ class ApiService {
     return response.data;
   }
 
+  async updateCategory(id, categoryData) {
+    const response = await api.put(`/categories/${id}`, categoryData);
+    return response.data;
+  }
+
+  async deleteCategory(id) {
+    const response = await api.delete(`/categories/${id}`);
+    return response.data;
+  }
+
   // Orders API
   async getOrders() {
     const response = await api.get('/orders/all'); // Admin route

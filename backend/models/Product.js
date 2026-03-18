@@ -39,6 +39,18 @@ const Product = sequelize.define('Product', {
     type: DataTypes.JSON,
     defaultValue: []
   },
+  specifications: {
+    type: DataTypes.JSON,
+    defaultValue: {}
+  },
+  rating: {
+    type: DataTypes.DECIMAL(3, 1),
+    defaultValue: 0
+  },
+  reviews_count: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0
+  },
   stock: {
     type: DataTypes.INTEGER,
     allowNull: false,
@@ -64,7 +76,13 @@ const Product = sequelize.define('Product', {
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at',
-  tableName: 'products'
+  tableName: 'products',
+  indexes: [
+    { fields: ['sku'] },
+    { fields: ['category_id'] },
+    { fields: ['status'] },
+    { fields: ['is_featured'] }
+  ]
 });
 
 module.exports = Product;

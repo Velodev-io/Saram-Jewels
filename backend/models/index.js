@@ -6,6 +6,7 @@ const OrderItem = require('./OrderItem');
 const Cart = require('./Cart');
 const Review = require('./Review');
 const Inquiry = require('./Inquiry');
+const Address = require('./Address');
 
 // Define relationships
 Product.belongsTo(Category, { foreignKey: 'category_id', as: 'category' });
@@ -29,6 +30,9 @@ Product.hasMany(Cart, { foreignKey: 'product_id' });
 Review.belongsTo(Product, { foreignKey: 'product_id', as: 'product' });
 Product.hasMany(Review, { foreignKey: 'product_id', as: 'reviews' });
 
+Address.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+User.hasMany(Address, { foreignKey: 'user_id', as: 'addresses' });
+
 module.exports = {
   User,
   Category,
@@ -37,5 +41,7 @@ module.exports = {
   OrderItem,
   Cart,
   Review,
-  Inquiry
+  Inquiry,
+  Address
 };
+

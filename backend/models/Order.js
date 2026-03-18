@@ -28,8 +28,8 @@ const Order = sequelize.define('Order', {
     allowNull: true
   },
   payment_method: {
-    type: DataTypes.ENUM('razorpay', 'upi', 'card'),
-    defaultValue: 'razorpay'
+    type: DataTypes.ENUM('razorpay', 'upi', 'card', 'cod'),
+    defaultValue: 'cod'
   },
   payment_status: {
     type: DataTypes.ENUM('pending', 'completed', 'failed'),
@@ -55,7 +55,12 @@ const Order = sequelize.define('Order', {
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at',
-  tableName: 'orders'
+  tableName: 'orders',
+  indexes: [
+    { fields: ['user_id'] },
+    { fields: ['status'] },
+    { fields: ['created_at'] }
+  ]
 });
 
 module.exports = Order;

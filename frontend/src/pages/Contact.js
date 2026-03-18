@@ -12,7 +12,7 @@ const contactInfo = [
   {
     Icon: PhoneIcon,
     title: 'Phone',
-    lines: ['+91 8799726787'],
+    lines: ['+91 8178335392'],
     sub: 'Call us anytime during business hours',
   },
   {
@@ -20,12 +20,6 @@ const contactInfo = [
     title: 'Email',
     lines: ['saramjewels@gmail.com'],
     sub: 'We reply within 24 hours',
-  },
-  {
-    Icon: MapPinIcon,
-    title: 'Visit Us',
-    lines: ['H-37, L-block, Laxmi Nagar', 'East Delhi – 110092'],
-    sub: 'Come see our collection in person',
   },
   {
     Icon: ClockIcon,
@@ -108,7 +102,7 @@ const Contact = () => {
       {/* ── Contact Cards ── */}
       <section className="px-6 pb-20">
         <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {contactInfo.map(({ Icon, title, lines, sub }, i) => (
               <div key={i} className="card p-6 text-center group hover:border-[rgba(226,232,240,0.4)]">
                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[rgba(226,232,240,0.15)] to-[rgba(226,232,240,0.05)] border border-[rgba(226,232,240,0.2)] flex items-center justify-center mx-auto mb-4 group-hover:border-[#e2e8f0]/50 transition-colors">
@@ -252,7 +246,7 @@ const Contact = () => {
 
                 {/* WhatsApp CTA */}
                 <a
-                  href="https://wa.me/918799726787"
+                  href="https://wa.me/918178335392"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-3 btn-silver w-full justify-center mb-4"
@@ -264,38 +258,20 @@ const Contact = () => {
                 {/* Social buttons */}
                 <div className="grid grid-cols-3 gap-3">
                   {[
-                    { label: 'Instagram', color: 'from-pink-600 to-purple-600' },
-                    { label: 'Facebook', color: 'from-blue-700 to-blue-600' },
-                    { label: 'YouTube', color: 'from-red-700 to-red-600' },
+                    { label: 'Instagram', href: 'https://www.instagram.com/sarojram_g/' },
+                    { label: 'Facebook', href: 'https://facebook.com/sarojram_g' },
+                    { label: 'YouTube', href: 'https://youtube.com/@sarojram_g' },
                   ].map((s) => (
-                    <button
+                    <a
                       key={s.label}
-                      className="btn-ghost text-xs py-3 hover:border-[rgba(226,232,240,0.3)] hover:text-[#e2e8f0]"
+                      href={s.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn-ghost text-xs py-3 hover:border-[rgba(226,232,240,0.3)] hover:text-[#e2e8f0] text-center"
                     >
                       {s.label}
-                    </button>
+                    </a>
                   ))}
-                </div>
-              </div>
-
-              {/* Map placeholder */}
-              <div className="card overflow-hidden h-52 relative flex items-center justify-center">
-                <div
-                  className="absolute inset-0 bg-cover bg-center opacity-30"
-                  style={{ backgroundImage: "url('https://maps.googleapis.com/maps/api/staticmap?center=Laxmi+Nagar,Delhi&zoom=14&size=600x300&markers=Laxmi+Nagar,Delhi&key=NO_KEY')" }}
-                />
-                <div className="relative text-center">
-                  <MapPinIcon className="h-10 w-10 text-[#e2e8f0] mx-auto mb-2" />
-                  <p className="text-[#94a3b8] text-sm font-medium">H-37, L-block, Laxmi Nagar</p>
-                  <p className="text-[#64748b] text-xs">East Delhi – 110092</p>
-                  <a
-                    href="https://maps.google.com?q=Laxmi+Nagar,East+Delhi"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-block mt-4 text-[#e2e8f0] text-xs hover:underline"
-                  >
-                    Open in Google Maps →
-                  </a>
                 </div>
               </div>
             </div>

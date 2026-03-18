@@ -116,7 +116,7 @@ function App() {
       <AuthProvider>
         <CartProvider>
           <SiteSettingsProvider>
-            <Router>
+            <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <div className="min-h-screen bg-[#020617]">
             <Navbar />
             <React.Suspense fallback={

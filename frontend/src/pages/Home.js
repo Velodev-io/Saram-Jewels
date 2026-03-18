@@ -9,6 +9,8 @@ import {
   StarIcon,
   ArrowRightIcon,
   PhoneIcon,
+  EnvelopeIcon,
+  ClockIcon,
 } from '@heroicons/react/24/outline';
 
 /* ── Small reusable diamond separator ── */
@@ -38,7 +40,7 @@ const features = [
   {
     Icon: TruckIcon,
     title: 'Free Shipping',
-    desc: 'Complimentary shipping on all orders above ₹999 across India.',
+    desc: 'Complimentary shipping on all orders above ₹499 across India.',
   },
   {
     Icon: GiftIcon,
@@ -50,13 +52,6 @@ const features = [
     title: 'Secure Payments',
     desc: 'UPI, card, net banking — all transactions fully secured.',
   },
-];
-
-const stats = [
-  { value: '500+', label: 'Happy Customers' },
-  { value: '1000+', label: 'Jewelry Pieces' },
-  { value: '5+', label: 'Years Crafting' },
-  { value: '4.9', label: 'Avg. Rating' },
 ];
 
 const ReviewModal = ({ isOpen, onClose, onSubmit }) => {
@@ -264,7 +259,7 @@ const Home = () => {
           </h1>
 
           <p className="text-[#94a3b8] text-lg md:text-xl max-w-2xl mx-auto leading-relaxed mb-12 animate-fade-in-up delay-200">
-            Timeless brilliance. Crafted with precision. Anti-tarnish American Diamond 
+            Timeless brilliance. Curated with precision. Anti-tarnish American Diamond 
             jewelry that celebrates every moment of your story.
           </p>
 
@@ -296,21 +291,29 @@ const Home = () => {
       <div className="divider-silver" />
 
       {/* ══════════════════════════════════════
-          STATS BAR
+          OCCASIONS BAR
       ══════════════════════════════════════ */}
-      <section className="bg-[#0f172a] py-10 border-y border-[rgba(226,232,240,0.1)]">
-        <div className="max-w-5xl mx-auto px-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {stats.map((s, i) => (
-              <div key={i} className="text-center group">
-                <div className="font-display text-4xl font-bold text-silver-gradient mb-1">
-                  {s.value}
-                </div>
-                <div className="text-xs uppercase tracking-widest text-[#64748b] group-hover:text-[#94a3b8] transition-colors">
-                  {s.label}
-                </div>
-              </div>
-            ))}
+      <section className="bg-[#0f172a] py-14 border-y border-[rgba(226,232,240,0.1)] overflow-hidden relative">
+        <div className="absolute inset-0 opacity-5 pointer-events-none">
+          <div className="absolute top-0 left-0 w-64 h-64 bg-white/20 blur-3xl rounded-full -translate-x-1/2 -translate-y-1/2" />
+          <div className="absolute bottom-0 right-0 w-64 h-64 bg-white/20 blur-3xl rounded-full translate-x-1/2 translate-y-1/2" />
+        </div>
+        <div className="max-w-6xl mx-auto px-6 relative">
+          <div className="flex flex-col md:flex-row items-center justify-around gap-12">
+            <div className="text-center group">
+              <span className="block font-display text-2xl md:text-3xl font-light text-slate-300 tracking-[0.2em] uppercase mb-2 group-hover:text-white transition-colors duration-500">Gifting</span>
+              <span className="text-[10px] text-slate-500 uppercase tracking-[0.3em] font-bold">Perfect for Loved Ones</span>
+            </div>
+            <div className="w-px h-8 bg-white/10 hidden md:block" />
+            <div className="text-center group">
+              <span className="block font-display text-2xl md:text-3xl font-light text-slate-300 tracking-[0.2em] uppercase mb-2 group-hover:text-white transition-colors duration-500">Parties</span>
+              <span className="text-[10px] text-slate-500 uppercase tracking-[0.3em] font-bold">Radiate Every Celebration</span>
+            </div>
+            <div className="w-px h-8 bg-white/10 hidden md:block" />
+            <div className="text-center group">
+              <span className="block font-display text-2xl md:text-3xl font-light text-slate-300 tracking-[0.2em] uppercase mb-2 group-hover:text-white transition-colors duration-500">Everyday Glam</span>
+              <span className="text-[10px] text-slate-500 uppercase tracking-[0.3em] font-bold">Elevate Your Daily Style</span>
+            </div>
           </div>
         </div>
       </section>
@@ -328,7 +331,7 @@ const Home = () => {
             </h2>
             <SilverDivider />
             <p className="text-[#94a3b8] mt-4 max-w-xl mx-auto">
-              From everyday elegance to statement glamour — each piece is crafted to be treasured.
+              From everyday elegance to statement glamour — each piece is selected to be treasured.
             </p>
           </div>
 
@@ -452,7 +455,7 @@ const Home = () => {
               <div className="aspect-[4/5] rounded-2xl overflow-hidden relative">
                 <img
                   src="https://images.unsplash.com/photo-1573408301185-9146fe634ad0?w=800&h=1000&fit=crop"
-                  alt="Saram Jewels craftsmanship"
+                  alt="Saram Jewels curation"
                   className="w-full h-full object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#020617]/60 to-transparent" />
@@ -460,7 +463,7 @@ const Home = () => {
               {/* Floating badge */}
               <div className="absolute -bottom-6 -right-6 glass rounded-2xl px-6 py-4 border border-[rgba(226,232,240,0.2)]">
                 <div className="font-display text-3xl font-bold text-[#e2e8f0]">5+</div>
-                <div className="text-xs text-[#94a3b8] uppercase tracking-widest">Years of Excellence</div>
+                  <div className="text-xs text-[#94a3b8] uppercase tracking-widest">Years of Brilliance</div>
               </div>
             </div>
 
@@ -468,20 +471,20 @@ const Home = () => {
             <div className="space-y-8">
               <div className="section-label">Our Story</div>
               <h2 className="font-display text-5xl md:text-6xl font-bold text-[#ffffff] leading-tight">
-                Crafted With <span className="text-silver-gradient">Passion</span>,<br />
+                Curated With <span className="text-silver-gradient">Passion</span>,<br />
                 Worn With Pride
               </h2>
               <SilverDivider />
               <div className="space-y-5 text-[#94a3b8] leading-relaxed">
                 <p>
                   At <span className="text-[#f8fafc] font-semibold">Saram Jewels</span>, we believe every woman 
-                  deserves to feel radiant. Our journey began with a vision: to create stunning jewelry that blends 
+                  deserves to feel radiant. Our journey began with a vision: to curate stunning jewelry that blends 
                   diamond brilliance with everyday affordability.
                 </p>
                 <p>
                   We specialize in <span className="text-[#e2e8f0] font-medium">American Diamond (A.D.) jewelry</span> — 
-                  crafted with anti-tarnish technology so each piece retains its sparkle for years. 
-                  From delicate rings to bold statement necklaces, every creation tells a story.
+                  finished with anti-tarnish technology so each piece retains its sparkle for years. 
+                  From delicate rings to bold statement necklaces, every curation tells a story.
                 </p>
                 <p>
                   Based in Delhi, we ship across India with care and precision, ensuring your jewelry 
@@ -584,19 +587,23 @@ const Home = () => {
               </p>
               <div className="flex items-center gap-2 text-[#94a3b8] text-sm">
                 <PhoneIcon className="h-4 w-4 text-[#e2e8f0]" />
-                +91 8799726787
+                +91 8178335392
               </div>
               {/* Social */}
               <div className="flex gap-3 pt-2">
-                {['FB', 'IG', 'YT'].map((s) => (
+                {[
+                  { id: 'FB', href: 'https://facebook.com/sarojram_g' },
+                  { id: 'IG', href: 'https://www.instagram.com/sarojram_g/' },
+                  { id: 'YT', href: 'https://youtube.com/@sarojram_g' }
+                ].map((s) => (
                   <a
-                    key={s}
-                    href={`https://${s.toLowerCase()}.com`}
+                    key={s.id}
+                    href={s.href}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="w-9 h-9 rounded-full border border-[rgba(226,232,240,0.2)] flex items-center justify-center text-[#64748b] hover:border-[#e2e8f0] hover:text-[#e2e8f0] transition-all duration-200 text-xs font-bold"
                   >
-                    {s}
+                    {s.id}
                   </a>
                 ))}
               </div>
@@ -626,24 +633,29 @@ const Home = () => {
               </ul>
             </div>
 
-            {/* Contact */}
+            {/* Support */}
             <div>
               <h4 className="text-[#ffffff] font-semibold text-sm uppercase tracking-widest mb-5">
-                Address
+                Support
               </h4>
-              <address className="not-italic text-[#64748b] text-sm space-y-2 leading-relaxed">
-                <p>H-37, L-block, Laxmi Nagar</p>
-                <p>East Delhi, Delhi – 110092</p>
-                <p className="mt-4">
-                  <a href="mailto:saramjewels@gmail.com" className="hover:text-[#e2e8f0] transition-colors">
+              <div className="text-[#64748b] text-sm space-y-4">
+                <p>
+                  <a href="mailto:saramjewels@gmail.com" className="hover:text-[#e2e8f0] transition-colors flex items-center gap-2">
+                    <EnvelopeIcon className="h-4 w-4" />
                     saramjewels@gmail.com
                   </a>
                 </p>
-                <p className="mt-1">
-                  Mon–Sat: 9 AM – 8 PM<br />
-                  Sunday: 10 AM – 6 PM
-                </p>
-              </address>
+                <div className="space-y-1">
+                  <p className="text-[#94a3b8] font-medium flex items-center gap-2">
+                    <ClockIcon className="h-4 w-4" />
+                    Customer Service Hours
+                  </p>
+                  <p className="ml-6 text-xs leading-relaxed">
+                    Mon–Sat: 9 AM – 8 PM<br />
+                    Sunday: 10 AM – 6 PM
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -651,7 +663,7 @@ const Home = () => {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-[#64748b] text-xs">
             <p>© 2025 Saram Jewels. All rights reserved.</p>
             <p className="text-[#e2e8f0]/50 tracking-widest uppercase text-[10px]">
-              ✦ Crafted with Love in Delhi ✦
+              ✦ Curated with Love in Delhi ✦
             </p>
           </div>
         </div>

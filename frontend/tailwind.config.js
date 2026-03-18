@@ -6,8 +6,9 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        'jewelry': ['Playfair Display', 'serif'],
+        'display': ['Outfit', 'sans-serif'],
         'sans': ['Inter', 'sans-serif'],
+        'jewelry': ['Playfair Display', 'serif'],
       },
       colors: {
         primary: {

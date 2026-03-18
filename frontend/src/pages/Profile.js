@@ -10,8 +10,10 @@ import {
   EyeIcon,
   CalendarIcon
 } from '@heroicons/react/24/outline';
+import apiService from '../services/api';
+import AddressSelector from '../components/address/AddressSelector';
 
-const Profile = () => {
+export default function Profile() {
   const { user, isSignedIn } = useAuth();
   const location = useLocation();
   const [activeTab, setActiveTab] = useState('profile');
@@ -20,6 +22,8 @@ const Profile = () => {
   const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [phone, setPhone] = useState('');
+  const [phoneUpdating, setPhoneUpdating] = useState(false);
 
   // Set initial active tab based on URL query parameter
   useEffect(() => {
@@ -30,55 +34,64 @@ const Profile = () => {
     }
   }, [location.search]);
 
-  // Mock order data - in real app, this would come from your backend
+  // Fetch Real Order Data
   useEffect(() => {
-    // Simulate loading orders
-    setTimeout(() => {
-      setOrders([
-        {
-          id: 'ORD-001',
-          date: '2024-01-15',
-          status: 'Delivered',
-          total: 25000,
-          items: [
-            { name: 'Diamond Ring', price: 15000, quantity: 1 },
-            { name: 'Gold Necklace', price: 10000, quantity: 1 }
-          ],
-          tracking: {
-            number: 'DLV123456789',
-            carrier: 'Delhivery',
-            status: 'Delivered',
-            updates: [
-              { date: '2024-01-18', status: 'Package delivered', location: 'Mumbai, Maharashtra' },
-              { date: '2024-01-17', status: 'Out for delivery', location: 'Mumbai, Maharashtra' },
-              { date: '2024-01-16', status: 'In transit', location: 'Mumbai, Maharashtra' },
-              { date: '2024-01-15', status: 'Order confirmed', location: 'Delhi, India' }
-            ]
+    const fetchProfileData = async () => {
+      try {
+        if (isSignedIn) {
+          // Fetch real user data (including phone) from backend
+          const userProfile = await apiService.getCurrentUser();
+          if (userProfile && userProfile.phone) {
+            setPhone(userProfile.phone);
           }
-        },
-        {
-          id: 'ORD-002',
-          date: '2024-01-10',
-          status: 'In Transit',
-          total: 18000,
-          items: [
-            { name: 'Silver Bracelet', price: 8000, quantity: 1 },
-            { name: 'Pearl Earrings', price: 10000, quantity: 1 }
-          ],
-          tracking: {
-            number: 'DTDC987654321',
-            carrier: 'DTDC',
-            status: 'In Transit',
-            updates: [
-              { date: '2024-01-12', status: 'In transit', location: 'Bangalore, Karnataka' },
-              { date: '2024-01-11', status: 'Order confirmed', location: 'Delhi, India' }
-            ]
+          // Fetch real orders
+          const userOrders = await apiService.getUserOrders();
+          const ordersArray = userOrders?.data || (Array.isArray(userOrders) ? userOrders : []);
+          
+          if (ordersArray && ordersArray.length >= 0) {
+            // map real orders to state
+            const mapped = ordersArray.map(o => ({
+              id: o.order_number || o.id,
+              date: o.created_at,
+              status: o.status,
+              total: o.total_amount,
+              items: o.items ? o.items.map(i => ({
+                name: i.product?.name || 'Product',
+                price: i.price,
+                quantity: i.quantity
+              })) : [],
+              tracking: {
+                number: o.tracking_number || '',
+                carrier: o.shipping_carrier || 'Delivery Partner',
+                updates: [
+                  { date: new Date(o.created_at).toLocaleDateString(), status: 'Order Confirmed', location: '' }
+                ]
+              }
+            }));
+            setOrders(mapped);
           }
         }
-      ]);
-      setLoading(false);
-    }, 1000);
-  }, []);
+      } catch (err) {
+        console.error("Error fetching profile data:", err.response?.data || err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProfileData();
+  }, [isSignedIn]);
+
+  const handlePhoneUpdate = async () => {
+    if (!phone) return;
+    setPhoneUpdating(true);
+    try {
+      await apiService.updateUser({ phone });
+      alert('Phone updated successfully');
+    } catch (err) {
+      alert('Failed to update phone');
+    } finally {
+      setPhoneUpdating(false);
+    }
+  };
 
   const getTrackingUrl = (tracking) => {
     if (tracking.carrier === 'Delhivery') {
@@ -142,57 +155,23 @@ const Profile = () => {
             <label className="block text-xs font-bold uppercase tracking-widest text-[#94a3b8] mb-2">Phone</label>
             <input
               type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
               placeholder="Add phone number"
               className="input-dark w-full bg-[#0f172a]"
             />
           </div>
         </div>
         <div className="mt-6">
-          <button className="btn-silver py-3 px-6 text-xs">Save Changes</button>
+          <button onClick={handlePhoneUpdate} disabled={phoneUpdating} className="btn-silver py-3 px-6 text-xs transition-all disabled:opacity-50">
+            {phoneUpdating ? 'Updating...' : 'Save Changes'}
+          </button>
         </div>
       </div>
 
       <div className="bg-[#1e293b] rounded-2xl border border-[rgba(226,232,240,0.1)] p-6 md:p-8">
-        <h3 className="text-xl font-display font-medium text-[#f8fafc] mb-6 border-b border-[rgba(226,232,240,0.1)] pb-4">Shipping Address</h3>
-        <div className="space-y-6">
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#94a3b8] mb-2">Address</label>
-            <textarea
-              rows={3}
-              placeholder="Enter your shipping address"
-              className="input-dark w-full bg-[#0f172a] resize-none"
-            />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-widest text-[#94a3b8] mb-2">City</label>
-              <input
-                type="text"
-                placeholder="City"
-                className="input-dark w-full bg-[#0f172a]"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-widest text-[#94a3b8] mb-2">State</label>
-              <input
-                type="text"
-                placeholder="State"
-                className="input-dark w-full bg-[#0f172a]"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-widest text-[#94a3b8] mb-2">Pincode</label>
-              <input
-                type="text"
-                placeholder="Pincode"
-                className="input-dark w-full bg-[#0f172a]"
-              />
-            </div>
-          </div>
-          <div>
-             <button className="btn-silver py-3 px-6 text-xs">Update Address</button>
-          </div>
-        </div>
+        <h3 className="text-xl font-display font-medium text-[#f8fafc] mb-6 border-b border-[rgba(226,232,240,0.1)] pb-4">Saved Addresses</h3>
+        <AddressSelector mode="manage" user={user} />
       </div>
     </div>
   );
@@ -207,7 +186,13 @@ const Profile = () => {
         <div className="text-center py-16 bg-[#1e293b] rounded-2xl border border-[rgba(226,232,240,0.1)]">
           <ShoppingBagIcon className="mx-auto h-16 w-16 text-[#64748b]" />
           <h3 className="mt-4 text-xl font-display text-[#f8fafc]">No orders yet</h3>
-          <p className="mt-2 text-sm text-[#94a3b8]">Start shopping to see your elegant order history.</p>
+          <p className="mt-2 text-sm text-[#94a3b8] mb-6">Start shopping to see your elegant order history.</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="btn-outline px-6 py-2 text-[10px] uppercase tracking-widest font-bold"
+          >
+            Refresh Orders
+          </button>
         </div>
       ) : (
         orders.map((order) => (
@@ -563,5 +548,3 @@ const Profile = () => {
     </div>
   );
 };
-
-export default Profile;

@@ -100,6 +100,67 @@ class ApiService {
     }
   }
 
+  // Address APIs
+  async getAddresses() {
+    try {
+      const response = await api.get('/addresses');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching addresses:', error);
+      throw error;
+    }
+  }
+
+  async addAddress(addressData) {
+    try {
+      const response = await api.post('/addresses', addressData);
+      return response.data;
+    } catch (error) {
+      console.error('Error adding address:', error);
+      throw error;
+    }
+  }
+
+  async updateAddress(id, addressData) {
+    try {
+      const response = await api.put(`/addresses/${id}`, addressData);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating address:', error);
+      throw error;
+    }
+  }
+
+  async deleteAddress(id) {
+    try {
+      const response = await api.delete(`/addresses/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting address:', error);
+      throw error;
+    }
+  }
+
+  async setDefaultAddress(id) {
+    try {
+      const response = await api.patch(`/addresses/${id}/set-default`);
+      return response.data;
+    } catch (error) {
+      console.error('Error setting default address:', error);
+      throw error;
+    }
+  }
+
+  async getInquiries() {
+    try {
+      const response = await api.get('/contact/inquiries');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching inquiries:', error);
+      return { success: false, data: [] };
+    }
+  }
+
   // Order APIs
   async createOrder(orderData) {
     try {

@@ -82,7 +82,7 @@ exports.getProductsByCategory = async (req, res) => {
 // Create new product (admin only)
 exports.createProduct = async (req, res) => {
   try {
-    const { name, description, price, originalPrice, category_id, stock, sku, is_featured, status } = req.body;
+    const { name, description, price, originalPrice, category_id, stock, sku, is_featured, status, specifications, rating, reviews_count } = req.body;
     let { images } = req.body;
     
     // Fix all images: center, square, and optimize
@@ -100,7 +100,10 @@ exports.createProduct = async (req, res) => {
       stock,
       sku,
       is_featured,
-      status: status || 'active'
+      status: status || 'active',
+      specifications,
+      rating,
+      reviews_count
     });
     
     res.status(201).json(product);
@@ -113,7 +116,7 @@ exports.createProduct = async (req, res) => {
 // Update product (admin only)
 exports.updateProduct = async (req, res) => {
   try {
-    const { name, description, price, originalPrice, category_id, stock, sku, is_featured, status } = req.body;
+    const { name, description, price, originalPrice, category_id, stock, sku, is_featured, status, specifications, rating, reviews_count } = req.body;
     let { images } = req.body;
     const product = await Product.findByPk(req.params.id);
     
@@ -136,7 +139,10 @@ exports.updateProduct = async (req, res) => {
       stock,
       sku,
       is_featured,
-      status
+      status,
+      specifications,
+      rating,
+      reviews_count
     });
     
     res.json(product);

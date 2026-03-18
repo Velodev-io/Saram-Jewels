@@ -15,13 +15,18 @@ const clerkAuth = async (req, res, next) => {
       secretKey: process.env.CLERK_SECRET_KEY,
     });
 
+    console.log('✅ Token verified. sub:', payload.sub);
+    console.log('🔍 Full Payload preview:', JSON.stringify({ ...payload, exp: '...' }, null, 2));
     req.user = payload;
     next();
   } catch (error) {
-    console.error('Clerk authentication error:', error);
+    console.error('❌ Clerk authentication error:', error.message);
+    if (error.stack) console.debug(error.stack);
+    
     return res.status(401).json({ 
       success: false, 
-      message: 'Invalid token' 
+      message: 'Invalid or expired token',
+      error: error.message 
     });
   }
 };

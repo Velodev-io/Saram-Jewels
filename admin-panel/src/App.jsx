@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { 
+import {
   ChartBarIcon,
   CubeIcon,
   CurrencyRupeeIcon,
@@ -66,7 +66,7 @@ const Admin = () => {
           apiService.getReviews(),
           apiService.getInquiries()
         ]);
-        
+
         const [productsRes, ordersRes, customersRes, categoriesRes, reviewsRes, inquiriesRes] = results;
 
         // Map products
@@ -78,27 +78,29 @@ const Admin = () => {
             image: p.images?.[0] || 'https://via.placeholder.com/300'
           })));
         }
-        
+
         // Map orders
-        if (ordersRes.status === 'fulfilled') {
-          setOrders(ordersRes.value.map(o => ({
+        if (ordersRes.status === 'fulfilled' && ordersRes.value) {
+          const ordersArray = Array.isArray(ordersRes.value) ? ordersRes.value : (ordersRes.value.data || []);
+          setOrders(ordersArray.map(o => ({
             id: o.order_number || o.id,
             customer: o.user ? (o.user.first_name + ' ' + o.user.last_name).trim() || o.user.email : 'Guest',
             total: parseFloat(o.total_amount) || 0,
             status: o.status === 'processing' ? 'Processing' : o.status === 'pending' ? 'Pending' : o.status === 'completed' ? 'Delivered' : 'Cancelled',
-            date: new Date(o.createdAt).toLocaleDateString()
+            date: new Date(o.createdAt).toLocaleDateString(),
+            payment_method: o.payment_method || 'COD'
           })));
         }
-        
+
         // Map customers
         if (customersRes.status === 'fulfilled') {
-           setCustomers(customersRes.value.map(c => ({
-             id: c.id,
-             name: (c.first_name + ' ' + c.last_name).trim() || 'Unknown',
-             email: c.email,
-             orders: c.orders?.length || 0,
-             totalSpent: c.orders?.reduce((sum, o) => sum + parseFloat(o.total_amount), 0) || 0
-           })));
+          setCustomers(customersRes.value.map(c => ({
+            id: c.id,
+            name: (c.first_name + ' ' + c.last_name).trim() || 'Unknown',
+            email: c.email,
+            orders: c.orders?.length || 0,
+            totalSpent: c.orders?.reduce((sum, o) => sum + parseFloat(o.total_amount), 0) || 0
+          })));
         }
 
         // Set Categories
@@ -121,7 +123,7 @@ const Admin = () => {
         setLoading(false);
       }
     };
-    
+
     loadData();
     // Keep it sync with a 30s poll
     const interval = setInterval(loadData, 30000);
@@ -153,14 +155,14 @@ const Admin = () => {
   // Check if user is admin - for now, allow any signed-in user
   // TODO: Add proper admin role checking later
   const isAdmin = isSignedIn;
-  
+
   if (!isAdmin) {
     return (
       <div className="min-h-screen bg-[#020617] flex flex-col items-center justify-center relative overflow-hidden px-4">
         {/* Background Decorative Elements */}
         <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-500/5 rounded-full blur-[120px]" />
         <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-sky-500/5 rounded-full blur-[120px]" />
-        
+
         <div className="text-center mb-12 animate-premium-in relative z-10">
           <div className="w-20 h-20 bg-gradient-to-tr from-slate-200 to-slate-400 rounded-3xl flex items-center justify-center font-black text-slate-950 shadow-2xl shadow-white/10 mx-auto mb-6 rotate-3">
             S
@@ -172,7 +174,7 @@ const Admin = () => {
             <div className="h-[1px] w-8 bg-slate-500/20" />
           </div>
         </div>
-        
+
         <div className="glass-card p-2 rounded-[2rem] animate-premium-in shadow-white/5 relative z-10">
           <SignIn />
         </div>
@@ -212,7 +214,7 @@ const Admin = () => {
     return { color: 'text-sky-400 bg-sky-500/20', text: 'In Stock' };
   };
 
-  const filteredProducts = products.filter(product => 
+  const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     product.sku.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -220,31 +222,49 @@ const Admin = () => {
   // Product Management Functions
   const addProduct = async (productData) => {
     try {
-       const newProduct = await apiService.createProduct(productData);
-       const cat = categories.find(c => c.id === productData.category_id);
-       const formattedNewProduct = {
-         ...newProduct,
-         category: cat ? cat.name : 'Uncategorized',
-         status: newProduct.stock > 0 ? 'active' : 'inactive',
-         image: (Array.isArray(newProduct.images) && newProduct.images[0]) || newProduct.image || 'https://via.placeholder.com/300',
-         price: parseFloat(newProduct.price),
-         originalPrice: parseFloat(newProduct.original_price || newProduct.originalPrice || newProduct.price)
-       };
-       setProducts([formattedNewProduct, ...products]);
-       setShowAddProduct(false);
-       
-       // Success cleanup
-       setSelectedImage(null);
-       setImagePreview(null);
-       setSelectedImages([]);
-       setProductImages([]);
-       
-       return true;
-    } catch(e) {
-       console.error(e);
-       const errorMsg = e.response?.data?.message || 'Failed to catalogue piece. Check manifest details.';
-       alert(errorMsg);
-       return false;
+      const newProduct = await apiService.createProduct(productData);
+      const cat = categories.find(c => c.id === productData.category_id);
+      const formattedNewProduct = {
+        ...newProduct,
+        category: cat ? cat.name : 'Uncategorized',
+        status: newProduct.stock > 0 ? 'active' : 'inactive',
+        image: (Array.isArray(newProduct.images) && newProduct.images[0]) || newProduct.image || 'https://via.placeholder.com/300',
+        price: parseFloat(newProduct.price),
+        originalPrice: parseFloat(newProduct.original_price || newProduct.originalPrice || newProduct.price)
+      };
+      setProducts([formattedNewProduct, ...products]);
+      setShowAddProduct(false);
+
+      // Success cleanup
+      setSelectedImage(null);
+      setImagePreview(null);
+      setSelectedImages([]);
+      setProductImages([]);
+
+      return true;
+    } catch (e) {
+      console.error(e);
+      const errorMsg = e.response?.data?.message || 'Failed to catalogue piece. Check manifest details.';
+      alert(errorMsg);
+      return false;
+    }
+  };
+
+  const updateProductStock = async (productId, newStock) => {
+    try {
+      await apiService.updateProduct(productId, { stock: newStock });
+      setProducts(products.map(product =>
+        product.id === productId ? {
+          ...product,
+          stock: newStock,
+          status: newStock > 0 ? 'active' : 'inactive'
+        } : product
+      ));
+      return true;
+    } catch (e) {
+      console.error(e);
+      alert('Failed to update stock.');
+      return false;
     }
   };
 
@@ -252,11 +272,11 @@ const Admin = () => {
     try {
       const updated = await apiService.updateProduct(productId, productData);
       const cat = categories.find(c => c.id === productData.category_id);
-      setProducts(products.map(product => 
-        product.id === productId ? { 
-          ...product, 
-          ...updated, 
-          category: cat ? cat.name : product.category, 
+      setProducts(products.map(product =>
+        product.id === productId ? {
+          ...product,
+          ...updated,
+          category: cat ? cat.name : product.category,
           status: updated.stock > 0 ? 'active' : 'inactive',
           image: (Array.isArray(updated.images) && updated.images[0]) || updated.image || product.image,
           price: parseFloat(updated.price),
@@ -264,15 +284,15 @@ const Admin = () => {
         } : product
       ));
       setEditingProduct(null);
-      
+
       // Success cleanup
       setSelectedImage(null);
       setImagePreview(null);
       setSelectedImages([]);
       setProductImages([]);
-      
+
       return true;
-    } catch(e) {
+    } catch (e) {
       console.error(e);
       alert('Failed to update curation.');
       return false;
@@ -284,7 +304,7 @@ const Admin = () => {
       try {
         await apiService.deleteProduct(productId);
         setProducts(products.filter(product => product.id !== productId));
-      } catch(e) {
+      } catch (e) {
         console.error(e);
       }
     }
@@ -295,21 +315,21 @@ const Admin = () => {
     if (!product) return;
 
     const newStatus = product.status === 'active' ? 'inactive' : 'active';
-    
+
     try {
       // Optimitic update
-      setProducts(products.map(p => 
+      setProducts(products.map(p =>
         p.id === productId ? { ...p, status: newStatus } : p
       ));
-      
+
       // Persist to backend
       // We'll update the 'stock' as well if it's currently 0 but being activated? 
       // Or just let status be independent.
       await apiService.updateProduct(productId, { status: newStatus });
-    } catch(e) {
+    } catch (e) {
       console.error(e);
       // Revert on error
-      setProducts(products.map(p => 
+      setProducts(products.map(p =>
         p.id === productId ? { ...p, status: product.status } : p
       ));
       alert('Failed to sync status change with vault.');
@@ -320,7 +340,7 @@ const Admin = () => {
   const updateOrderStatus = async (orderId, status) => {
     try {
       await apiService.updateOrderStatus(orderId, status);
-      setOrders(orders.map(order => 
+      setOrders(orders.map(order =>
         order.id === orderId ? { ...order, status: status === 'processing' ? 'Processing' : status === 'pending' ? 'Pending' : status === 'completed' ? 'Delivered' : 'Cancelled' } : order
       ));
       if (showOrderDetails && showOrderDetails.id === orderId) {
@@ -350,14 +370,32 @@ const Admin = () => {
     }
   };
 
+  const deleteCategory = async (id) => {
+    try {
+      const category = categories.find(c => c.id === id);
+      if (category.products?.length > 0) {
+        alert('This collection still holds pieces. Redistribute or remove pieces before dissolving the realm.');
+        return false;
+      }
+      
+      await apiService.deleteCategory(id);
+      setCategories(categories.filter(c => c.id !== id));
+      return true;
+    } catch (e) {
+      console.error(e);
+      alert('Failed to dissolve the collection.');
+      return false;
+    }
+  };
+
   // Bulk Stock Update Functions
   const updateBulkStock = async (productId, newStock) => {
     try {
       await apiService.updateProduct(productId, { stock: newStock });
-      setProducts(products.map(product => 
+      setProducts(products.map(product =>
         product.id === productId ? { ...product, stock: newStock, status: newStock > 0 ? 'active' : 'inactive' } : product
       ));
-    } catch(e) {
+    } catch (e) {
       console.error(e);
     }
   };
@@ -365,7 +403,7 @@ const Admin = () => {
   const updateInquiryStatus = async (inquiryId, status) => {
     try {
       await apiService.updateInquiryStatus(inquiryId, status);
-      setInquiries(inquiries.map(inquiry => 
+      setInquiries(inquiries.map(inquiry =>
         inquiry.id === inquiryId ? { ...inquiry, status } : inquiry
       ));
     } catch (e) {
@@ -490,16 +528,16 @@ const Admin = () => {
         <div className="glass-card p-6 group hover:translate-y-[-4px] transition-all duration-300">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-slate-400 uppercase tracking-wider">The Curation</p>
-              <h3 className="text-3xl font-bold text-white mt-1">{products.length}</h3>
+              <p className="text-sm font-medium text-slate-400 uppercase tracking-wider">Inquiries</p>
+              <h3 className="text-3xl font-bold text-white mt-1">{inquiries.filter(i => i.status === 'unread').length}</h3>
             </div>
-            <div className="p-3 bg-slate-500/10 rounded-2xl group-hover:bg-slate-500/20 transition-colors">
-              <CubeIcon className="h-8 w-8 text-sky-400" />
+            <div className="p-3 bg-amber-500/10 rounded-2xl group-hover:bg-amber-500/20 transition-colors">
+              <ChatBubbleBottomCenterTextIcon className="h-8 w-8 text-amber-400" />
             </div>
           </div>
-          <div className="mt-4 flex items-center text-xs text-sky-400">
-            <span className="font-bold">+{Math.floor(products.length * 0.1)}%</span>
-            <span className="ml-1 text-slate-500">since launch</span>
+          <div className="mt-4 flex items-center text-xs text-amber-400">
+            <span className="font-bold">{inquiries.length} total</span>
+            <span className="ml-1 text-slate-500">patron messages</span>
           </div>
         </div>
 
@@ -601,7 +639,7 @@ const Admin = () => {
           <h2 className="text-3xl font-extrabold text-gradient-silver">Product Catalog</h2>
           <p className="text-slate-400 mt-1">Manage, track and organize your jewelry collection.</p>
         </div>
-        <button 
+        <button
           onClick={() => setShowAddProduct(true)}
           className="btn-primary flex items-center gap-2"
         >
@@ -676,8 +714,8 @@ const Admin = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className={`text-sm font-bold ${stockStatus.color.split(' ')[0]}`}>{product.stock} units</div>
                       <div className="w-24 h-1 bg-slate-800 rounded-full mt-1.5 overflow-hidden">
-                        <div 
-                           className={`h-full ${stockStatus.color.split(' ')[1].replace('/20', '')}`} 
+                        <div
+                          className={`h-full ${stockStatus.color.split(' ')[1].replace('/20', '')}`}
                           style={{ width: `${Math.min(100, (product.stock / 20) * 100)}%` }}
                         />
                       </div>
@@ -689,20 +727,20 @@ const Admin = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
                       <div className="flex justify-end items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button 
+                        <button
                           onClick={() => setEditingProduct(product)}
                           className="p-2 bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-all"
                           title="Edit Piece"
                         >
                           <PencilIcon className="h-4 w-4" />
                         </button>
-                        <button 
+                        <button
                           onClick={() => toggleProductStatus(product.id)}
                           className={`p-2 rounded-lg transition-all ${product.status === 'active' ? 'bg-sky-500/10 text-sky-400 hover:bg-sky-500/20' : 'bg-slate-500/10 text-slate-400 hover:bg-slate-500/20'}`}
                         >
                           {product.status === 'active' ? <EyeIcon className="h-4 w-4" /> : <EyeSlashIcon className="h-4 w-4" />}
                         </button>
-                        <button 
+                        <button
                           onClick={() => deleteProduct(product.id)}
                           className="p-2 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 rounded-lg transition-all"
                         >
@@ -753,7 +791,7 @@ const Admin = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-amber-200/30 text-xs">{order.date}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-right">
-                    <button 
+                    <button
                       onClick={() => setShowOrderDetails(order)}
                       className="px-4 py-1.5 bg-amber-500/10 text-amber-400 hover:bg-amber-500 text-[10px] font-black uppercase tracking-widest border border-amber-500/20 rounded-lg hover:text-green-950 transition-all"
                     >
@@ -803,7 +841,7 @@ const Admin = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-amber-50">{customer.orders} Orders</td>
                   <td className="px-6 py-4 whitespace-nowrap font-black text-amber-100">₹{customer.totalSpent.toLocaleString()}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-right">
-                    <button 
+                    <button
                       onClick={() => setShowCustomerProfile(customer)}
                       className="px-4 py-1.5 border border-amber-500/20 rounded-lg text-amber-300 text-xs font-bold hover:bg-amber-500/10 transition-all opacity-0 group-hover:opacity-100"
                     >
@@ -826,7 +864,7 @@ const Admin = () => {
           <h2 className="text-3xl font-extrabold text-gradient-gold">Collections</h2>
           <p className="text-amber-200/60 mt-1">Organize your pieces into elegant categories.</p>
         </div>
-        <button 
+        <button
           onClick={() => setShowAddCategory(true)}
           className="btn-primary flex items-center gap-2"
         >
@@ -865,13 +903,13 @@ const Admin = () => {
                     <div className="text-sm font-black text-amber-100">{category.products?.length || 0} Pieces</div>
                   </td>
                   <td className="px-6 py-5 whitespace-nowrap text-right">
-                    <button 
+                    <button
                       onClick={() => {
-                        if(window.confirm('Dissolve this collection and its legacy?')) {
-                          // deleteCategory logic
+                        if (window.confirm('Dissolve this collection and its legacy?')) {
+                          deleteCategory(category.id);
                         }
                       }}
-                      className="p-2.5 text-red-400/40 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all opacity-0 group-hover:opacity-100"
+                      className="p-2.5 text-red-100/40 hover:text-red-300 hover:bg-red-500/10 rounded-xl transition-all"
                     >
                       <TrashIcon className="h-5 w-5" />
                     </button>
@@ -897,14 +935,14 @@ const Admin = () => {
                 <h3 className="text-2xl font-black text-gradient-gold uppercase tracking-tighter">Found New Collection</h3>
                 <p className="text-[10px] font-bold text-amber-200/40 uppercase tracking-[0.2em] mt-1">Expansion of the Saram Legacy</p>
               </div>
-              <button 
+              <button
                 onClick={() => { setShowAddCategory(false); setImagePreview(null); }}
                 className="w-10 h-10 flex items-center justify-center rounded-full bg-green-950/50 text-amber-200/40 hover:text-amber-100 border border-amber-500/10 transition-all"
               >
                 ✕
               </button>
             </div>
-            
+
             <form onSubmit={async (e) => {
               e.preventDefault();
               const submitButton = e.target.querySelector('button[type="submit"]');
@@ -927,30 +965,30 @@ const Admin = () => {
               <div className="space-y-8">
                 <div>
                   <label className="block text-[10px] font-black text-amber-400 uppercase tracking-[0.2em] mb-3">Collection Designation</label>
-                  <input 
-                    name="name" 
-                    required 
+                  <input
+                    name="name"
+                    required
                     placeholder="e.g. Imperial Heritage"
-                    className="glass-input w-full px-5 py-4 text-sm font-bold" 
+                    className="glass-input w-full px-5 py-4 text-sm font-bold"
                   />
                 </div>
                 <div>
                   <label className="block text-[10px] font-black text-amber-400 uppercase tracking-[0.2em] mb-3">Historical Narrative</label>
-                  <textarea 
-                    name="description" 
-                    rows="4" 
+                  <textarea
+                    name="description"
+                    rows="4"
                     placeholder="Detail the essence and craftsmanship of this curation..."
-                    className="glass-input w-full px-5 py-4 text-sm font-bold resize-none" 
+                    className="glass-input w-full px-5 py-4 text-sm font-bold resize-none"
                   />
                 </div>
                 <div>
                   <label className="block text-[10px] font-black text-amber-400 uppercase tracking-[0.2em] mb-3">Visual Anchor</label>
                   <div className="flex gap-6 items-center p-4 bg-green-950/40 border border-amber-500/10 rounded-2xl">
                     <div className="relative group">
-                      <img 
-                        src={imagePreview || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=200&h=200&fit=crop'} 
-                        className={`w-20 h-20 rounded-xl object-cover border-2 ${imagePreview ? 'border-amber-400 shadow-lg shadow-amber-500/20' : 'border-amber-500/10 opacity-30'}`} 
-                        alt="Preview" 
+                      <img
+                        src={imagePreview || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=200&h=200&fit=crop'}
+                        className={`w-20 h-20 rounded-xl object-cover border-2 ${imagePreview ? 'border-amber-400 shadow-lg shadow-amber-500/20' : 'border-amber-500/10 opacity-30'}`}
+                        alt="Preview"
                       />
                       {imagePreview && (
                         <div className="absolute inset-0 bg-black/60 rounded-xl opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer">
@@ -967,15 +1005,15 @@ const Admin = () => {
                   </div>
                 </div>
                 <div className="flex gap-4 pt-6 border-t border-amber-500/10">
-                  <button 
-                    type="button" 
-                    onClick={() => { setShowAddCategory(false); setImagePreview(null); }} 
+                  <button
+                    type="button"
+                    onClick={() => { setShowAddCategory(false); setImagePreview(null); }}
                     className="btn-secondary flex-1 py-4 uppercase tracking-widest text-[10px] font-black"
                   >
                     Rescind
                   </button>
-                  <button 
-                    type="submit" 
+                  <button
+                    type="submit"
                     className="btn-primary flex-1 py-4 uppercase tracking-widest text-[10px] font-black"
                   >
                     Found Collection
@@ -1022,7 +1060,7 @@ const Admin = () => {
         <div className="bg-green-900/40 backdrop-blur-md border border-amber-500/20 rounded-lg shadow-xl shadow-black/20 p-6">
           <h3 className="text-lg font-semibold text-amber-100 mb-4">Quick Actions</h3>
           <div className="space-y-3">
-            <button 
+            <button
               onClick={() => setShowAddProduct(true)}
               className="w-full bg-green-950/50 text-amber-100 placeholder-amber-200/50 text-left p-3 border border-amber-500/30 rounded-lg hover:bg-green-950 transition-colors"
             >
@@ -1034,7 +1072,7 @@ const Admin = () => {
                 </div>
               </div>
             </button>
-            <button 
+            <button
               onClick={() => setShowBulkStockUpdate(true)}
               className="w-full bg-green-950/50 text-amber-100 placeholder-amber-200/50 text-left p-3 border border-amber-500/30 rounded-lg hover:bg-green-950 transition-colors"
             >
@@ -1047,6 +1085,83 @@ const Admin = () => {
               </div>
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* Product List with Stock Update */}
+      <div className="bg-green-900/40 backdrop-blur-md border border-amber-500/20 rounded-lg shadow-xl shadow-black/20 overflow-hidden">
+        <div className="p-4 border-b border-amber-500/20">
+          <h3 className="text-lg font-semibold text-amber-100">Product Inventory</h3>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-amber-500/20">
+            <thead className="bg-green-950">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-amber-200/50 uppercase">Product</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-amber-200/50 uppercase">Category</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-amber-200/50 uppercase">Current Stock</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-amber-200/50 uppercase">Update Stock</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-amber-200/50 uppercase">Status</th>
+              </tr>
+            </thead>
+            <tbody className="bg-green-900/40 divide-y divide-amber-500/20">
+              {products.map((product) => (
+                <tr key={product.id} className="hover:bg-green-950/30 transition-colors">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center">
+                      <img
+                        src={product.image}
+                        alt={product.name}
+                        className="h-10 w-10 rounded object-cover mr-3"
+                      />
+                      <div>
+                        <div className="text-sm font-medium text-amber-100">{product.name}</div>
+                        <div className="text-xs text-amber-200/50">{product.sku}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="text-sm text-amber-200/70">{product.category}</span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="text-sm font-medium text-amber-100">{product.stock}</span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="0"
+                        defaultValue={product.stock}
+                        id={`stock-input-${product.id}`}
+                        className="w-20 px-2 py-1 text-sm bg-green-950/50 border border-amber-500/40 rounded text-amber-100 focus:ring-2 focus:ring-amber-300 focus:outline-none"
+                      />
+                      <button
+                        onClick={async () => {
+                          const inputEl = document.getElementById(`stock-input-${product.id}`);
+                          const newStock = parseInt(inputEl?.value) || 0;
+                          if (newStock !== product.stock) {
+                            try {
+                              await updateProductStock(product.id, newStock);
+                            } catch (error) {
+                              console.error('Failed to update stock:', error);
+                            }
+                          }
+                        }}
+                        className="px-3 py-1 text-xs bg-amber-500/20 text-amber-300 border border-amber-500/40 rounded hover:bg-amber-500/40 transition-colors"
+                      >
+                        Update
+                      </button>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStockStatus(product.stock).color}`}>
+                      {getStockStatus(product.stock).text}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -1072,47 +1187,53 @@ const Admin = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {inquiries.map((inquiry) => (
-                <tr key={inquiry.id} className="hover:bg-white/[0.02] transition-colors group">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-bold text-slate-100">{inquiry.name}</div>
-                    <div className="text-xs text-slate-500">{inquiry.email}</div>
-                    {inquiry.phone && <div className="text-[10px] text-slate-600 font-mono mt-1">{inquiry.phone}</div>}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="px-2 py-1 bg-slate-900 border border-white/5 rounded-md text-[10px] font-black uppercase text-slate-400">
-                      {inquiry.subject}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-xs text-slate-400 line-clamp-2 max-w-xs">{inquiry.message}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-xs text-slate-500">
-                    {new Date(inquiry.createdAt).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                      inquiry.status === 'unread' ? 'text-amber-400 bg-amber-500/10 border border-amber-500/20 shadow-[0_0_10px_rgba(245,158,11,0.1)]' :
-                      inquiry.status === 'replied' ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20' :
-                      'text-slate-500 bg-slate-800/10 grayscale'
-                    }`}>
-                      {inquiry.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right">
-                    <div className="flex justify-end gap-2">
-                      <button 
-                        onClick={() => updateInquiryStatus(inquiry.id, inquiry.status === 'replied' ? 'unread' : 'replied')}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
-                          inquiry.status === 'replied' ? 'border-amber-500/20 text-amber-400 hover:bg-amber-500/10' : 'border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10'
-                        }`}
-                      >
-                        {inquiry.status === 'replied' ? 'Mark Unread' : 'Mark Replied'}
-                      </button>
-                    </div>
+              {inquiries.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="px-6 py-12 text-center text-slate-500 italic">
+                    No chronicles of inquiry found in the digital vault.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                inquiries.map((inquiry) => (
+                  <tr key={inquiry.id} className="hover:bg-white/[0.02] transition-colors group">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-bold text-slate-100">{inquiry.name}</div>
+                      <div className="text-xs text-slate-500">{inquiry.email}</div>
+                      {inquiry.phone && <div className="text-[10px] text-slate-600 font-mono mt-1">{inquiry.phone}</div>}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="px-2 py-1 bg-slate-900 border border-white/5 rounded-md text-[10px] font-black uppercase text-slate-400">
+                        {inquiry.subject}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-xs text-slate-400 line-clamp-2 max-w-xs">{inquiry.message}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-xs text-slate-500">
+                      {new Date(inquiry.createdAt).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${inquiry.status === 'unread' ? 'text-amber-400 bg-amber-500/10 border border-amber-500/20 shadow-[0_0_10px_rgba(245,158,11,0.1)]' :
+                        inquiry.status === 'replied' ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20' :
+                          'text-slate-500 bg-slate-800/10 grayscale'
+                        }`}>
+                        {inquiry.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => updateInquiryStatus(inquiry.id, inquiry.status === 'replied' ? 'unread' : 'replied')}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${inquiry.status === 'replied' ? 'border-amber-500/20 text-amber-400 hover:bg-amber-500/10' : 'border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10'
+                            }`}
+                        >
+                          {inquiry.status === 'replied' ? 'Mark Unread' : 'Mark Replied'}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -1228,15 +1349,13 @@ const Admin = () => {
                     <div className="text-sm font-bold text-amber-50">{item.label}</div>
                     <div className="text-[10px] text-amber-200/40 uppercase font-black tracking-widest mt-1">{item.desc}</div>
                   </div>
-                  <button 
+                  <button
                     onClick={() => toggleNotification(item.id)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all duration-300 ${
-                      notifications[item.id] ? 'bg-amber-400 shadow-lg shadow-amber-500/40' : 'bg-green-800'
-                    }`}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all duration-300 ${notifications[item.id] ? 'bg-amber-400 shadow-lg shadow-amber-500/40' : 'bg-green-800'
+                      }`}
                   >
-                    <span className={`inline-block h-4 w-4 transform rounded-full bg-green-950 transition-transform duration-300 ${
-                      notifications[item.id] ? 'translate-x-6' : 'translate-x-1'
-                    }`} />
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-green-950 transition-transform duration-300 ${notifications[item.id] ? 'translate-x-6' : 'translate-x-1'
+                      }`} />
                   </button>
                 </div>
               ))}
@@ -1267,7 +1386,7 @@ const Admin = () => {
   const renderAddEditProductModal = () => {
     if (!showAddProduct && !editingProduct) return null;
     const product = editingProduct || {};
-    
+
     return (
       <div className="fixed inset-0 bg-[#020617]/95 backdrop-blur-xl flex items-start justify-center z-[100] p-4 overflow-y-auto pt-10 pb-20">
         <div className="glass-card p-10 w-full max-w-3xl animate-premium-in border-white/10 shadow-[0_0_100px_rgba(0,0,0,0.9)] relative mb-10">
@@ -1290,8 +1409,8 @@ const Admin = () => {
               x
             </button>
           </div>
-          
-          <form 
+
+          <form
             onSubmit={async (e) => {
               e.preventDefault();
               const submitButton = e.target.querySelector('button[type="submit"]');
@@ -1307,7 +1426,7 @@ const Admin = () => {
                   ...productImages.map(img => img.url),
                   ...selectedImages.map(img => img.url)
                 ].filter(Boolean);
-                
+
                 const productData = {
                   name: formData.get('name'),
                   category_id: formData.get('category_id'),
@@ -1319,13 +1438,13 @@ const Admin = () => {
                   images: allImages,
                   image: allImages[0] || 'https://via.placeholder.com/600'
                 };
-                
+
                 if (editingProduct) {
                   await updateProduct(editingProduct.id, productData);
                 } else {
                   await addProduct(productData);
                 }
-                
+
                 setShowAddProduct(false);
                 setEditingProduct(null);
                 setSelectedImages([]);
@@ -1423,7 +1542,7 @@ const Admin = () => {
 
               <div className="col-span-2 mt-4 space-y-6">
                 <label className="block text-xs font-black text-amber-400 uppercase tracking-widest">Product Imagery</label>
-                
+
                 {/* Unified Upload Area */}
                 <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-amber-500/20 rounded-2xl cursor-pointer hover:bg-amber-500/5 transition-all">
                   <PlusIcon className="w-8 h-8 text-amber-400 mb-2" />
@@ -1453,7 +1572,7 @@ const Admin = () => {
                 )}
               </div>
             </div>
-            
+
             <div className="flex justify-end space-x-3 mt-6">
               <button
                 type="button"
@@ -1485,7 +1604,7 @@ const Admin = () => {
   // Order Details Modal
   const renderOrderDetailsModal = () => {
     if (!showOrderDetails) return null;
-    
+
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-green-900/40 backdrop-blur-md border border-amber-500/20 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -1498,7 +1617,7 @@ const Admin = () => {
               ✕
             </button>
           </div>
-          
+
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -1528,8 +1647,15 @@ const Admin = () => {
                   <option value="Cancelled">Cancelled</option>
                 </select>
               </div>
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-amber-200/80 uppercase tracking-widest text-[10px] mb-1">Payment Method</label>
+                <div className="px-3 py-2 bg-amber-500/5 border border-amber-500/10 rounded-lg text-amber-100 font-bold flex items-center gap-2">
+                   <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                   {showOrderDetails.payment_method?.toUpperCase() || 'CASH ON DELIVERY (COD)'}
+                </div>
+              </div>
             </div>
-            
+
             <div className="border-t pt-4">
               <h3 className="font-medium text-amber-100 mb-2">Order Items</h3>
               <div className="bg-green-950 p-4 rounded-lg">
@@ -1545,7 +1671,7 @@ const Admin = () => {
   // Customer Profile Modal
   const renderCustomerProfileModal = () => {
     if (!showCustomerProfile) return null;
-    
+
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-green-900/40 backdrop-blur-md border border-amber-500/20 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -1558,7 +1684,7 @@ const Admin = () => {
               ✕
             </button>
           </div>
-          
+
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -1578,7 +1704,7 @@ const Admin = () => {
                 <p className="text-sm text-amber-100">₹{showCustomerProfile.totalSpent.toLocaleString()}</p>
               </div>
             </div>
-            
+
             <div className="border-t pt-4">
               <h3 className="font-medium text-amber-100 mb-2">Order History</h3>
               <div className="bg-green-950 p-4 rounded-lg">
@@ -1594,7 +1720,7 @@ const Admin = () => {
   // Bulk Stock Update Modal
   const renderBulkStockUpdateModal = () => {
     if (!showBulkStockUpdate) return null;
-    
+
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-green-900/40 backdrop-blur-md border border-amber-500/20 rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -1607,14 +1733,14 @@ const Admin = () => {
               ✕
             </button>
           </div>
-          
+
           <div className="space-y-4">
             <div className="bg-green-950 p-4 rounded-lg">
               <p className="text-sm text-amber-200/70 mb-4">
                 Update stock levels for multiple products at once. Changes will be applied immediately.
               </p>
             </div>
-            
+
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-amber-500/20">
                 <thead className="bg-green-950">
@@ -1666,7 +1792,7 @@ const Admin = () => {
                 </tbody>
               </table>
             </div>
-            
+
             <div className="flex justify-end space-x-3 pt-4 border-t">
               <button
                 onClick={() => setShowBulkStockUpdate(false)}
@@ -1693,7 +1819,7 @@ const Admin = () => {
   // Image Zoom Modal
   const renderImageZoomModal = () => {
     if (!zoomedImage) return null;
-    
+
     return (
       <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
         <div className="relative max-w-4xl max-h-[90vh] p-4">
@@ -1704,7 +1830,7 @@ const Admin = () => {
           >
             ×
           </button>
-          
+
           {/* Image Container with Zoom */}
           <div className="relative overflow-hidden rounded-lg">
             <img
@@ -1731,7 +1857,7 @@ const Admin = () => {
               }}
             />
           </div>
-          
+
           {/* Zoom Controls */}
           <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
             <button
@@ -1822,13 +1948,13 @@ const Admin = () => {
               <div className="flex flex-col items-end gap-2">
                 <div className="flex gap-0.5">
                   {[1, 2, 3, 4, 5].map((s) => (
-                    <StarIconSolid 
-                      key={s} 
-                      className={`h-3 w-3 ${s <= review.rating ? 'text-sky-400' : 'text-slate-700'}`} 
+                    <StarIconSolid
+                      key={s}
+                      className={`h-3 w-3 ${s <= review.rating ? 'text-sky-400' : 'text-slate-700'}`}
                     />
                   ))}
                 </div>
-                <button 
+                <button
                   onClick={() => deleteReview(review.id)}
                   className="p-2 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 rounded-lg opacity-0 group-hover:opacity-100 transition-all border border-rose-500/20"
                 >
@@ -1845,7 +1971,7 @@ const Admin = () => {
           </div>
         ))}
       </div>
-      
+
       {reviews.length === 0 && (
         <div className="glass-card py-24 text-center">
           <ChatBubbleBottomCenterTextIcon className="h-16 w-16 text-slate-700 mx-auto mb-6 opacity-20" />
@@ -1868,7 +1994,7 @@ const Admin = () => {
               </div>
               <h1 className="text-2xl font-black text-gradient-silver tracking-tighter">Saram Admin</h1>
             </div>
-            
+
             <div className="p-4 bg-slate-900/40 border border-white/5 rounded-2xl">
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Authenticated As</p>
               <p className="text-sm font-bold text-slate-100 truncate">{user?.email}</p>
@@ -1878,7 +2004,7 @@ const Admin = () => {
               </div>
             </div>
           </div>
-          
+
           <nav className="flex-1 p-6 space-y-1.5">
             {tabs.map((tab) => {
               const Icon = tab.icon;

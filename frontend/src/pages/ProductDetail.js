@@ -15,7 +15,7 @@ import apiService from '../services/api';
 /* ── Sparkle Component ── */
 const SparkleStar = ({ style }) => (
   <svg className="sparkle" style={style} viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M80 0C80 0 84.5 59.5 160 80C160 80 84.5 100.5 80 160C80 160 75.5 100.5 0 80C0 80 75.5 59.5 80 0Z" fill="currentColor"/>
+    <path d="M80 0C80 0 84.5 59.5 160 80C160 80 84.5 100.5 80 160C80 160 75.5 100.5 0 80C0 80 75.5 59.5 80 0Z" fill="currentColor" />
   </svg>
 );
 
@@ -36,7 +36,7 @@ const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { addToCart, addToWishlist, removeFromWishlist, isInCart, isInWishlist } = useCart();
-  
+
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(0);
@@ -46,6 +46,30 @@ const ProductDetail = () => {
   const [activeTab, setActiveTab] = useState('description');
   const [relatedProducts, setRelatedProducts] = useState([]);
   const [reviews] = useState([]);
+  const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+
+  // Auto-slide functionality
+  useEffect(() => {
+    if (!product || product.images.length <= 1 || !isAutoPlaying) return;
+
+    const interval = setInterval(() => {
+      setSelectedImage(prev => (prev + 1) % product.images.length);
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [product, isAutoPlaying]);
+
+  const handlePreviousImage = (e) => {
+    e?.stopPropagation();
+    setIsAutoPlaying(false);
+    setSelectedImage(prev => prev === 0 ? product.images.length - 1 : prev - 1);
+  };
+
+  const handleNextImage = (e) => {
+    e?.stopPropagation();
+    setIsAutoPlaying(false);
+    setSelectedImage(prev => (prev + 1) % product.images.length);
+  };
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -53,8 +77,8 @@ const ProductDetail = () => {
         setLoading(true);
         const p = await apiService.getProductById(id);
         if (p) {
-          const images = Array.isArray(p.images) && p.images.length > 0 
-            ? p.images 
+          const images = Array.isArray(p.images) && p.images.length > 0
+            ? p.images
             : (typeof p.images === 'string' ? [p.images] : ['https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=800&h=800&fit=crop']);
 
           const pPrice = parseFloat(p.price) || 0;
@@ -80,7 +104,7 @@ const ProductDetail = () => {
           // Fetch related products (using category name or ID)
           const categoryFilter = p.category?.id || p.category_id;
           if (categoryFilter) {
-            const relRes = await apiService.getProducts({ 
+            const relRes = await apiService.getProducts({
               category: categoryFilter,
               limit: 4
             });
@@ -176,24 +200,73 @@ const ProductDetail = () => {
 
           {/* ── Image Gallery ── */}
           <div className="space-y-4">
-            {/* Main image */}
-            <div className="relative aspect-square rounded-2xl overflow-hidden bg-[#0f172a] border border-[#334155] group card-3d">
+            {/* Main image with slider */}
+            <div
+              className="relative aspect-square rounded-2xl overflow-hidden bg-[#0f172a] border border-[#334155] group card-3d"
+              onMouseEnter={() => setIsAutoPlaying(false)}
+              onMouseLeave={() => setIsAutoPlaying(true)}
+            >
               <img
                 src={product.images[selectedImage]}
                 alt={product.name}
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 animate-float"
               />
-              
+
               {/* Sparkles on image */}
               <SparkleStar style={{ top: '15%', left: '20%', width: '20px', height: '20px' }} />
               <SparkleStar style={{ bottom: '25%', right: '15%', width: '15px', height: '15px', animationDelay: '0.8s' }} />
-              
+
               {/* Discount badge */}
               <div className="absolute top-4 left-4">
                 <span className="bg-red-500/20 border border-red-500/30 text-red-400 text-sm font-semibold px-3 py-1 rounded-full">
                   -{product.discount}% OFF
                 </span>
               </div>
+
+              {/* Slider Navigation Arrows */}
+              {product.images.length > 1 && (
+                <>
+                  <button
+                    onClick={handlePreviousImage}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full glass flex items-center justify-center transition-all duration-200 hover:bg-white/20 opacity-0 group-hover:opacity-100"
+                    aria-label="Previous image"
+                  >
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={handleNextImage}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full glass flex items-center justify-center transition-all duration-200 hover:bg-white/20 opacity-0 group-hover:opacity-100"
+                    aria-label="Next image"
+                  >
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+
+                  {/* Image Counter */}
+                  <div className="absolute bottom-4 right-4 bg-black/50 backdrop-blur-sm px-3 py-1 rounded-full text-white text-sm">
+                    {selectedImage + 1} / {product.images.length}
+                  </div>
+
+                  {/* Slider Indicators/Dots */}
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                    {product.images.map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={(e) => { e.stopPropagation(); setSelectedImage(i); setIsAutoPlaying(false); }}
+                        className={`w-2 h-2 rounded-full transition-all duration-300 ${selectedImage === i
+                            ? 'bg-white w-4'
+                            : 'bg-white/50 hover:bg-white/80'
+                          }`}
+                        aria-label={`Go to image ${i + 1}`}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+
               {/* Actions overlay */}
               <div className="absolute top-4 right-4 flex flex-col gap-2">
                 <button
@@ -238,11 +311,10 @@ const ProductDetail = () => {
                 <button
                   key={i}
                   onClick={() => setSelectedImage(i)}
-                  className={`aspect-square rounded-xl overflow-hidden border-2 transition-all duration-200 ${
-                    selectedImage === i
-                      ? 'border-[#e2e8f0] shadow-[0_0_12px_rgba(226,232,240,0.3)]'
-                      : 'border-[#334155] hover:border-[rgba(226,232,240,0.4)]'
-                  }`}
+                  className={`aspect-square rounded-xl overflow-hidden border-2 transition-all duration-200 ${selectedImage === i
+                    ? 'border-[#e2e8f0] shadow-[0_0_12px_rgba(226,232,240,0.3)]'
+                    : 'border-[#334155] hover:border-[rgba(226,232,240,0.4)]'
+                    }`}
                 >
                   <img src={img} alt={`${product.name} ${i + 1}`} className="w-full h-full object-cover" />
                 </button>
@@ -287,11 +359,10 @@ const ProductDetail = () => {
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
-                    className={`px-4 py-2.5 text-sm font-medium capitalize transition-all duration-200 border-b-2 -mb-px ${
-                      activeTab === tab
-                        ? 'border-[#e2e8f0] text-[#e2e8f0]'
-                        : 'border-transparent text-[#64748b] hover:text-[#94a3b8]'
-                    }`}
+                    className={`px-4 py-2.5 text-sm font-medium capitalize transition-all duration-200 border-b-2 -mb-px ${activeTab === tab
+                      ? 'border-[#e2e8f0] text-[#e2e8f0]'
+                      : 'border-transparent text-[#64748b] hover:text-[#94a3b8]'
+                      }`}
                   >
                     {tab}
                   </button>
@@ -339,11 +410,10 @@ const ProductDetail = () => {
             <div className="flex flex-col sm:flex-row gap-3">
               <button
                 onClick={handleAddToCart}
-                className={`flex-1 flex items-center justify-center gap-2 py-4 px-6 rounded-xl font-semibold text-sm transition-all duration-200 ${
-                  isInCart(product.id)
-                    ? 'bg-[rgba(226,232,240,0.15)] border border-[#e2e8f0] text-[#e2e8f0]'
-                    : 'btn-silver'
-                }`}
+                className={`flex-1 flex items-center justify-center gap-2 py-4 px-6 rounded-xl font-semibold text-sm transition-all duration-200 ${isInCart(product.id)
+                  ? 'bg-[rgba(226,232,240,0.15)] border border-[#e2e8f0] text-[#e2e8f0]'
+                  : 'btn-silver'
+                  }`}
               >
                 <ShoppingCartIcon className="h-5 w-5" />
                 {isInCart(product.id) ? 'Added to Cart ✓' : 'Add to Cart'}

@@ -9,12 +9,37 @@ export const AuthProvider = ({ children }) => {
   
   // Use Clerk hooks
   const { isSignedIn, user, isLoaded } = useUser();
-  const { signOut } = useClerkAuth();
+  const { signOut, getToken } = useClerkAuth();
   
   useEffect(() => {
     setClerkAvailable(true);
     setIsLoading(!isLoaded);
   }, [isLoaded]);
+
+  // Sync Clerk token to localStorage for ApiService
+  useEffect(() => {
+    const syncToken = async () => {
+      if (isSignedIn && getToken) {
+        try {
+          const token = await getToken();
+          if (token) {
+            localStorage.setItem('clerk-token', token);
+          }
+        } catch (error) {
+          console.error('Error syncing Clerk token:', error);
+        }
+      } else if (!isSignedIn) {
+        localStorage.removeItem('clerk-token');
+      }
+    };
+
+    if (isLoaded) {
+      syncToken();
+      // Optionally set up an interval to refresh token every 15 mins
+      const interval = setInterval(syncToken, 15 * 60 * 1000);
+      return () => clearInterval(interval);
+    }
+  }, [isSignedIn, isLoaded, getToken]);
 
   // Password validation function
   const validatePassword = (password) => {
