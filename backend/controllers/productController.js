@@ -155,32 +155,43 @@ exports.updateProduct = async (req, res) => {
 exports.deleteProduct = async (req, res) => {
   const sequelize = require('../config/database');
   const transaction = await sequelize.transaction();
-  
+
   try {
     const product = await Product.findByPk(req.params.id, { transaction });
-    
+
     if (!product) {
       await transaction.rollback();
       return res.status(404).json({ message: 'Product not found' });
     }
-    
+
     // 1. Remove all cart entries referencing this product
     await Cart.destroy({ where: { product_id: product.id }, transaction });
-    
+
     // 2. Remove all reviews for this product
     await Review.destroy({ where: { product_id: product.id }, transaction });
-    
-    // 3. Nullify product reference in order items (preserve order history)
+
+    // 3. Ensure the order_items.product_id column accepts NULL
+    //    (in case DB schema hasn't been migrated yet via alter:true)
+    try {
+      await sequelize.query(
+        `ALTER TABLE order_items ALTER COLUMN product_id DROP NOT NULL;`,
+        { transaction }
+      );
+    } catch (alterErr) {
+      // Already nullable or constraint doesn't exist — safe to continue
+    }
+
+    // 4. Nullify product_id in order items to preserve order history (price, quantity stay intact)
     await OrderItem.update(
       { product_id: null },
       { where: { product_id: product.id }, transaction }
     );
-    
-    // 4. Now safely delete the product
+
+    // 5. Now safely delete the product
     await product.destroy({ transaction });
-    
+
     await transaction.commit();
-    
+
     res.json({ message: 'Product deleted successfully' });
   } catch (error) {
     await transaction.rollback();
