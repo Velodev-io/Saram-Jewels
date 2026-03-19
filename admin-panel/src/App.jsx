@@ -781,14 +781,10 @@ const Admin = () => {
   const { siteSettings, updateSiteSettings } = useSiteSettings();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [products, setProducts] = useState([]);
-  const [orders, setOrders] = useState([]);
-  const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
-  const [showOrderDetails, setShowOrderDetails] = useState(null);
-  const [showCustomerProfile, setShowCustomerProfile] = useState(null);
   const [showBulkStockUpdate, setShowBulkStockUpdate] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
@@ -861,14 +857,12 @@ const Admin = () => {
       try {
         const results = await Promise.allSettled([
           apiService.getProducts(),
-          apiService.getOrders(),
-          apiService.getCustomers(),
           apiService.getCategories(),
           apiService.getReviews(),
           apiService.getInquiries()
         ]);
 
-        const [productsRes, ordersRes, customersRes, categoriesRes, reviewsRes, inquiriesRes] = results;
+        const [productsRes, categoriesRes, reviewsRes, inquiriesRes] = results;
 
         // Map products
         if (productsRes.status === 'fulfilled' && productsRes.value?.products) {
@@ -878,38 +872,6 @@ const Admin = () => {
             status: p.status || (p.stock > 0 ? 'active' : 'inactive'),
             image: p.images?.[0] || 'https://via.placeholder.com/300'
           })));
-        }
-
-        // Map orders
-        if (ordersRes.status === 'fulfilled' && ordersRes.value) {
-          const ordersArray = Array.isArray(ordersRes.value) ? ordersRes.value : (ordersRes.value.data || []);
-          setOrders(ordersArray.map(o => ({
-            id: o.id, // KEEP AS UUID FOR API CALLS
-            displayId: o.order_number || o.id.slice(-8).toUpperCase(),
-            customer: o.user ? (o.user.first_name + ' ' + o.user.last_name).trim() || o.user.email : 'Guest',
-            total: parseFloat(o.total_amount) || 0,
-            status: o.status ? o.status.charAt(0).toUpperCase() + o.status.slice(1) : 'Pending',
-            date: new Date(o.created_at || o.createdAt).toLocaleDateString(),
-            payment_method: o.payment_method || 'COD',
-            items: o.items || [],
-            tracking_number: o.tracking_number,
-            shipping_carrier: o.shipping_carrier,
-            shipping_address: o.shipping_address
-          })));
-        }
-
-        // Map customers (Optimized: No rawOrders in initial load)
-        if (customersRes.status === 'fulfilled' && Array.isArray(customersRes.value)) {
-          setCustomers(customersRes.value.map(c => ({
-            id: c.id,
-            name: ((c.first_name || '') + ' ' + (c.last_name || '')).trim() || c.email || 'Unknown',
-            email: c.email,
-            orders: parseInt(c.ordersCount) || 0,
-            totalSpent: parseFloat(c.totalSpent) || 0,
-            promotionalEmails: c.promotional_emails
-          })));
-        } else if (customersRes.status === 'fulfilled') {
-          console.error('Customer data is not an array:', customersRes.value);
         }
 
         // Set Categories
@@ -1033,8 +995,6 @@ const Admin = () => {
     { id: 'dashboard', name: 'Dashboard', icon: ChartBarIcon },
     { id: 'products', name: 'Products', icon: CubeIcon },
     { id: 'categories', name: 'Categories', icon: ArchiveBoxIcon },
-    { id: 'orders', name: 'Orders', icon: ShoppingBagIcon },
-    { id: 'customers', name: 'Customers', icon: UsersIcon },
     { id: 'inventory', name: 'Inventory', icon: ArchiveBoxIcon },
     { id: 'reviews', name: 'Client Reviews', icon: ChatBubbleBottomCenterTextIcon },
     { id: 'messages', name: 'Inquiries', icon: ChatBubbleBottomCenterTextIcon },
@@ -1063,15 +1023,6 @@ const Admin = () => {
     product.category?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const filteredOrders = orders.filter(order =>
-    order.displayId?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    order.customer?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const filteredCustomers = customers.filter(customer =>
-    customer.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    customer.email?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
   // Product Management Functions
   const addProduct = async (productData) => {
@@ -1190,34 +1141,7 @@ const Admin = () => {
     }
   };
 
-  // Order Management Functions
-  const updateOrderStatus = async (orderId, status, tracking_number = null, shipping_carrier = null) => {
-    try {
-      const dbStatus = status.toLowerCase();
-      const response = await apiService.updateOrderStatus(orderId, {
-        status: dbStatus,
-        tracking_number,
-        shipping_carrier
-      });
 
-      const displayStatus = status.charAt(0).toUpperCase() + status.slice(1);
-      const updatedOrder = {
-        ...orders.find(o => o.id === orderId),
-        status: displayStatus,
-        tracking_number,
-        shipping_carrier
-      };
-
-      setOrders(orders.map(order => order.id === orderId ? updatedOrder : order));
-
-      if (showOrderDetails && showOrderDetails.id === orderId) {
-        setShowOrderDetails(updatedOrder);
-      }
-    } catch (e) {
-      console.error(e);
-      alert('Failed to update acquisition protocol.');
-    }
-  };
 
   // Category Management Functions
   const addCategory = async (categoryData) => {
@@ -1412,48 +1336,48 @@ const Admin = () => {
         <div className="glass-card p-6 group hover:translate-y-[-4px] transition-all duration-300">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-slate-400 uppercase tracking-wider">Acquisitions</p>
-              <h3 className="text-3xl font-bold text-white mt-1">{orders.length}</h3>
+              <p className="text-sm font-medium text-slate-400 uppercase tracking-wider">Products</p>
+              <h3 className="text-3xl font-bold text-white mt-1">{products.length}</h3>
             </div>
             <div className="p-3 bg-emerald-500/10 rounded-2xl group-hover:bg-emerald-500/20 transition-colors">
-              <ShoppingBagIcon className="h-8 w-8 text-emerald-400" />
+              <CubeIcon className="h-8 w-8 text-emerald-400" />
             </div>
           </div>
           <div className="mt-4 flex items-center text-xs text-emerald-400">
-            <span className="font-bold">+{Math.floor(orders.length * 0.05)}%</span>
-            <span className="ml-1 text-slate-500">yield growth</span>
+            <span className="font-bold">{products.filter(p => p.stock > 0).length} in stock</span>
+            <span className="ml-1 text-slate-500">active listings</span>
           </div>
         </div>
 
         <div className="glass-card p-6 group hover:translate-y-[-4px] transition-all duration-300">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-slate-400 uppercase tracking-wider">Patrons</p>
-              <h3 className="text-3xl font-bold text-white mt-1">{customers.length}</h3>
+              <p className="text-sm font-medium text-slate-400 uppercase tracking-wider">Categories</p>
+              <h3 className="text-3xl font-bold text-white mt-1">{categories.length}</h3>
             </div>
             <div className="p-3 bg-indigo-400/10 rounded-2xl group-hover:bg-indigo-400/20 transition-colors">
-              <UsersIcon className="h-8 w-8 text-indigo-400" />
+              <ArchiveBoxIcon className="h-8 w-8 text-indigo-400" />
             </div>
           </div>
           <div className="mt-4 flex items-center text-xs text-indigo-400">
-            <span className="font-bold">+{Math.floor(customers.length * 0.08)}%</span>
-            <span className="ml-1 text-slate-500">expansion</span>
+            <span className="font-bold">{categories.length} total</span>
+            <span className="ml-1 text-slate-500">collections</span>
           </div>
         </div>
 
         <div className="glass-card p-6 group hover:translate-y-[-4px] transition-all duration-300">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-slate-400 uppercase tracking-wider">Total Yield</p>
-              <h3 className="text-3xl font-bold text-white mt-1">₹{orders.reduce((sum, order) => sum + order.total, 0).toLocaleString()}</h3>
+              <p className="text-sm font-medium text-slate-400 uppercase tracking-wider">Reviews</p>
+              <h3 className="text-3xl font-bold text-white mt-1">{reviews.length}</h3>
             </div>
             <div className="p-3 bg-slate-200/10 rounded-2xl group-hover:bg-slate-200/20 transition-colors">
-              <CurrencyRupeeIcon className="h-8 w-8 text-slate-300" />
+              <ChatBubbleBottomCenterTextIcon className="h-8 w-8 text-slate-300" />
             </div>
           </div>
           <div className="mt-4 flex items-center text-xs text-sky-400">
-            <span className="font-bold">+12.4%</span>
-            <span className="ml-1 text-slate-500">net liquidity</span>
+            <span className="font-bold">{reviews.filter(r => r.rating >= 4).length} positive</span>
+            <span className="ml-1 text-slate-500">client feedback</span>
           </div>
         </div>
       </div>
@@ -1626,136 +1550,6 @@ const Admin = () => {
     </div>
   );
 
-  const renderOrders = () => (
-    <div className="space-y-8 animate-premium-in">
-      <div>
-        <h2 className="text-3xl font-extrabold text-gradient-silver">Client Orders</h2>
-        <p className="text-slate-400 mt-1">Monitor sales and manage fulfillment pipeline.</p>
-      </div>
-
-      <div className="glass-card p-4">
-        <div className="relative group">
-          <MagnifyingGlassIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-amber-400 transition-colors" />
-          <input
-            type="text"
-            placeholder="Search acquisitions by ID or customer name..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="glass-input w-full pl-12 pr-4 py-3"
-          />
-        </div>
-      </div>
-
-      <div className="glass-card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-amber-500/10">
-            <thead>
-              <tr className="bg-green-950/80">
-                <th className="px-6 py-5 text-left text-xs font-black text-amber-400 uppercase tracking-widest">Order Ref</th>
-                <th className="px-6 py-5 text-left text-xs font-black text-amber-400 uppercase tracking-widest">Client</th>
-                <th className="px-6 py-5 text-left text-xs font-black text-amber-400 uppercase tracking-widest">Value</th>
-                <th className="px-6 py-5 text-left text-xs font-black text-amber-400 uppercase tracking-widest">Status</th>
-                <th className="px-6 py-5 text-left text-xs font-black text-amber-400 uppercase tracking-widest">Manifest Date</th>
-                <th className="px-6 py-5 text-right text-xs font-black text-amber-400 uppercase tracking-widest">Intervention</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-amber-500/5">
-              {filteredOrders.map((order) => (
-                <tr key={order.id} className="hover:bg-amber-500/[0.02] transition-colors group text-sm">
-                  <td className="px-6 py-4 whitespace-nowrap font-black text-amber-50">{order.displayId}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-amber-200/80 font-bold">{order.customer}</td>
-                  <td className="px-6 py-4 whitespace-nowrap font-black text-amber-100 italic">₹{order.total.toLocaleString()}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-3 py-1 text-[10px] font-black rounded-full uppercase tracking-widest ${getStatusColor(order.status)}`}>
-                      {order.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-amber-200/30 text-xs">{order.date}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right">
-                    <button
-                      onClick={() => setShowOrderDetails(order)}
-                      className="px-4 py-1.5 bg-amber-500/10 text-amber-400 hover:bg-amber-500 text-[10px] font-black uppercase tracking-widest border border-amber-500/20 rounded-lg hover:text-green-950 transition-all"
-                    >
-                      Inspect
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderCustomers = () => (
-    <div className="space-y-8 animate-premium-in">
-      <div>
-        <h2 className="text-3xl font-extrabold text-gradient-gold">Customer Registry</h2>
-        <p className="text-amber-200/60 mt-1">Manage relationships and track lifetime value.</p>
-      </div>
-
-      <div className="glass-card p-4">
-        <div className="relative group">
-          <MagnifyingGlassIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-gold-400 transition-colors" />
-          <input
-            type="text"
-            placeholder="Identify client by name or email registry..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="glass-input w-full pl-12 pr-4 py-3"
-          />
-        </div>
-      </div>
-
-      <div className="glass-card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-amber-500/10">
-            <thead>
-              <tr className="bg-green-950/80">
-                <th className="px-6 py-5 text-left text-xs font-black text-amber-400 uppercase tracking-widest">Client Identity</th>
-                <th className="px-6 py-5 text-left text-xs font-black text-amber-400 uppercase tracking-widest">Communication</th>
-                <th className="px-6 py-5 text-left text-xs font-black text-amber-400 uppercase tracking-widest">Email Drops</th>
-                <th className="px-6 py-5 text-left text-xs font-black text-amber-400 uppercase tracking-widest">Acquisitions</th>
-                <th className="px-6 py-5 text-left text-xs font-black text-amber-400 uppercase tracking-widest">Lifetime Yield</th>
-                <th className="px-6 py-5 text-right text-xs font-black text-amber-400 uppercase tracking-widest">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-amber-500/5">
-              {filteredCustomers.map((customer) => (
-                <tr key={customer.id} className="hover:bg-amber-500/[0.02] transition-colors group">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-3">
-                      <div className="h-9 w-9 bg-amber-500/10 rounded-full flex items-center justify-center font-black text-amber-500 text-xs border border-amber-500/10 uppercase">
-                        {customer.name?.charAt(0) || '?'}
-                      </div>
-                      <div className="text-sm font-bold text-amber-50">{customer.name}</div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-amber-200/60 font-mono italic">{customer.email}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${customer.promotionalEmails ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
-                      {customer.promotionalEmails ? 'Promotional ON' : 'Promotional OFF'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-amber-50">{customer.orders} Orders</td>
-                  <td className="px-6 py-4 whitespace-nowrap font-black text-amber-100">₹{customer.totalSpent.toLocaleString()}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right">
-                    <button
-                      onClick={() => setShowCustomerProfile(customer)}
-                      className="px-4 py-1.5 border border-amber-500/20 rounded-lg text-amber-300 text-xs font-bold hover:bg-amber-500/10 transition-all opacity-0 group-hover:opacity-100"
-                    >
-                      Dossier
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
 
   const renderCategories = () => (
     <div className="space-y-8 animate-premium-in">
@@ -2345,8 +2139,7 @@ const Admin = () => {
           {activeTab === 'dashboard' && renderDashboard()}
           {activeTab === 'products' && renderProducts()}
           {activeTab === 'categories' && renderCategories()}
-          {activeTab === 'orders' && renderOrders()}
-          {activeTab === 'customers' && renderCustomers()}
+
           {activeTab === 'inventory' && renderInventory()}
           {activeTab === 'reviews' && renderReviews()}
           {activeTab === 'messages' && renderMessages()}
@@ -2374,20 +2167,7 @@ const Admin = () => {
         setCategories={setCategories}
       />
 
-      <OrderDetailsModal
-        order={showOrderDetails}
-        isOpen={!!showOrderDetails}
-        onClose={() => setShowOrderDetails(null)}
-        apiService={apiService}
-        onUpdateOrderStatus={updateOrderStatus}
-      />
 
-      <CustomerProfileModal
-        customer={showCustomerProfile}
-        isOpen={!!showCustomerProfile}
-        onClose={() => setShowCustomerProfile(null)}
-        apiService={apiService}
-      />
       <BulkStockUpdateModal
         isOpen={showBulkStockUpdate}
         onClose={() => setShowBulkStockUpdate(false)}
