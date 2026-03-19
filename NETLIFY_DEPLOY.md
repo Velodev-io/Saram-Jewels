@@ -2,45 +2,111 @@
 
 This project is split into separate apps:
 
-- `frontend`: customer-facing React app that can be deployed to Netlify
-- `backend`: Express API that must be deployed separately on a Node host
-- `admin-panel`: separate Vite app that can also be deployed independently if needed
+- `frontend`: customer-facing React app (Create React App)
+- `backend`: Express API that must be deployed separately on a Node host (Render)
+- `admin-panel`: separate Vite React app for admin dashboard
 
-## What Netlify should deploy
+## Deploy Order
 
-The included [`netlify.toml`](./netlify.toml) is configured for the `frontend` app:
+1. **First**: Deploy backend to Render (see Render deployment guide)
+2. **Second**: Deploy frontend and admin-panel to Netlify
 
-- Base directory: `frontend`
-- Build command: `npm run build`
-- Publish directory: `build`
+---
 
-It also includes an SPA redirect so React Router routes like `/products/abc` work on refresh.
+## Frontend Deployment (Netlify)
 
-## Required Netlify environment variables
+### Option 1: Deploy from GitHub
 
-Set these in Netlify for the frontend site:
+1. Push your code to GitHub
+2. Go to [Netlify](https://app.netlify.com) and click **Add new site** → **Import an existing project**
+3. Select your GitHub repository
+4. Configure the build settings:
+   - **Base directory**: `frontend`
+   - **Build command**: `npm run build`
+   - **Publish directory**: `build`
+5. Add these environment variables in Netlify:
+   ```
+   REACT_APP_API_URL = https://your-render-backend-url.onrender.com/api
+   REACT_APP_CLERK_PUBLISHABLE_KEY = pk_test_xxx (from your Clerk dashboard)
+   ```
+6. Click **Deploy site**
 
-```bash
-REACT_APP_API_URL=https://your-backend-url.com/api
-REACT_APP_CLERK_PUBLISHABLE_KEY=pk_test_or_pk_live_from_clerk
+### Option 2: Drag and Drop (Quick Deploy)
+
+1. Build the frontend locally:
+   ```bash
+   cd frontend
+   npm install
+   npm run build
+   ```
+2. Go to [Netlify Drop](https://app.netlify.com/drop)
+3. Drag the `frontend/build` folder to the drop zone
+
+---
+
+## Admin Panel Deployment (Netlify)
+
+The admin panel is a Vite React app and needs to be deployed separately.
+
+### Option 1: Deploy from GitHub
+
+1. Go to [Netlify](https://app.netlify.com) and click **Add new site** → **Import an existing project**
+2. Select your GitHub repository
+3. Configure the build settings:
+   - **Base directory**: `admin-panel`
+   - **Build command**: `npm run build`
+   - **Publish directory**: `dist`
+4. Add these environment variables in Netlify:
+   ```
+   VITE_API_URL = https://your-render-backend-url.onrender.com/api
+   VITE_CLERK_PUBLISHABLE_KEY = pk_test_xxx (from your Clerk dashboard)
+   ```
+5. Click **Deploy site**
+
+### Option 2: Drag and Drop
+
+1. Build the admin panel locally:
+   ```bash
+   cd admin-panel
+   npm install
+   npm run build
+   ```
+2. Go to [Netlify Drop](https://app.netlify.com/drop)
+3. Drag the `admin-panel/dist` folder to the drop zone
+
+---
+
+## Required Environment Variables
+
+### Frontend (.env)
+```
+REACT_APP_API_URL=https://your-backend-url.onrender.com/api
+REACT_APP_CLERK_PUBLISHABLE_KEY=pk_test_xxx
 ```
 
-## Important
+### Admin Panel (.env)
+```
+VITE_API_URL=https://your-backend-url.onrender.com/api
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_xxx
+```
 
-Netlify will only host the frontend static site. Your Express backend cannot run from this Netlify setup as-is, so deploy `backend` separately on a service such as Render, Railway, or another Node-compatible host, then point `REACT_APP_API_URL` to that backend URL.
+---
 
-## Deploy steps
+## Important Notes
 
-1. Push this repository to GitHub.
-2. In Netlify, choose **Add new site** and import the GitHub repo.
-3. Netlify will read `netlify.toml` automatically.
-4. Add the required environment variables.
-5. Deploy the site.
+1. **Deploy Backend First**: Make sure your backend is deployed on Render before deploying the frontend/admin-panel
+2. **Update API URL**: Replace `your-backend-url.onrender.com` with your actual Render backend URL
+3. **SPA Redirect**: Both apps include a `_redirects` file for React Router support
+4. **Clerk Keys**: Get your Clerk publishable key from [Clerk Dashboard](https://dashboard.clerk.com)
 
-## Optional: deploy the admin panel too
+---
 
-If you also want the `admin-panel` on Netlify, deploy it as a second Netlify site with:
+## Troubleshooting
 
-- Base directory: `admin-panel`
-- Build command: `npm run build`
-- Publish directory: `dist`
+### CORS Errors
+If you see CORS errors, make sure your backend on Render allows requests from your Netlify domain:
+- In Render dashboard, go to your backend service
+- Check the environment variables include your Netlify URLs in CORS settings
+
+### 404 on Refresh
+Make sure the `_redirects` file is in the `public` folder (for React) or `dist` folder (for Vite) after build.
