@@ -1,6 +1,7 @@
-import React from 'react';
-import { SignIn } from '@clerk/clerk-react';
+import React, { useState } from 'react';
+import { useSignIn } from '@clerk/clerk-react';
 import { Link } from 'react-router-dom';
+import SocialGoogleButton from './SocialGoogleButton';
 
 /* ── Sparkle Component ── */
 const SparkleStar = ({ style }) => (
@@ -10,6 +11,75 @@ const SparkleStar = ({ style }) => (
 );
 
 const SignInPage = () => {
+  const { isLoaded, signIn, setActive } = useSignIn();
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleError, setGoogleError] = useState('');
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [signInLoading, setSignInLoading] = useState(false);
+  const [signInError, setSignInError] = useState('');
+
+  const handleGoogleAuth = async () => {
+    if (!isLoaded || !signIn) return;
+
+    try {
+      setGoogleLoading(true);
+      setGoogleError('');
+
+      await signIn.authenticateWithRedirect({
+        strategy: 'oauth_google',
+        redirectUrl: '/sso-callback',
+        redirectUrlComplete: '/',
+        continueSignUp: true,
+      });
+    } catch (error) {
+      const message =
+        error?.errors?.[0]?.longMessage ||
+        error?.errors?.[0]?.message ||
+        error?.message ||
+        'Google sign-in could not be started.';
+
+      setGoogleError(message);
+      setGoogleLoading(false);
+    }
+  };
+
+  const handlePasswordSignIn = async (event) => {
+    event.preventDefault();
+
+    if (!isLoaded || !signIn || !setActive) return;
+
+    try {
+      setSignInLoading(true);
+      setSignInError('');
+
+      const result = await signIn.create({
+        identifier: identifier.trim(),
+        password,
+        strategy: 'password',
+      });
+
+      if (result.status === 'complete' && result.createdSessionId) {
+        await setActive({ session: result.createdSessionId });
+        window.location.href = '/';
+        return;
+      }
+
+      setSignInError('Sign-in needs another verification step. Please try Google or continue with Clerk prompts.');
+    } catch (error) {
+      const message =
+        error?.errors?.[0]?.longMessage ||
+        error?.errors?.[0]?.message ||
+        error?.message ||
+        'Email/username and password sign-in failed.';
+
+      setSignInError(message);
+    } finally {
+      setSignInLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#020617] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
       {/* Decorative Background Elements */}
@@ -47,34 +117,87 @@ const SignInPage = () => {
         </div>
         
         <div className="glass p-4 sm:p-8 rounded-3xl border border-[rgba(226,232,240,0.2)] shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-          <SignIn 
-            routing="path"
-            path="/sign-in"
-            fallbackRedirectUrl="/"
-            signUpUrl="/sign-up"
-            appearance={{
-                elements: {
-                  rootBox: "w-full",
-                  card: "bg-transparent shadow-none w-full",
-                  headerTitle: "hidden",
-                  headerSubtitle: "hidden",
-                  formButtonPrimary: "btn-silver w-full mt-4 normal-case tracking-widest py-3",
-                  formFieldInput: "input-dark mb-1 h-11",
-                  formFieldLabel: "text-[#e2e8f0] text-xs font-semibold uppercase tracking-widest mb-1.5 ml-1",
-                  footerActionLink: "text-[#bae6fd] hover:text-[#f8fafc] font-medium transition-colors",
-                  footerActionText: "text-[#94a3b8]",
-                  dividerLine: "bg-[rgba(226,232,240,0.15)]",
-                  dividerText: "text-[#64748b] text-xs font-semibold px-4 uppercase tracking-tighter",
-                  socialButtonsBlockButton: "bg-[#0f172a] border border-[#334155] text-[#f8fafc] hover:bg-[#1e293b] hover:border-[#e2e8f0]/30 h-11 transition-all",
-                  socialButtonsBlockButtonText: "text-[#f8fafc] font-medium",
-                  socialButtonsBlockButtonArrow: "text-[#e2e8f0]",
-                  formFieldLabelRow: "text-[#94a3b8]",
-                  identityPreviewText: "text-[#f8fafc]",
-                  identityPreviewEditButtonIcon: "text-[#bae6fd]",
-                },
-                layout: { shimmer: true }
-              }}
-          />
+          <div className="mb-5">
+            <SocialGoogleButton
+              onClick={handleGoogleAuth}
+              disabled={!isLoaded}
+              loading={googleLoading}
+            />
+            {googleError ? (
+              <p className="mt-3 text-xs text-[#fde68a]">{googleError}</p>
+            ) : null}
+          </div>
+
+          <div className="relative my-5">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-[rgba(226,232,240,0.15)]" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase tracking-[0.2em]">
+              <span className="bg-[#16181d] px-4 text-[#64748b]">or</span>
+            </div>
+          </div>
+
+          <form onSubmit={handlePasswordSignIn} className="space-y-5">
+            <div>
+              <label className="text-[#e2e8f0] text-xs font-semibold uppercase tracking-widest mb-1.5 ml-1 block">
+                Email Address Or Username
+              </label>
+              <input
+                type="text"
+                value={identifier}
+                onChange={(event) => setIdentifier(event.target.value)}
+                placeholder="Enter email or username"
+                autoComplete="username"
+                className="input-dark mb-1 h-11 w-full"
+                required
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-[#e2e8f0] text-xs font-semibold uppercase tracking-widest ml-1 block">
+                  Password
+                </label>
+              </div>
+              <div className="relative">
+                <input
+                  type={passwordVisible ? 'text' : 'password'}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="Enter password"
+                  autoComplete="current-password"
+                  className="input-dark mb-1 h-11 w-full pr-12"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setPasswordVisible((visible) => !visible)}
+                  className="absolute inset-y-0 right-3 text-[#64748b] hover:text-[#e2e8f0] text-sm"
+                >
+                  {passwordVisible ? 'Hide' : 'Show'}
+                </button>
+              </div>
+            </div>
+
+            {signInError ? (
+              <p className="text-xs text-[#fde68a]">{signInError}</p>
+            ) : null}
+
+            <button
+              type="submit"
+              disabled={!isLoaded || signInLoading}
+              className="btn-silver w-full mt-4 normal-case tracking-widest py-3 disabled:opacity-60"
+            >
+              {signInLoading ? 'Signing In...' : 'Sign In'}
+            </button>
+          </form>
+
+          <p className="mt-6 text-sm text-[#94a3b8] text-center">
+            No account?{' '}
+            <Link to="/sign-up" className="text-[#bae6fd] hover:text-[#f8fafc] font-medium transition-colors">
+              Sign up
+            </Link>
+          </p>
         </div>
 
         {/* Floating Sparkles around the card */}

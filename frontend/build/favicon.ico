@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <style>
+      .logo-bg { fill: #000000; }
+      .logo-s { fill: #ffffff; }
+      .logo-circle { fill: #ffffff; }
+    </style>
+  </defs>
+  
+  <!-- Background circle -->
+  <circle cx="50" cy="50" r="50" class="logo-bg"/>
+  
+  <!-- Main flowing S curve - more ribbon-like and elegant -->
+  <path d="M20 25 C30 15 40 15 50 25 C60 35 60 45 50 55 C40 65 30 65 20 55 C10 45 10 35 20 25 Z" class="logo-s"/>
+  <path d="M50 25 C60 35 60 45 50 55 C40 65 30 65 20 55 C10 45 10 35 20 25 C30 15 40 15 50 25 Z" class="logo-s"/>
+  
+  <!-- Decorative circles - positioned in the curves like original -->
+  <circle cx="25" cy="35" r="2.5" class="logo-circle"/>
+  <circle cx="75" cy="65" r="3.5" class="logo-circle"/>
+</svg>

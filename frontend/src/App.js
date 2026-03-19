@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import React, { useState, useEffect, Suspense } from 'react';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { ClerkProvider } from '@clerk/clerk-react';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
@@ -7,9 +7,10 @@ import { SiteSettingsProvider } from './context/SiteSettingsContext';
 import Navbar from './components/layout/Navbar';
 import SignInPage from './components/auth/SignIn';
 import SignUpPage from './components/auth/Signup';
+import SSOCallback from './components/auth/SSOCallback';
+import ContinueSocialAuth from './components/auth/ContinueSocialAuth';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import { debugEnvVars, validateClerkKey } from './utils/debug';
-import SSOCallback from './components/auth/SSOCallback';
 // ...other imports for pages/components
 
 const Home = React.lazy(() => import('./pages/Home'));
@@ -120,45 +121,38 @@ function App() {
 }
 
 function ClerkProviderWithRoutes({ clerkPublishableKey, notification, closeNotification }) {
-  const { useNavigate } = require('react-router-dom');
-  const navigate = useNavigate();
-
-  const handleNavigate = (to) => {
-    // If Clerk passes an absolute URL (like our explicit fallback URLs), strip the origin for React Router
-    if (to.startsWith(window.location.origin)) {
-      navigate(to.replace(window.location.origin, ''));
-    } else if (to.startsWith('http')) {
-      // If it's an external URL (like an account portal or oauth node), we must NOT use React Router
-      window.location.href = to;
-    } else {
-      // It's a clean relative path
-      navigate(to);
-    }
-  };
+  const location = useLocation();
+  const isAuthPath = location.pathname.startsWith('/sign-in') || 
+                    location.pathname.startsWith('/sign-up') ||
+                    location.pathname.startsWith('/sso-callback') ||
+                    location.pathname.startsWith('/continue-social-auth');
 
   return (
     <ClerkProvider 
       publishableKey={clerkPublishableKey}
-      signInUrl={`${window.location.origin}/sign-in`}
-      signUpUrl={`${window.location.origin}/sign-up`}
-      afterSignInUrl={`${window.location.origin}/`}
-      afterSignUpUrl={`${window.location.origin}/`}
-      navigate={handleNavigate}
+      signInUrl="/sign-in"
+      signUpUrl="/sign-up"
+      afterSignInUrl="/"
+      afterSignUpUrl="/"
     >
       <AuthProvider>
         <CartProvider>
           <SiteSettingsProvider>
-            <div className="min-h-screen bg-[#020617]">
-              <Navbar />
-              <React.Suspense fallback={
-                <div className="flex items-center justify-center min-h-screen bg-[#020617]">
-                  <div className="w-10 h-10 border-2 border-[#334155] border-t-[#e2e8f0] rounded-full animate-spin" />
-                </div>
-              }>
+            <div className="min-h-screen flex flex-col bg-[#020617] text-[#f8fafc]">
+              {!isAuthPath && <Navbar />}
+              <div className={`flex-grow ${!isAuthPath ? 'pt-16' : ''}`}>
+                <Suspense fallback={
+                  <div className="min-h-[60vh] flex items-center justify-center">
+                    <div className="w-12 h-12 border-4 border-[#334155] border-t-[#e2e8f0] rounded-full animate-spin"></div>
+                  </div>
+                }>
                 <Routes>
+                  <Route path="/sign-in/sso-callback" element={<SSOCallback />} />
+                  <Route path="/sign-up/sso-callback" element={<SSOCallback />} />
+                  <Route path="/sso-callback" element={<SSOCallback />} />
+                  <Route path="/continue-social-auth" element={<ContinueSocialAuth />} />
                   <Route path="/sign-in/*" element={<SignInPage />} />
                   <Route path="/sign-up/*" element={<SignUpPage />} />
-                  <Route path="/sso-callback" element={<SSOCallback />} />
                   <Route path="/" element={<Home />} />
                   <Route path="/categories" element={<Categories />} />
                   <Route path="/products" element={<ProductList />} />
@@ -190,8 +184,8 @@ function ClerkProviderWithRoutes({ clerkPublishableKey, notification, closeNotif
                 } />
                 <Route path="/contact" element={<Contact />} />
                 {/* Add more routes as needed */}
-              </Routes>
-            </React.Suspense>
+                </Routes>
+              </Suspense>
             
             {/* Notification */}
             <Notification
@@ -201,6 +195,7 @@ function ClerkProviderWithRoutes({ clerkPublishableKey, notification, closeNotif
               onClose={closeNotification}
             />
           </div>
+        </div>
         </SiteSettingsProvider>
       </CartProvider>
     </AuthProvider>
