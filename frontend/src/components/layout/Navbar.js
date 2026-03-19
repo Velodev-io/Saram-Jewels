@@ -239,10 +239,10 @@ const Navbar = () => {
               </div>
             ) : (
               <Link
-                to="/sign-in"
+                to="/sign-up"
                 className="hidden md:flex items-center gap-2 ml-2 btn-silver text-xs py-2.5 px-5"
               >
-                Sign In
+                Sign Up
               </Link>
             )}
 
@@ -318,8 +318,8 @@ const Navbar = () => {
 
             <div className="pt-4 border-t border-[rgba(226,232,240,0.1)]">
               {!isSignedIn ? (
-                <Link to="/sign-in" className="btn-silver w-full text-center">
-                  Sign In
+                <Link to="/sign-up" className="btn-silver w-full text-center">
+                  Sign Up
                 </Link>
               ) : (
                 <div className="flex items-center gap-3 px-4 py-3">

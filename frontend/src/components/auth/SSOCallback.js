@@ -14,10 +14,10 @@ const SSOCallback = () => {
         </p>
       </div>
       <AuthenticateWithRedirectCallback 
-        signInForceRedirectUrl="/" 
-        signUpForceRedirectUrl="/" 
-        signUpUrl="/sign-up"
-        signInUrl="/sign-in"
+        signInUrl={`${window.location.origin}/sign-in`}
+        signUpUrl={`${window.location.origin}/sign-up`}
+        afterSignInUrl={`${window.location.origin}/`}
+        afterSignUpUrl={`${window.location.origin}/`}
       />
     </div>
   );

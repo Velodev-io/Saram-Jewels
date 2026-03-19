@@ -12,7 +12,6 @@ const SparkleStar = ({ style }) => (
 const SignUpPage = () => {
   return (
     <div className="min-h-screen bg-[#020617] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-      {/* Decorative Background Elements */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
         <div className="absolute top-[15%] left-[-10%] w-[500px] h-[500px] bg-[#bae6fd]/5 rounded-full blur-[120px]" />
         <div className="absolute bottom-[5%] right-[-5%] w-[400px] h-[400px] bg-[#e2e8f0]/5 rounded-full blur-[100px]" />
@@ -29,12 +28,8 @@ const SignUpPage = () => {
                 <SparkleStar style={{ top: '-8px', right: '-8px', width: '12px', height: '12px' }} />
               </div>
               <div className="text-left">
-                <div className="font-display font-bold text-2xl text-[#ffffff] tracking-[0.15em] leading-none">
-                  SARAM
-                </div>
-                <div className="text-[10px] font-semibold tracking-[0.3em] text-[#e2e8f0] uppercase mt-0.5">
-                  Jewels
-                </div>
+                <div className="font-display font-bold text-2xl text-[#ffffff] tracking-[0.15em] leading-none">SARAM</div>
+                <div className="text-[10px] font-semibold tracking-[0.3em] text-[#e2e8f0] uppercase mt-0.5">Jewels</div>
               </div>
             </Link>
           
@@ -48,11 +43,16 @@ const SignUpPage = () => {
         
         <div className="glass p-4 sm:p-8 rounded-3xl border border-[rgba(226,232,240,0.2)] shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
           <SignUp 
+            routing="path"
+            path="/sign-up"
+            fallbackRedirectUrl="/"
+            signInUrl="/sign-in"
             appearance={{
                 elements: {
                   rootBox: "w-full",
                   card: "bg-transparent shadow-none w-full",
-                  header: "hidden",
+                  headerTitle: "hidden",
+                  headerSubtitle: "hidden",
                   formButtonPrimary: "btn-silver w-full mt-4 normal-case tracking-widest py-3",
                   formFieldInput: "input-dark mb-1 h-11",
                   formFieldLabel: "text-[#e2e8f0] text-xs font-semibold uppercase tracking-widest mb-1.5 ml-1",
@@ -67,16 +67,11 @@ const SignUpPage = () => {
                   identityPreviewText: "text-[#f8fafc]",
                   identityPreviewEditButtonIcon: "text-[#bae6fd]",
                 },
-                layout: {
-                  shimmer: true,
-                }
+                layout: { shimmer: true }
               }}
-              redirectUrl="/"
-              signInUrl="/sign-in"
-            />
-          </div>
+          />
+        </div>
 
-        {/* Floating Sparkles around the card */}
         <SparkleStar style={{ top: '10%', left: '5%', width: '12px', height: '12px', animationDelay: '0.2s' }} />
         <SparkleStar style={{ bottom: '25%', right: '8%', width: '18px', height: '18px', animationDelay: '0.9s' }} />
       </div>

@@ -113,31 +113,61 @@ function App() {
   }
 
   return (
-    <ClerkProvider publishableKey={clerkPublishableKey}>
+    <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <ClerkProviderWithRoutes clerkPublishableKey={clerkPublishableKey} notification={notification} closeNotification={closeNotification} />
+    </Router>
+  );
+}
+
+function ClerkProviderWithRoutes({ clerkPublishableKey, notification, closeNotification }) {
+  const { useNavigate } = require('react-router-dom');
+  const navigate = useNavigate();
+
+  const handleNavigate = (to) => {
+    // If Clerk passes an absolute URL (like our explicit fallback URLs), strip the origin for React Router
+    if (to.startsWith(window.location.origin)) {
+      navigate(to.replace(window.location.origin, ''));
+    } else if (to.startsWith('http')) {
+      // If it's an external URL (like an account portal or oauth node), we must NOT use React Router
+      window.location.href = to;
+    } else {
+      // It's a clean relative path
+      navigate(to);
+    }
+  };
+
+  return (
+    <ClerkProvider 
+      publishableKey={clerkPublishableKey}
+      signInUrl={`${window.location.origin}/sign-in`}
+      signUpUrl={`${window.location.origin}/sign-up`}
+      afterSignInUrl={`${window.location.origin}/`}
+      afterSignUpUrl={`${window.location.origin}/`}
+      navigate={handleNavigate}
+    >
       <AuthProvider>
         <CartProvider>
           <SiteSettingsProvider>
-            <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-          <div className="min-h-screen bg-[#020617]">
-            <Navbar />
-            <React.Suspense fallback={
-              <div className="flex items-center justify-center min-h-screen bg-[#020617]">
-                <div className="w-10 h-10 border-2 border-[#334155] border-t-[#e2e8f0] rounded-full animate-spin" />
-              </div>
-            }>
-              <Routes>
-                <Route path="/sign-in" element={<SignInPage />} />
-                <Route path="/sign-up" element={<SignUpPage />} />
-                <Route path="/sso-callback" element={<SSOCallback />} />
-                <Route path="/" element={<Home />} />
-                <Route path="/categories" element={<Categories />} />
-                <Route path="/products" element={<ProductList />} />
-                <Route path="/products/:id" element={<ProductDetail />} />
-                <Route path="/cart" element={
-                  <ProtectedRoute>
-                    <Cart />
-                  </ProtectedRoute>
-                } />
+            <div className="min-h-screen bg-[#020617]">
+              <Navbar />
+              <React.Suspense fallback={
+                <div className="flex items-center justify-center min-h-screen bg-[#020617]">
+                  <div className="w-10 h-10 border-2 border-[#334155] border-t-[#e2e8f0] rounded-full animate-spin" />
+                </div>
+              }>
+                <Routes>
+                  <Route path="/sign-in/*" element={<SignInPage />} />
+                  <Route path="/sign-up/*" element={<SignUpPage />} />
+                  <Route path="/sso-callback" element={<SSOCallback />} />
+                  <Route path="/" element={<Home />} />
+                  <Route path="/categories" element={<Categories />} />
+                  <Route path="/products" element={<ProductList />} />
+                  <Route path="/products/:id" element={<ProductDetail />} />
+                  <Route path="/cart" element={
+                    <ProtectedRoute>
+                      <Cart />
+                    </ProtectedRoute>
+                  } />
                 <Route path="/wishlist" element={
                   <ProtectedRoute>
                     <Wishlist />
@@ -170,13 +200,12 @@ function App() {
               isVisible={notification.isVisible}
               onClose={closeNotification}
             />
-                      </div>
-            </Router>
-          </SiteSettingsProvider>
-        </CartProvider>
-      </AuthProvider>
-    </ClerkProvider>
-  );
+          </div>
+        </SiteSettingsProvider>
+      </CartProvider>
+    </AuthProvider>
+  </ClerkProvider>
+);
 }
 
 export default App;
