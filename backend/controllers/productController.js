@@ -1,4 +1,4 @@
-const { Product, Category } = require('../models');
+const { Product, Category, OrderItem, Cart, Review } = require('../models');
 const { Op } = require('sequelize');
 const { processJewelryImage } = require('../utils/imageProcessor');
 
@@ -153,17 +153,37 @@ exports.updateProduct = async (req, res) => {
 
 // Delete product (admin only)
 exports.deleteProduct = async (req, res) => {
+  const sequelize = require('../config/database');
+  const transaction = await sequelize.transaction();
+  
   try {
-    const product = await Product.findByPk(req.params.id);
+    const product = await Product.findByPk(req.params.id, { transaction });
     
     if (!product) {
+      await transaction.rollback();
       return res.status(404).json({ message: 'Product not found' });
     }
     
-    await product.destroy();
+    // 1. Remove all cart entries referencing this product
+    await Cart.destroy({ where: { product_id: product.id }, transaction });
+    
+    // 2. Remove all reviews for this product
+    await Review.destroy({ where: { product_id: product.id }, transaction });
+    
+    // 3. Nullify product reference in order items (preserve order history)
+    await OrderItem.update(
+      { product_id: null },
+      { where: { product_id: product.id }, transaction }
+    );
+    
+    // 4. Now safely delete the product
+    await product.destroy({ transaction });
+    
+    await transaction.commit();
     
     res.json({ message: 'Product deleted successfully' });
   } catch (error) {
+    await transaction.rollback();
     console.error('Error deleting product:', error);
     res.status(500).json({ message: 'Error deleting product', error: error.message });
   }
