@@ -792,6 +792,8 @@ const Admin = () => {
   const [productImages, setProductImages] = useState([]);
   const [selectedImages, setSelectedImages] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
   const [notifications, setNotifications] = useState({
@@ -858,11 +860,12 @@ const Admin = () => {
         const results = await Promise.allSettled([
           apiService.getProducts(),
           apiService.getCategories(),
+          apiService.getCustomers(),
           apiService.getReviews(),
           apiService.getInquiries()
         ]);
 
-        const [productsRes, categoriesRes, reviewsRes, inquiriesRes] = results;
+        const [productsRes, categoriesRes, customersRes, reviewsRes, inquiriesRes] = results;
 
         // Map products
         if (productsRes.status === 'fulfilled' && productsRes.value?.products) {
@@ -877,6 +880,15 @@ const Admin = () => {
         // Set Categories
         if (categoriesRes.status === 'fulfilled') {
           setCategories(categoriesRes.value);
+        }
+
+        if (customersRes.status === 'fulfilled' && Array.isArray(customersRes.value)) {
+          setCustomers(customersRes.value.map((customer) => ({
+            ...customer,
+            name: [customer.first_name, customer.last_name].filter(Boolean).join(' ') || 'Unnamed Customer',
+            orders: Number(customer.ordersCount || 0),
+            totalSpent: Number(customer.totalSpent || 0),
+          })));
         }
 
         // Set Reviews
@@ -993,6 +1005,7 @@ const Admin = () => {
 
   const tabs = [
     { id: 'dashboard', name: 'Dashboard', icon: ChartBarIcon },
+    { id: 'users', name: 'Users', icon: UsersIcon },
     { id: 'products', name: 'Products', icon: CubeIcon },
     { id: 'categories', name: 'Categories', icon: ArchiveBoxIcon },
     { id: 'inventory', name: 'Inventory', icon: ArchiveBoxIcon },
@@ -1779,6 +1792,91 @@ const Admin = () => {
     </div>
   );
 
+  const renderUsers = () => (
+    <div className="space-y-8 animate-premium-in">
+      <div>
+        <h2 className="text-3xl font-extrabold text-gradient-silver">Customer Registry</h2>
+        <p className="text-slate-400 mt-1">View customer profiles, order counts, and lifetime spend from the storefront.</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="glass-card p-6 border-sky-500/10">
+          <p className="text-xs font-black text-slate-500 uppercase tracking-widest mb-1">Total Users</p>
+          <p className="text-3xl font-black text-slate-100">{customers.length}</p>
+        </div>
+        <div className="glass-card p-6 border-emerald-500/10">
+          <p className="text-xs font-black text-slate-500 uppercase tracking-widest mb-1">Active Buyers</p>
+          <p className="text-3xl font-black text-slate-100">{customers.filter((customer) => customer.orders > 0).length}</p>
+        </div>
+        <div className="glass-card p-6 border-amber-500/10">
+          <p className="text-xs font-black text-slate-500 uppercase tracking-widest mb-1">Lifetime Revenue</p>
+          <p className="text-3xl font-black text-slate-100">
+            ₹{customers.reduce((total, customer) => total + customer.totalSpent, 0).toLocaleString()}
+          </p>
+        </div>
+      </div>
+
+      <div className="glass-card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-white/5">
+            <thead>
+              <tr className="bg-slate-900/60">
+                <th className="px-6 py-5 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Customer</th>
+                <th className="px-6 py-5 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Email</th>
+                <th className="px-6 py-5 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Orders</th>
+                <th className="px-6 py-5 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Lifetime Spend</th>
+                <th className="px-6 py-5 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Joined</th>
+                <th className="px-6 py-5 text-right text-xs font-black text-slate-400 uppercase tracking-widest">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {customers.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="px-6 py-12 text-center text-slate-500 italic font-medium">
+                    No customer records have been synced yet.
+                  </td>
+                </tr>
+              ) : (
+                customers.map((customer) => (
+                  <tr key={customer.id} className="hover:bg-slate-900/20 transition-colors group">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center text-[10px] font-black text-slate-300 uppercase">
+                          {customer.name?.charAt(0) || 'U'}
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-slate-100">{customer.name}</p>
+                          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                            {customer.clerk_user_id || 'Local Record'}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-slate-300">{customer.email}</td>
+                    <td className="px-6 py-4 text-sm font-semibold text-slate-100">{customer.orders}</td>
+                    <td className="px-6 py-4 text-sm font-semibold text-slate-100">₹{customer.totalSpent.toLocaleString()}</td>
+                    <td className="px-6 py-4 text-xs text-slate-500">
+                      {customer.created_at ? new Date(customer.created_at).toLocaleDateString() : '-'}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button
+                        onClick={() => setSelectedCustomer(customer)}
+                        className="inline-flex items-center gap-2 px-3 py-2 text-xs font-black uppercase tracking-widest rounded-xl bg-slate-800/70 text-slate-200 border border-white/10 hover:border-sky-400/30 hover:text-white transition-all"
+                      >
+                        <EyeIcon className="h-4 w-4" />
+                        View
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+
   const renderReviews = () => (
     <div className="space-y-8 animate-premium-in">
       <div>
@@ -2137,6 +2235,7 @@ const Admin = () => {
         {/* Main Content */}
         <div className="flex-1 p-4 md:p-8">
           {activeTab === 'dashboard' && renderDashboard()}
+          {activeTab === 'users' && renderUsers()}
           {activeTab === 'products' && renderProducts()}
           {activeTab === 'categories' && renderCategories()}
 
@@ -2179,6 +2278,12 @@ const Admin = () => {
       <ImageZoomModal
         zoomedImage={zoomedImage}
         setZoomedImage={setZoomedImage}
+      />
+      <CustomerProfileModal
+        customer={selectedCustomer}
+        isOpen={!!selectedCustomer}
+        onClose={() => setSelectedCustomer(null)}
+        apiService={apiService}
       />
     </div>
   );
