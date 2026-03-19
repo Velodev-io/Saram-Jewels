@@ -8,13 +8,29 @@ export const AuthProvider = ({ children }) => {
   const [clerkAvailable, setClerkAvailable] = useState(false);
   
   // Use Clerk hooks
-  const { isSignedIn, user, isLoaded } = useUser();
-  const { signOut } = useClerkAuth();
+  const { isLoaded, isSignedIn, user } = useUser();
+  const { signOut, getToken } = useClerkAuth();
   
   useEffect(() => {
+    const syncToken = async () => {
+      if (isSignedIn) {
+        try {
+          const token = await getToken();
+          localStorage.setItem('clerk-token', token);
+        } catch (err) {
+          console.error("Token hydration failed:", err);
+        }
+      } else {
+        localStorage.removeItem('clerk-token');
+      }
+    };
+    
+    syncToken();
+    const interval = setInterval(syncToken, 45000); // Heartbeat: Refresh token every 45s
     setClerkAvailable(true);
     setIsLoading(!isLoaded);
-  }, [isLoaded]);
+    return () => clearInterval(interval);
+  }, [isLoaded, isSignedIn, getToken]);
 
   const validatePassword = (password) => {
     const errors = [];

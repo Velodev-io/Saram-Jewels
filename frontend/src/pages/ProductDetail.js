@@ -76,7 +76,7 @@ const ProductDetail = () => {
       try {
         setLoading(true);
         const p = await apiService.getProductById(id);
-        if (p) {
+        if (p && p.status === 'active') {
           const images = Array.isArray(p.images) && p.images.length > 0
             ? p.images
             : (typeof p.images === 'string' ? [p.images] : ['https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=800&h=800&fit=crop']);
@@ -106,16 +106,20 @@ const ProductDetail = () => {
           if (categoryFilter) {
             const relRes = await apiService.getProducts({
               category: categoryFilter,
-              limit: 4
+              limit: 8
             });
             const relData = relRes?.products || relRes || [];
-            setRelatedProducts(relData.filter(rp => rp.id !== p.id).map(rp => ({
-              id: rp.id,
-              name: rp.name,
-              price: rp.price,
-              image: Array.isArray(rp.images) ? rp.images[0] : rp.images || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=800&h=800&fit=crop',
-              rating: rp.rating || 4.5
-            })));
+            // ONLY SHOW ACTIVE RELATED PRODUCTS
+            setRelatedProducts(relData
+              .filter(rp => rp.id !== p.id && rp.status === 'active')
+              .slice(0, 4)
+              .map(rp => ({
+                id: rp.id,
+                name: rp.name,
+                price: rp.price,
+                image: Array.isArray(rp.images) ? rp.images[0] : rp.images || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=800&h=800&fit=crop',
+                rating: rp.rating || 4.5
+              })));
           }
         } else {
           setProduct(null);

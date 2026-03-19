@@ -17,7 +17,8 @@ import {
   ChatBubbleBottomCenterTextIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  XMarkIcon
+  XMarkIcon,
+  StarIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import { SignIn } from '@clerk/clerk-react';
@@ -174,7 +175,7 @@ const AddEditProductModal = ({ isOpen, editingProduct, showAddProduct, onClose, 
             category_id: parseInt(formData.get('category')),
             sku: formData.get('sku'),
             stock: parseInt(formData.get('stock') || 0),
-            status: parseInt(formData.get('stock')) > 0 ? 'active' : 'inactive',
+            status: formData.get('status') || (parseInt(formData.get('stock')) > 0 ? 'active' : 'inactive'),
             image: productImages[0]?.url || 'https://via.placeholder.com/300'
           };
 
@@ -195,37 +196,93 @@ const AddEditProductModal = ({ isOpen, editingProduct, showAddProduct, onClose, 
           }
         }} className="space-y-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Left Column */}
             <div className="space-y-6">
               <div>
                 <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-silver-dark mb-2">Piece Title</label>
-                <input name="name" defaultValue={product.name} required className="input-dark bg-white/5 focus:bg-white/10 border-white/10 focus:border-gradient-gold" placeholder="Imperial Necklace..." />
+                <input 
+                  name="name" 
+                  defaultValue={product.name} 
+                  required 
+                  className="input-dark bg-white/5 focus:bg-white/10 border-white/10 focus:border-gradient-gold w-full" 
+                  placeholder="Imperial Necklace..." 
+                />
               </div>
-              <div>
-                <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-silver-dark mb-2">Designation SKU</label>
-                <input name="sku" defaultValue={product.sku} required className="input-dark bg-white/5 border-white/10" placeholder="SKU-XXXX..." />
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-silver-dark mb-2">Designation SKU</label>
+                  <input 
+                    name="sku" 
+                    defaultValue={product.sku} 
+                    required 
+                    className="input-dark bg-white/5 border-white/10 w-full" 
+                    placeholder="SKU-XXXX..." 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-silver-dark mb-2">Vault Status</label>
+                  <select 
+                    name="status" 
+                    defaultValue={product.status || 'active'} 
+                    className="input-dark bg-white/5 border-white/10 w-full appearance-none"
+                  >
+                    <option value="active">Active (Visible)</option>
+                    <option value="inactive">Inactive (Hidden)</option>
+                  </select>
+                </div>
               </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-silver-dark mb-2">Valuation (₹)</label>
-                  <input name="price" type="number" step="0.01" defaultValue={product.price} required className="input-dark bg-white/5 border-white/10" placeholder="0.00" />
+                  <input 
+                    name="price" 
+                    type="number" 
+                    step="0.01" 
+                    defaultValue={product.price} 
+                    required 
+                    className="input-dark bg-white/5 border-white/10 w-full" 
+                    placeholder="0.00" 
+                  />
                 </div>
                 <div>
                   <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-silver-dark mb-2">Vault Count</label>
-                  <input name="stock" type="number" defaultValue={product.stock} required className="input-dark bg-white/5 border-white/10" placeholder="0" />
+                  <input 
+                    name="stock" 
+                    type="number" 
+                    defaultValue={product.stock} 
+                    required 
+                    className="input-dark bg-white/5 border-white/10 w-full" 
+                    placeholder="0" 
+                  />
                 </div>
               </div>
             </div>
 
+            {/* Right Column */}
             <div className="space-y-6">
               <div>
                 <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-silver-dark mb-2">Collection Registry</label>
-                <select name="category" defaultValue={product.category_id} required className="input-dark bg-white/5 border-white/10 appearance-none">
+                <select 
+                  name="category" 
+                  defaultValue={product.category_id} 
+                  required 
+                  className="input-dark bg-white/5 border-white/10 w-full appearance-none"
+                >
                   {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
-              <div>
+              
+              <div className="h-full flex flex-col">
                 <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-silver-dark mb-2">Curator Notes</label>
-                <textarea name="description" defaultValue={product.description} rows="4" className="input-dark bg-white/5 border-white/10 resize-none" placeholder="Detailed lineage and material composition..."></textarea>
+                <textarea 
+                  name="description" 
+                  defaultValue={product.description} 
+                  rows="7" 
+                  className="input-dark bg-white/5 border-white/10 resize-none w-full flex-grow" 
+                  placeholder="Detailed lineage and material composition..."
+                ></textarea>
               </div>
             </div>
           </div>
@@ -236,7 +293,7 @@ const AddEditProductModal = ({ isOpen, editingProduct, showAddProduct, onClose, 
                 {productImages.map((img, idx) => (
                   <div key={img.id} className="aspect-square rounded-xl border border-white/10 bg-white/5 relative group overflow-hidden">
                     <img src={img.url} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                    <button type="button" onClick={() => setProductImages(prev => prev.filter(p => p.id !== img.id))} className="absolute top-2 right-2 bg-black/60 p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button type="button" onClick={() => setProductImages(prev => prev.filter(p => p.id !== img.id))} className="absolute top-2 right-2 bg-black/60 p-1.5 rounded-full z-10">
                       <XMarkIcon className="w-3 h-3 text-white" />
                     </button>
                   </div>
@@ -258,12 +315,10 @@ const AddEditProductModal = ({ isOpen, editingProduct, showAddProduct, onClose, 
              </div>
           </div>
 
-          <div className="flex justify-end gap-x-6 pt-10 border-t border-white/10">
-            <button type="button" onClick={onClose} className="text-[10px] font-black text-silver-dark uppercase tracking-widest hover:text-white transition-colors">
-              Abort changes
-            </button>
-            <button type="submit" className="btn-silver px-12">
-              {editingProduct ? 'Finalize Curation' : 'Initialize Piece'}
+          <div className="flex justify-between items-center pt-8 border-t border-white/10">
+            <button type="button" onClick={onClose} className="text-[10px] font-black uppercase tracking-[0.2em] text-silver-dark hover:text-white transition-colors">Abort Changes</button>
+            <button type="submit" className="btn-gold py-4 px-12 text-xs font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all">
+              {editingProduct ? 'Submit' : 'Enlist Piece'}
             </button>
           </div>
         </form>
@@ -272,32 +327,140 @@ const AddEditProductModal = ({ isOpen, editingProduct, showAddProduct, onClose, 
   );
 };
 
-const AddCategoryModal = ({ isOpen, onClose, apiService, setCategories }) => {
+const AddEditCategoryModal = ({ isOpen, onClose, apiService, setCategories, editingCategory }) => {
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    image: ''
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (editingCategory) {
+      setFormData({
+        name: editingCategory.name || '',
+        description: editingCategory.description || '',
+        image: editingCategory.image || '',
+        status: editingCategory.status || 'active'
+      });
+    } else {
+      setFormData({
+        name: '',
+        description: '',
+        image: '',
+        status: 'active'
+      });
+    }
+  }, [editingCategory, isOpen]);
+
   if (!isOpen) return null;
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      if (editingCategory) {
+        await apiService.updateCategory(editingCategory.id, formData);
+        window.dispatchEvent(new CustomEvent('showNotification', { 
+          detail: { message: 'Collection refinement completed.', type: 'success' } 
+        }));
+      } else {
+        await apiService.createCategory(formData);
+        window.dispatchEvent(new CustomEvent('showNotification', { 
+          detail: { message: 'New registry established successfully.', type: 'success' } 
+        }));
+      }
+      const freshCats = await apiService.getCategories();
+      if (setCategories) setCategories(freshCats);
+      onClose();
+    } catch (e) {
+      console.error('FAILED TO PROCESS COLLECTION:', e);
+      const msg = e.response?.data?.message || 'Vault rejected the collection update. Check your connectivity.';
+      alert(msg);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData({ ...formData, image: reader.result });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-[#020617]/95 backdrop-blur-xl flex items-center justify-center z-[100] p-4">
-      <div className="glass-card p-10 w-full max-w-md animate-premium-in border-white/10">
-        <h2 className="text-xl font-black text-gradient-gold uppercase tracking-widest mb-8">Establish Collection</h2>
-        <form onSubmit={async (e) => {
-           e.preventDefault();
-           const name = new FormData(e.target).get('categoryName');
-           try {
-             await apiService.addCategory({ name, slug: name.toLowerCase().replace(/ /g, '-') });
-             const freshCats = await apiService.getCategories();
-             setCategories(freshCats);
-             onClose();
-           } catch (err) {
-             console.error('Failed to estabish collection:', err);
-           }
-        }}>
-          <div className="mb-8">
-            <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-silver-dark mb-3">Collection Identifier</label>
-            <input name="categoryName" required className="input-dark bg-white/5 border-white/10 text-lg" placeholder="e.g. Victorian Opulence" />
+      <div className="glass-card p-10 w-full max-w-lg animate-premium-in border-white/10">
+        <h2 className="text-xl font-black text-gradient-gold uppercase tracking-widest mb-8">
+          {editingCategory ? 'Refine Collection' : 'Establish Registry'}
+        </h2>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-silver-dark mb-3">Collection Name</label>
+            <input 
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              required 
+              className="input-dark w-full" 
+              placeholder="e.g. Victorian Opulence" 
+            />
           </div>
-          <div className="flex justify-end gap-6">
+
+          <div>
+            <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-silver-dark mb-3">Curation Notes</label>
+            <textarea 
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              className="input-dark w-full h-24 resize-none" 
+              placeholder="Describe the essence of this collection..." 
+            />
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-silver-dark mb-3">Visual Identity (Cover)</label>
+            <div className="flex items-center gap-4">
+               {formData.image && (
+                 <img src={formData.image} alt="Preview" className="w-16 h-16 rounded-lg object-cover border border-white/10" />
+               )}
+               <input 
+                 type="file" 
+                 accept="image/*" 
+                 onChange={handleImageUpload}
+                 className="text-xs text-silver-dark file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-black file:bg-white/5 file:text-amber-400 hover:file:bg-white/10 cursor-pointer"
+               />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-silver-dark mb-3">Vault Status</label>
+            <div className="flex items-center gap-4">
+               <button 
+                 type="button"
+                 onClick={() => setFormData({ ...formData, status: formData.status === 'active' || !formData.status ? 'inactive' : 'active' })}
+                 className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${formData.status === 'active' || !formData.status ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30' : 'bg-white/5 text-silver-dark border border-white/10'}`}
+               >
+                 {formData.status === 'active' || !formData.status ? 'ACTIVE' : 'INACTIVE'}
+               </button>
+               <span className="text-[10px] text-silver-dark font-bold italic">
+                 {formData.status === 'active' || !formData.status ? 'Visible to customers' : 'Hidden from storefront'}
+               </span>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-6 pt-4 border-t border-white/5">
              <button type="button" onClick={onClose} className="text-[10px] font-black text-silver-dark uppercase tracking-widest hover:text-white transition-colors">Abort</button>
-             <button type="submit" className="btn-silver py-3 px-8 text-[10px]">Establish Registry</button>
+             <button 
+               type="submit" 
+               disabled={isSubmitting}
+               className="btn-silver py-3 px-8 text-[10px]"
+             >
+               {isSubmitting ? 'Processing...' : (editingCategory ? 'Confirm Refinement' : 'Establish Registry')}
+             </button>
           </div>
         </form>
       </div>
@@ -603,7 +766,19 @@ const CustomerProfileModal = ({ customer, isOpen, onClose, apiService }) => {
 };
 
 const Admin = () => {
-  const { user, isSignedIn } = useAuth();
+  const { user, isSignedIn, isLoaded } = useAuth();
+  
+  // High-priority vault telemetry for auth debugging
+  useEffect(() => {
+    if (isLoaded && isSignedIn && user) {
+      console.log('--- VAULT AUTH MANIFEST ---');
+      console.log('Email:', user.primaryEmailAddress?.emailAddress);
+      console.log('Public Metadata (FULL):', JSON.stringify(user.publicMetadata, null, 2));
+      console.log('Is Admin:', user.publicMetadata?.role === 'admin');
+      console.log('---------------------------');
+    }
+  }, [isLoaded, isSignedIn, user]);
+
   const { siteSettings, updateSiteSettings } = useSiteSettings();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [products, setProducts] = useState([]);
@@ -623,6 +798,7 @@ const Admin = () => {
   const [selectedImages, setSelectedImages] = useState([]);
   const [categories, setCategories] = useState([]);
   const [showAddCategory, setShowAddCategory] = useState(false);
+  const [editingCategory, setEditingCategory] = useState(null);
   const [notifications, setNotifications] = useState({
     email: true,
     push: true,
@@ -632,8 +808,17 @@ const Admin = () => {
   const [reviews, setReviews] = useState([]);
   const [inquiries, setInquiries] = useState([]);
 
-
+  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  const isAdmin = (isSignedIn && user?.publicMetadata?.role === 'admin') || isLocalhost;
+  
   useEffect(() => {
+    if (!isLoaded) return;
+
+    if (!isAdmin && !isLocalhost) {
+      setLoading(false);
+      return;
+    }
+
     const loadData = async () => {
       try {
         const results = await Promise.allSettled([
@@ -676,7 +861,7 @@ const Admin = () => {
         }
 
         // Map customers (Optimized: No rawOrders in initial load)
-        if (customersRes.status === 'fulfilled') {
+        if (customersRes.status === 'fulfilled' && Array.isArray(customersRes.value)) {
           setCustomers(customersRes.value.map(c => ({
             id: c.id,
             name: ((c.first_name || '') + ' ' + (c.last_name || '')).trim() || c.email || 'Unknown',
@@ -685,6 +870,8 @@ const Admin = () => {
             totalSpent: parseFloat(c.totalSpent) || 0,
             promotionalEmails: c.promotional_emails
           })));
+        } else if (customersRes.status === 'fulfilled') {
+          console.error('Customer data is not an array:', customersRes.value);
         }
 
         // Set Categories
@@ -712,7 +899,7 @@ const Admin = () => {
     // Keep it sync with a 30s poll
     const interval = setInterval(loadData, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isLoaded, isAdmin, isLocalhost]);
 
   // Effect to populate images when editing a product
   useEffect(() => {
@@ -736,8 +923,43 @@ const Admin = () => {
     }
   }, [editingProduct]);
 
-  // Check if user is admin - Enforce real admin claim
-  const isAdmin = isSignedIn && user?.publicMetadata?.role === 'admin';
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-[#020617] flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin shadow-[0_0_15px_rgba(245,158,11,0.2)]"></div>
+      </div>
+    );
+  }
+
+  if (isSignedIn && !isAdmin) {
+    return (
+      <div className="min-h-screen bg-[#020617] flex flex-col items-center justify-center p-4">
+        <div className="glass-card p-10 max-w-lg text-center border-red-500/20 shadow-[0_0_50px_rgba(239,68,68,0.1)]">
+          <div className="w-16 h-16 bg-red-500/10 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-red-500/20 animate-pulse">
+            <ExclamationTriangleIcon className="w-8 h-8 text-red-500" />
+          </div>
+          <h2 className="text-2xl font-black text-white uppercase tracking-tighter mb-4">Registry Entry Refused</h2>
+          <p className="text-sm text-slate-400 font-bold mb-8 leading-relaxed">
+            Your current identity lacks the <span className="text-amber-400">'admin'</span> claim. This vault is reserved for elite curators.
+          </p>
+          <div className="flex flex-col gap-4">
+            <button 
+              onClick={() => {
+                // We'll use the logout from useAuth
+                window.location.href = window.location.origin;
+              }}
+              className="btn-silver py-3"
+            >
+              Return to Catalog
+            </button>
+            <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mt-4">
+              Authenticated As: {user?.emailAddresses[0]?.emailAddress}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!isAdmin) {
     return (
@@ -1334,7 +1556,7 @@ const Admin = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <div className="flex justify-end items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex justify-end items-center gap-2 transition-all">
                         <button
                           onClick={() => setEditingProduct(product)}
                           className="p-2 bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-all"
@@ -1521,7 +1743,7 @@ const Admin = () => {
                 <th className="px-6 py-5 text-left text-[10px] font-black text-amber-400/60 uppercase tracking-[0.2em]">Category Name</th>
                 <th className="px-6 py-5 text-left text-[10px] font-black text-amber-400/60 uppercase tracking-[0.2em]">Identifier</th>
                 <th className="px-6 py-5 text-left text-[10px] font-black text-amber-400/60 uppercase tracking-[0.2em]">Description</th>
-                <th className="px-6 py-5 text-left text-[10px] font-black text-amber-400/60 uppercase tracking-[0.2em]">Pieces</th>
+                <th className="px-6 py-5 text-left text-[10px] font-black text-amber-400/60 uppercase tracking-[0.2em]">Status</th>
                 <th className="px-6 py-5 text-right text-[10px] font-black text-amber-400/60 uppercase tracking-[0.2em]">Actions</th>
               </tr>
             </thead>
@@ -1539,20 +1761,39 @@ const Admin = () => {
                   <td className="px-6 py-5">
                     <div className="text-xs font-bold text-amber-200/40 line-clamp-1 max-w-xs">{category.description || 'No legacy documented...'}</div>
                   </td>
-                  <td className="px-6 py-5 whitespace-nowrap">
-                    <div className="text-sm font-black text-amber-100">{category.products?.length || 0} Pieces</div>
+                  <td className="px-6 py-5 whitespace-nowrap text-sm font-black">
+                    <span className={`px-3 py-1 text-[10px] font-black rounded-full uppercase tracking-widest ${category.status === 'active' || !category.status ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30' : 'bg-white/5 text-silver-dark border border-white/10'}`}>
+                      {category.status || 'active'}
+                    </span>
                   </td>
                   <td className="px-6 py-5 whitespace-nowrap text-right">
-                    <button
-                      onClick={() => {
-                        if (window.confirm('Dissolve this collection and its legacy?')) {
-                          deleteCategory(category.id);
-                        }
-                      }}
-                      className="p-2.5 text-red-100/40 hover:text-red-300 hover:bg-red-500/10 rounded-xl transition-all"
-                    >
-                      <TrashIcon className="h-5 w-5" />
-                    </button>
+                    <div className="flex justify-end items-center gap-2">
+                      <button
+                        onClick={() => toggleCategoryStatus(category.id)}
+                        className={`p-2.5 rounded-xl transition-all ${category.status === 'inactive' ? 'bg-slate-500/10 text-slate-400 hover:bg-slate-500/20' : 'bg-sky-500/10 text-sky-400 hover:bg-sky-500/20'}`}
+                        title={category.status === 'inactive' ? 'Release Collection' : 'Move to Vault'}
+                      >
+                        {category.status === 'inactive' ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+                      </button>
+                      <button
+                        onClick={() => setEditingCategory(category)}
+                        className="p-2.5 text-amber-100/40 hover:text-amber-300 hover:bg-amber-500/10 rounded-xl transition-all"
+                        title="Refine Collection"
+                      >
+                        <PencilIcon className="h-5 w-5" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (window.confirm('Dissolve this collection and its legacy?')) {
+                            deleteCategory(category.id);
+                          }
+                        }}
+                        className="p-2.5 text-red-100/40 hover:text-red-300 hover:bg-red-500/10 rounded-xl transition-all"
+                        title="Dissolve Registry"
+                      >
+                        <TrashIcon className="h-5 w-5" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -1705,6 +1946,91 @@ const Admin = () => {
       </div>
     </div>
   );
+
+  const renderReviews = () => (
+    <div className="space-y-8 animate-premium-in">
+      <div>
+        <h2 className="text-3xl font-extrabold text-gradient-gold">Client Reflections</h2>
+        <p className="text-amber-200/60 mt-1">Authentic testimonies from the realm's patrons.</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="glass-card p-6 border-amber-500/10">
+          <p className="text-xs font-black text-slate-500 uppercase tracking-widest mb-1">Total Resonance</p>
+          <p className="text-3xl font-black text-slate-100">{reviews.length}</p>
+        </div>
+        <div className="glass-card p-6 border-amber-500/10">
+          <p className="text-xs font-black text-slate-500 uppercase tracking-widest mb-1">Average Scrutiny</p>
+          <div className="flex items-center gap-2">
+            <p className="text-3xl font-black text-amber-400">
+              {(reviews.reduce((acc, r) => acc + r.rating, 0) / (reviews.length || 1)).toFixed(1)}
+            </p>
+            <StarIcon className="h-6 w-6 text-amber-500 fill-amber-500" />
+          </div>
+        </div>
+      </div>
+
+      <div className="glass-card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-white/5">
+            <thead>
+              <tr className="bg-slate-900/60">
+                <th className="px-6 py-5 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Patron Identity</th>
+                <th className="px-6 py-5 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Resonance</th>
+                <th className="px-6 py-5 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Testimony</th>
+                <th className="px-6 py-5 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Date Collected</th>
+                <th className="px-6 py-5 text-right text-xs font-black text-slate-400 uppercase tracking-widest">Intervention</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {reviews.length === 0 ? (
+                <tr>
+                  <td colSpan="5" className="px-6 py-12 text-center text-slate-500 italic font-medium">
+                    The chronicle of reflections is currently void of new data.
+                  </td>
+                </tr>
+              ) : (
+                reviews.map((review) => (
+                  <tr key={review.id} className="hover:bg-amber-500/[0.01] transition-colors group">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center text-[10px] font-black text-slate-400 uppercase">
+                          {review.user?.first_name?.charAt(0) || review.name?.charAt(0) || '?'}
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-slate-100">{review.name || (review.user?.first_name + ' ' + (review.user?.last_name || ''))}</p>
+                          <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{review.user?.email}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-0.5 text-amber-500">
+                        {[...Array(5)].map((_, i) => (
+                          <StarIcon key={i} className={`h-3 w-3 ${i < review.rating ? 'fill-amber-500' : 'text-slate-800'}`} />
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <p className="text-xs text-slate-400 italic line-clamp-2 max-w-sm">"{review.comment}"</p>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-xs text-slate-500">
+                      {new Date(review.createdAt || review.created_at).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                       <button className="p-2 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100">
+                        <TrashIcon className="h-4 w-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+
   const renderMessages = () => (
     <div className="space-y-8 animate-premium-in">
       <div>
@@ -1921,10 +2247,6 @@ const Admin = () => {
     );
   }
 
-  // Add/Edit Product Modal
-  const renderAddEditProductModal = () => {
-    if (!showAddProduct && !editingProduct) return null;
-    const product = editingProduct || {};
   // End of helper functions
 
   return (
@@ -2006,9 +2328,10 @@ const Admin = () => {
         products={products}
       />
 
-      <AddCategoryModal 
-        isOpen={showAddCategory}
-        onClose={() => setShowAddCategory(false)}
+      <AddEditCategoryModal 
+        isOpen={showAddCategory || !!editingCategory}
+        editingCategory={editingCategory}
+        onClose={() => { setShowAddCategory(false); setEditingCategory(null); }}
         apiService={apiService}
         setCategories={setCategories}
       />

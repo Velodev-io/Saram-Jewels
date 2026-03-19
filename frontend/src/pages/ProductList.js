@@ -254,10 +254,12 @@ const ProductList = () => {
         
         const formattedCategories = [
           { id: 'all', name: 'All' },
-          ...(categoriesData || []).map(c => ({
-            id: c.id,
-            name: c.name || `Category ${c.id}`
-          }))
+          ...(categoriesData || [])
+            .filter(c => c.status === 'active' || !c.status)
+            .map(c => ({
+              id: c.id,
+              name: c.name || `Category ${c.id}`
+            }))
         ];
         
         setProducts(formattedProducts);

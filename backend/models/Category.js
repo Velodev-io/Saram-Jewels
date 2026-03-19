@@ -24,6 +24,10 @@ const Category = sequelize.define('Category', {
   image: {
     type: DataTypes.TEXT,
     allowNull: true
+  },
+  status: {
+    type: DataTypes.ENUM('active', 'inactive'),
+    defaultValue: 'active'
   }
 }, {
   timestamps: true,

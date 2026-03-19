@@ -60,6 +60,10 @@
   .sidebar-link-inactive {
     @apply text-[#94a3b8] hover:bg-[#1e293b]/50 hover:text-[#f8fafc] hover:translate-x-1;
   }
+
+  .input-dark {
+    @apply bg-slate-900/50 border border-slate-700/50 text-white placeholder-slate-500 px-5 py-3 rounded-xl outline-none focus:border-amber-500/30 focus:ring-1 focus:ring-amber-500/20 transition-all duration-300;
+  }
 }
 
 @layer utilities {

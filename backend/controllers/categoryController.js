@@ -38,7 +38,7 @@ exports.getCategory = async (req, res) => {
 // Create category
 exports.createCategory = async (req, res) => {
   try {
-    const { name, description } = req.body;
+    const { name, description, status } = req.body;
     let { image } = req.body;
     
     // Process image to fix aspect ratio and background
@@ -49,15 +49,25 @@ exports.createCategory = async (req, res) => {
     // Generate slug from name
     const slug = slugify(name, { lower: true, strict: true });
     
+    // Check if slug or name exists
+    const existing = await Category.findOne({ where: { slug } });
+    if (existing) {
+      return res.status(400).json({ message: 'A collection with this name or legacy already exists.' });
+    }
+    
     const category = await Category.create({
       name,
       slug,
       description,
-      image
+      image,
+      status: status || 'active'
     });
     res.status(201).json(category);
   } catch (error) {
-    console.error('Error creating category:', error);
+    console.error('CRITICAL: category creation failed:', error);
+    // Log to a file I can read
+    const fs = require('fs');
+    fs.appendFileSync('/tmp/backend-error.txt', `\n[${new Date().toISOString()}] Create Category Error: ${error.message}\n${error.stack}\n`);
     res.status(500).json({ message: 'Error creating category', error: error.message });
   }
 };
@@ -65,7 +75,7 @@ exports.createCategory = async (req, res) => {
 exports.updateCategory = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description } = req.body;
+    const { name, description, status } = req.body;
     let { image } = req.body;
     const category = await Category.findByPk(id);
     
@@ -78,7 +88,7 @@ exports.updateCategory = async (req, res) => {
       image = await processJewelryImage(image);
     }
 
-    const updateData = { name, description, image };
+    const updateData = { name, description, image, status };
 
     // Only update slug if name is provided and changed
     if (name && name !== category.name) {
@@ -89,7 +99,9 @@ exports.updateCategory = async (req, res) => {
     
     res.json(category);
   } catch (error) {
-    console.error('Error updating category:', error);
+    console.error('CRITICAL: category update failed:', error);
+    const fs = require('fs');
+    fs.appendFileSync('/tmp/backend-error.txt', `\n[${new Date().toISOString()}] Update Category Error: ${error.message}\n${error.stack}\n`);
     res.status(500).json({ message: 'Error updating category', error: error.message });
   }
 };

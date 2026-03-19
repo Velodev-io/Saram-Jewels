@@ -129,21 +129,20 @@ exports.updateProduct = async (req, res) => {
       images = await Promise.all(images.map(img => processJewelryImage(img)));
     }
 
-    await product.update({
-      name,
-      description,
-      price,
-      original_price: originalPrice,
-      category_id,
-      images,
-      stock,
-      sku,
-      is_featured,
-      status,
-      specifications,
-      rating,
-      reviews_count
+    const updateData = {};
+    const fields = [
+      'name', 'description', 'price', 'category_id', 'stock', 'sku', 
+      'is_featured', 'status', 'specifications', 'rating', 'reviews_count'
+    ];
+
+    fields.forEach(field => {
+      if (req.body[field] !== undefined) updateData[field] = req.body[field];
     });
+
+    if (originalPrice !== undefined) updateData.original_price = originalPrice;
+    if (images !== undefined) updateData.images = images;
+
+    await product.update(updateData);
     
     res.json(product);
   } catch (error) {

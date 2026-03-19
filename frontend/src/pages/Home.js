@@ -49,8 +49,8 @@ const features = [
   },
   {
     Icon: ShieldCheckIcon,
-    title: 'Secure Payments',
-    desc: 'UPI, card, net banking — all transactions fully secured.',
+    title: 'Cash on Delivery',
+    desc: 'Pay only when your jewelry arrives at your doorstep.',
   },
 ];
 
@@ -142,13 +142,16 @@ const Home = () => {
 
         if (categoriesResult.status === 'fulfilled') {
           const response = categoriesResult.value;
-          const formatted = (response || []).slice(0, 4).map(c => ({
-            name: c.name || 'Category',
-            sub: c.description ? c.description.substring(0, 20) + '...' : 'Explore',
-            href: `/products?category=${c.id}`,
-            image: c.image || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=600&h=700&fit=crop',
-            tag: 'Featured'
-          }));
+          const formatted = (response || [])
+            .filter(c => c.status === 'active' || !c.status)
+            .slice(0, 4)
+            .map(c => ({
+              name: c.name || 'Category',
+              sub: c.description ? c.description.substring(0, 20) + '...' : 'Explore',
+              href: `/products?category=${c.id}`,
+              image: c.image || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=600&h=700&fit=crop',
+              tag: 'Featured'
+            }));
           setCategories(formatted);
         }
       } finally {
@@ -646,6 +649,12 @@ const Home = () => {
               </h4>
               <div className="text-[#64748b] text-sm space-y-4">
                 <p>
+                  <a href="tel:+918178335392" className="hover:text-[#e2e8f0] transition-colors flex items-center gap-2">
+                    <PhoneIcon className="h-4 w-4" />
+                    +91 8178335392
+                  </a>
+                </p>
+                <p>
                   <a href="mailto:saramjewels@gmail.com" className="hover:text-[#e2e8f0] transition-colors flex items-center gap-2">
                     <EnvelopeIcon className="h-4 w-4" />
                     saramjewels@gmail.com
@@ -656,9 +665,8 @@ const Home = () => {
                     <ClockIcon className="h-4 w-4" />
                     Customer Service Hours
                   </p>
-                  <p className="ml-6 text-xs leading-relaxed">
-                    Mon–Sat: 9 AM – 8 PM<br />
-                    Sunday: 10 AM – 6 PM
+                  <p className="ml-6 text-xs leading-relaxed uppercase tracking-widest font-bold text-sky-400">
+                    Mon–Sun: 24/7
                   </p>
                 </div>
               </div>

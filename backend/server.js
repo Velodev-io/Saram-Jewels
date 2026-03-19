@@ -14,8 +14,8 @@ require('./models'); // Ensure models and relations are registered
 const app = express();
 
 // Sync database - use safe sync that only creates missing tables
-// Do NOT use alter:true as it causes unique constraint failures during column migration
-sequelize.sync({ force: false }).then(() => {
+// Note: Temporarily using alter:true to migrate the new 'status' column to Categories
+sequelize.sync({ alter: true }).then(() => {
   console.log('✅ Database synced successfully');
 }).catch(err => {
   console.error('Database sync failed:', err.message);
@@ -43,12 +43,12 @@ const reviewRoutes = require('./routes/reviewRoutes');
 const addressRoutes = require('./routes/addressRoutes');
 
 // Use routes
-app.use('/api/products', cacheSuccess, productRoutes);
+app.use('/api/products', productRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/contact', contactRoutes);
-app.use('/api/categories', cacheSuccess, categoryRoutes);
+app.use('/api/categories', categoryRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/addresses', addressRoutes);
 

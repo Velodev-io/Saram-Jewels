@@ -42,6 +42,7 @@ module.exports = {
   Cart,
   Review,
   Inquiry,
-  Address
+  Address,
+  sequelize: require('../config/database')
 };
 
