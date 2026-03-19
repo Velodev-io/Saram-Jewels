@@ -9,6 +9,7 @@ import SignInPage from './components/auth/SignIn';
 import SignUpPage from './components/auth/Signup';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import { debugEnvVars, validateClerkKey } from './utils/debug';
+import SSOCallback from './components/auth/SSOCallback';
 // ...other imports for pages/components
 
 const Home = React.lazy(() => import('./pages/Home'));
@@ -127,6 +128,7 @@ function App() {
               <Routes>
                 <Route path="/sign-in" element={<SignInPage />} />
                 <Route path="/sign-up" element={<SignUpPage />} />
+                <Route path="/sso-callback" element={<SSOCallback />} />
                 <Route path="/" element={<Home />} />
                 <Route path="/categories" element={<Categories />} />
                 <Route path="/products" element={<ProductList />} />
