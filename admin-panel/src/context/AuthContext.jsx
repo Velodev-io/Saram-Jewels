@@ -6,11 +6,11 @@ const AuthContext = createContext();
 export const AuthProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [clerkAvailable, setClerkAvailable] = useState(false);
-  
+
   // Use Clerk hooks
   const { isLoaded, isSignedIn, user } = useUser();
   const { signOut, getToken } = useClerkAuth();
-  
+
   useEffect(() => {
     const syncToken = async () => {
       if (isSignedIn) {
@@ -24,7 +24,7 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem('clerk-token');
       }
     };
-    
+
     syncToken();
     const interval = setInterval(syncToken, 45000); // Heartbeat: Refresh token every 45s
     setClerkAvailable(true);
@@ -43,8 +43,18 @@ export const AuthProvider = ({ children }) => {
   const signupWithGoogle = async () => { return { success: true }; };
   const logout = async () => { return { success: true }; };
 
+  // Build user object with publicMetadata from Clerk
+  const clerkUser = user ? {
+    id: user.id,
+    email: user.primaryEmailAddress?.emailAddress,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    primaryEmailAddress: user.primaryEmailAddress,
+    publicMetadata: user.publicMetadata,
+  } : null;
+
   const value = {
-    user: user || null,
+    user: clerkUser,
     isSignedIn,
     isLoaded: !isLoading,
     clerkAvailable,
@@ -53,7 +63,8 @@ export const AuthProvider = ({ children }) => {
     loginWithGoogle,
     signupWithGoogle,
     logout,
-    validatePassword
+    validatePassword,
+    getToken  // Export getToken for use in components
   };
 
   return (

@@ -746,7 +746,7 @@ const CustomerProfileModal = ({ customer, isOpen, onClose, apiService }) => {
                         <div className="text-right">
                           <p className="text-sm font-black text-amber-50 mb-1">₹{parseFloat(order.total_amount).toLocaleString()}</p>
                           <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${order.status === 'delivered' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
-                              order.status === 'cancelled' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                            order.status === 'cancelled' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
                             }`}>
                             {order.status}
                           </span>
@@ -765,18 +765,18 @@ const CustomerProfileModal = ({ customer, isOpen, onClose, apiService }) => {
 };
 
 const Admin = () => {
-  const { user, isSignedIn, isLoaded } = useAuth();
+  const { user: clerkUser, isSignedIn, isLoaded, getToken } = useAuth();
 
   // High-priority vault telemetry for auth debugging
   useEffect(() => {
-    if (isLoaded && isSignedIn && user) {
+    if (isLoaded && isSignedIn && clerkUser) {
       console.log('--- VAULT AUTH MANIFEST ---');
-      console.log('Email:', user.primaryEmailAddress?.emailAddress);
-      console.log('Public Metadata (FULL):', JSON.stringify(user.publicMetadata, null, 2));
-      console.log('Is Admin:', user.publicMetadata?.role === 'admin');
+      console.log('Email:', clerkUser.primaryEmailAddress?.emailAddress);
+      console.log('Public Metadata (FULL):', JSON.stringify(clerkUser.publicMetadata, null, 2));
+      console.log('Is Admin:', clerkUser.publicMetadata?.role === 'admin');
       console.log('---------------------------');
     }
-  }, [isLoaded, isSignedIn, user]);
+  }, [isLoaded, isSignedIn, clerkUser]);
 
   const { siteSettings, updateSiteSettings } = useSiteSettings();
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -829,9 +829,10 @@ const Admin = () => {
       }
 
       try {
+        const token = await getToken(); // Get fresh Clerk token
         const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5001/api'}/users/check-admin`, {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('clerk-token')}`,
+            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           }
         });
