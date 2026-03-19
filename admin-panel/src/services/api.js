@@ -11,8 +11,19 @@ const api = axios.create({
 
 // Add request interceptor to include Clerk token
 api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('clerk-token');
+  async (config) => {
+    let token = localStorage.getItem('clerk-token');
+    
+    // Attempt to get fresh token directly from Clerk if available (avoids race conditions)
+    if (window.Clerk?.session) {
+      try {
+        const freshToken = await window.Clerk.session.getToken();
+        if (freshToken) token = freshToken;
+      } catch (err) {
+        console.warn("Clerk background token refresh failed, falling back to storage:", err);
+      }
+    }
+    
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
     }

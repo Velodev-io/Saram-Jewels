@@ -816,7 +816,6 @@ const Admin = () => {
     const checkAdminStatus = async () => {
       if (!isLoaded) return;
 
-      // Allow localhost without authentication
       if (isLocalhost) {
         setIsAdmin(true);
         setLoading(false);
@@ -829,7 +828,7 @@ const Admin = () => {
       }
 
       try {
-        const token = await getToken(); // Get fresh Clerk token
+        const token = await getToken(); // ← use this instead of localStorage
         const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5001/api'}/users/check-admin`, {
           headers: {
             'Authorization': `Bearer ${token}`,
