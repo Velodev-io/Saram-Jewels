@@ -2303,7 +2303,7 @@ const Admin = () => {
 
             <div className="p-4 bg-slate-900/40 border border-white/5 rounded-2xl">
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Authenticated As</p>
-              <p className="text-sm font-bold text-slate-100 truncate">{user?.email}</p>
+              <p className="text-sm font-bold text-slate-100 truncate">{user?.primaryEmailAddress?.emailAddress || user?.email}</p>
               <div className="flex items-center gap-2 mt-2">
                 <span className="w-1.5 h-1.5 bg-sky-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(56,189,248,0.4)]" />
                 <span className="text-[10px] font-bold text-slate-500 uppercase">Secure Link Active</span>
