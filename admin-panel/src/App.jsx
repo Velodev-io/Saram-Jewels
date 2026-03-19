@@ -186,7 +186,7 @@ const AddEditProductModal = ({ isOpen, editingProduct, showAddProduct, onClose, 
             } else {
               const res = await apiService.addProduct(productData);
               if (res.success) {
-                 setProducts([{ ...res.data, category: categories.find(c => c.id === productData.category_id)?.name }, ...products]);
+                setProducts([{ ...res.data, category: categories.find(c => c.id === productData.category_id)?.name }, ...products]);
               }
             }
             onClose();
@@ -200,31 +200,31 @@ const AddEditProductModal = ({ isOpen, editingProduct, showAddProduct, onClose, 
             <div className="space-y-6">
               <div>
                 <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-silver-dark mb-2">Piece Title</label>
-                <input 
-                  name="name" 
-                  defaultValue={product.name} 
-                  required 
-                  className="input-dark bg-white/5 focus:bg-white/10 border-white/10 focus:border-gradient-gold w-full" 
-                  placeholder="Imperial Necklace..." 
+                <input
+                  name="name"
+                  defaultValue={product.name}
+                  required
+                  className="input-dark bg-white/5 focus:bg-white/10 border-white/10 focus:border-gradient-gold w-full"
+                  placeholder="Imperial Necklace..."
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-silver-dark mb-2">Designation SKU</label>
-                  <input 
-                    name="sku" 
-                    defaultValue={product.sku} 
-                    required 
-                    className="input-dark bg-white/5 border-white/10 w-full" 
-                    placeholder="SKU-XXXX..." 
+                  <input
+                    name="sku"
+                    defaultValue={product.sku}
+                    required
+                    className="input-dark bg-white/5 border-white/10 w-full"
+                    placeholder="SKU-XXXX..."
                   />
                 </div>
                 <div>
                   <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-silver-dark mb-2">Vault Status</label>
-                  <select 
-                    name="status" 
-                    defaultValue={product.status || 'active'} 
+                  <select
+                    name="status"
+                    defaultValue={product.status || 'active'}
                     className="input-dark bg-white/5 border-white/10 w-full appearance-none"
                   >
                     <option value="active">Active (Visible)</option>
@@ -236,25 +236,25 @@ const AddEditProductModal = ({ isOpen, editingProduct, showAddProduct, onClose, 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-silver-dark mb-2">Valuation (₹)</label>
-                  <input 
-                    name="price" 
-                    type="number" 
-                    step="0.01" 
-                    defaultValue={product.price} 
-                    required 
-                    className="input-dark bg-white/5 border-white/10 w-full" 
-                    placeholder="0.00" 
+                  <input
+                    name="price"
+                    type="number"
+                    step="0.01"
+                    defaultValue={product.price}
+                    required
+                    className="input-dark bg-white/5 border-white/10 w-full"
+                    placeholder="0.00"
                   />
                 </div>
                 <div>
                   <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-silver-dark mb-2">Vault Count</label>
-                  <input 
-                    name="stock" 
-                    type="number" 
-                    defaultValue={product.stock} 
-                    required 
-                    className="input-dark bg-white/5 border-white/10 w-full" 
-                    placeholder="0" 
+                  <input
+                    name="stock"
+                    type="number"
+                    defaultValue={product.stock}
+                    required
+                    className="input-dark bg-white/5 border-white/10 w-full"
+                    placeholder="0"
                   />
                 </div>
               </div>
@@ -264,23 +264,23 @@ const AddEditProductModal = ({ isOpen, editingProduct, showAddProduct, onClose, 
             <div className="space-y-6">
               <div>
                 <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-silver-dark mb-2">Collection Registry</label>
-                <select 
-                  name="category" 
-                  defaultValue={product.category_id} 
-                  required 
+                <select
+                  name="category"
+                  defaultValue={product.category_id}
+                  required
                   className="input-dark bg-white/5 border-white/10 w-full appearance-none"
                 >
                   {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
-              
+
               <div className="h-full flex flex-col">
                 <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-silver-dark mb-2">Curator Notes</label>
-                <textarea 
-                  name="description" 
-                  defaultValue={product.description} 
-                  rows="7" 
-                  className="input-dark bg-white/5 border-white/10 resize-none w-full flex-grow" 
+                <textarea
+                  name="description"
+                  defaultValue={product.description}
+                  rows="7"
+                  className="input-dark bg-white/5 border-white/10 resize-none w-full flex-grow"
                   placeholder="Detailed lineage and material composition..."
                 ></textarea>
               </div>
@@ -288,31 +288,31 @@ const AddEditProductModal = ({ isOpen, editingProduct, showAddProduct, onClose, 
           </div>
 
           <div>
-             <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-silver-dark mb-4">Visual Documentation</label>
-             <div className="grid grid-cols-4 gap-4">
-                {productImages.map((img, idx) => (
-                  <div key={img.id} className="aspect-square rounded-xl border border-white/10 bg-white/5 relative group overflow-hidden">
-                    <img src={img.url} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                    <button type="button" onClick={() => setProductImages(prev => prev.filter(p => p.id !== img.id))} className="absolute top-2 right-2 bg-black/60 p-1.5 rounded-full z-10">
-                      <XMarkIcon className="w-3 h-3 text-white" />
-                    </button>
-                  </div>
-                ))}
-                <label className="aspect-square rounded-xl border border-dashed border-white/20 hover:border-gradient-gold hover:bg-white/5 transition-all cursor-pointer flex flex-col items-center justify-center group">
-                   <PlusIcon className="w-6 h-6 text-silver-dark group-hover:text-gradient-gold transition-colors mb-2" />
-                   <span className="text-[8px] font-black text-silver-dark uppercase tracking-widest">Enlist Image</span>
-                   <input type="file" multiple className="hidden" onChange={(e) => {
-                     const files = Array.from(e.target.files);
-                     files.forEach(file => {
-                       const reader = new FileReader();
-                       reader.onloadend = () => {
-                         setProductImages(prev => [...prev, { id: Date.now() + Math.random(), url: reader.result, name: file.name }]);
-                       };
-                       reader.readAsDataURL(file);
-                     });
-                   }} />
-                </label>
-             </div>
+            <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-silver-dark mb-4">Visual Documentation</label>
+            <div className="grid grid-cols-4 gap-4">
+              {productImages.map((img, idx) => (
+                <div key={img.id} className="aspect-square rounded-xl border border-white/10 bg-white/5 relative group overflow-hidden">
+                  <img src={img.url} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                  <button type="button" onClick={() => setProductImages(prev => prev.filter(p => p.id !== img.id))} className="absolute top-2 right-2 bg-black/60 p-1.5 rounded-full z-10">
+                    <XMarkIcon className="w-3 h-3 text-white" />
+                  </button>
+                </div>
+              ))}
+              <label className="aspect-square rounded-xl border border-dashed border-white/20 hover:border-gradient-gold hover:bg-white/5 transition-all cursor-pointer flex flex-col items-center justify-center group">
+                <PlusIcon className="w-6 h-6 text-silver-dark group-hover:text-gradient-gold transition-colors mb-2" />
+                <span className="text-[8px] font-black text-silver-dark uppercase tracking-widest">Enlist Image</span>
+                <input type="file" multiple className="hidden" onChange={(e) => {
+                  const files = Array.from(e.target.files);
+                  files.forEach(file => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                      setProductImages(prev => [...prev, { id: Date.now() + Math.random(), url: reader.result, name: file.name }]);
+                    };
+                    reader.readAsDataURL(file);
+                  });
+                }} />
+              </label>
+            </div>
           </div>
 
           <div className="flex justify-between items-center pt-8 border-t border-white/10">
@@ -361,13 +361,13 @@ const AddEditCategoryModal = ({ isOpen, onClose, apiService, setCategories, edit
     try {
       if (editingCategory) {
         await apiService.updateCategory(editingCategory.id, formData);
-        window.dispatchEvent(new CustomEvent('showNotification', { 
-          detail: { message: 'Collection refinement completed.', type: 'success' } 
+        window.dispatchEvent(new CustomEvent('showNotification', {
+          detail: { message: 'Collection refinement completed.', type: 'success' }
         }));
       } else {
         await apiService.createCategory(formData);
-        window.dispatchEvent(new CustomEvent('showNotification', { 
-          detail: { message: 'New registry established successfully.', type: 'success' } 
+        window.dispatchEvent(new CustomEvent('showNotification', {
+          detail: { message: 'New registry established successfully.', type: 'success' }
         }));
       }
       const freshCats = await apiService.getCategories();
@@ -402,65 +402,65 @@ const AddEditCategoryModal = ({ isOpen, onClose, apiService, setCategories, edit
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-silver-dark mb-3">Collection Name</label>
-            <input 
+            <input
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              required 
-              className="input-dark w-full" 
-              placeholder="e.g. Victorian Opulence" 
+              required
+              className="input-dark w-full"
+              placeholder="e.g. Victorian Opulence"
             />
           </div>
 
           <div>
             <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-silver-dark mb-3">Curation Notes</label>
-            <textarea 
+            <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="input-dark w-full h-24 resize-none" 
-              placeholder="Describe the essence of this collection..." 
+              className="input-dark w-full h-24 resize-none"
+              placeholder="Describe the essence of this collection..."
             />
           </div>
 
           <div>
             <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-silver-dark mb-3">Visual Identity (Cover)</label>
             <div className="flex items-center gap-4">
-               {formData.image && (
-                 <img src={formData.image} alt="Preview" className="w-16 h-16 rounded-lg object-cover border border-white/10" />
-               )}
-               <input 
-                 type="file" 
-                 accept="image/*" 
-                 onChange={handleImageUpload}
-                 className="text-xs text-silver-dark file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-black file:bg-white/5 file:text-amber-400 hover:file:bg-white/10 cursor-pointer"
-               />
+              {formData.image && (
+                <img src={formData.image} alt="Preview" className="w-16 h-16 rounded-lg object-cover border border-white/10" />
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="text-xs text-silver-dark file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-black file:bg-white/5 file:text-amber-400 hover:file:bg-white/10 cursor-pointer"
+              />
             </div>
           </div>
 
           <div>
             <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-silver-dark mb-3">Vault Status</label>
             <div className="flex items-center gap-4">
-               <button 
-                 type="button"
-                 onClick={() => setFormData({ ...formData, status: formData.status === 'active' || !formData.status ? 'inactive' : 'active' })}
-                 className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${formData.status === 'active' || !formData.status ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30' : 'bg-white/5 text-silver-dark border border-white/10'}`}
-               >
-                 {formData.status === 'active' || !formData.status ? 'ACTIVE' : 'INACTIVE'}
-               </button>
-               <span className="text-[10px] text-silver-dark font-bold italic">
-                 {formData.status === 'active' || !formData.status ? 'Visible to customers' : 'Hidden from storefront'}
-               </span>
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, status: formData.status === 'active' || !formData.status ? 'inactive' : 'active' })}
+                className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${formData.status === 'active' || !formData.status ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30' : 'bg-white/5 text-silver-dark border border-white/10'}`}
+              >
+                {formData.status === 'active' || !formData.status ? 'ACTIVE' : 'INACTIVE'}
+              </button>
+              <span className="text-[10px] text-silver-dark font-bold italic">
+                {formData.status === 'active' || !formData.status ? 'Visible to customers' : 'Hidden from storefront'}
+              </span>
             </div>
           </div>
 
           <div className="flex justify-end gap-6 pt-4 border-t border-white/5">
-             <button type="button" onClick={onClose} className="text-[10px] font-black text-silver-dark uppercase tracking-widest hover:text-white transition-colors">Abort</button>
-             <button 
-               type="submit" 
-               disabled={isSubmitting}
-               className="btn-silver py-3 px-8 text-[10px]"
-             >
-               {isSubmitting ? 'Processing...' : (editingCategory ? 'Confirm Refinement' : 'Establish Registry')}
-             </button>
+            <button type="button" onClick={onClose} className="text-[10px] font-black text-silver-dark uppercase tracking-widest hover:text-white transition-colors">Abort</button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="btn-silver py-3 px-8 text-[10px]"
+            >
+              {isSubmitting ? 'Processing...' : (editingCategory ? 'Confirm Refinement' : 'Establish Registry')}
+            </button>
           </div>
         </form>
       </div>
@@ -572,7 +572,7 @@ const OrderDetailsModal = ({ order, isOpen, onClose, apiService, onUpdateOrderSt
                   const tracking = document.getElementById('tracking_number_input').value;
                   const carrier = document.getElementById('shipping_carrier_input').value;
                   await onUpdateOrderStatus(displayOrder.id, status, tracking, carrier);
-                  onClose(); 
+                  onClose();
                 }}
                 className="px-6 py-2 bg-amber-500/20 text-amber-200 hover:bg-amber-500 hover:text-green-950 text-[10px] font-black uppercase tracking-widest border border-amber-500/30 rounded-lg transition-all"
               >
@@ -582,8 +582,8 @@ const OrderDetailsModal = ({ order, isOpen, onClose, apiService, onUpdateOrderSt
             <div className="col-span-2">
               <label className="block text-sm font-medium text-amber-200/80 uppercase tracking-widest text-[10px] mb-1">Payment Method</label>
               <div className="px-3 py-2 bg-amber-500/5 border border-amber-500/10 rounded-lg text-amber-100 font-bold flex items-center gap-2">
-                 <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                 {(displayOrder.payment_method || 'CASH ON DELIVERY (COD)')?.toUpperCase()}
+                <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                {(displayOrder.payment_method || 'CASH ON DELIVERY (COD)')?.toUpperCase()}
               </div>
             </div>
 
@@ -615,8 +615,8 @@ const OrderDetailsModal = ({ order, isOpen, onClose, apiService, onUpdateOrderSt
                       {displayOrder.shipping_address.locality && <>{displayOrder.shipping_address.locality}, </>}
                       {displayOrder.shipping_address.city}, {displayOrder.shipping_address.state}
                       <div className="mt-2 pt-2 border-t border-white/5 flex items-center justify-between">
-                         <span className="text-[9px] font-black text-amber-500/40 uppercase tracking-widest">Pincode:</span>
-                         <span className="text-amber-200 font-black tracking-widest">{displayOrder.shipping_address.zip || displayOrder.shipping_address.pincode || displayOrder.shipping_address.zipCode}</span>
+                        <span className="text-[9px] font-black text-amber-500/40 uppercase tracking-widest">Pincode:</span>
+                        <span className="text-amber-200 font-black tracking-widest">{displayOrder.shipping_address.zip || displayOrder.shipping_address.pincode || displayOrder.shipping_address.zipCode}</span>
                       </div>
                     </div>
                   </div>
@@ -725,8 +725,8 @@ const CustomerProfileModal = ({ customer, isOpen, onClose, apiService }) => {
             <div className="space-y-3">
               {modalLoading ? (
                 <div className="flex flex-col items-center justify-center py-12 gap-4">
-                   <div className="w-8 h-8 border-2 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
-                   <p className="text-[10px] font-black text-amber-500/40 uppercase tracking-widest">Hydrating Legacy Registry...</p>
+                  <div className="w-8 h-8 border-2 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
+                  <p className="text-[10px] font-black text-amber-500/40 uppercase tracking-widest">Hydrating Legacy Registry...</p>
                 </div>
               ) : (
                 <>
@@ -744,13 +744,12 @@ const CustomerProfileModal = ({ customer, isOpen, onClose, apiService }) => {
                           <p className="text-xs font-bold text-amber-200/60">{new Date(order.created_at || order.createdAt).toLocaleDateString()}</p>
                         </div>
                         <div className="text-right">
-                           <p className="text-sm font-black text-amber-50 mb-1">₹{parseFloat(order.total_amount).toLocaleString()}</p>
-                           <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${
-                             order.status === 'delivered' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 
-                             order.status === 'cancelled' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                           }`}>
-                             {order.status}
-                           </span>
+                          <p className="text-sm font-black text-amber-50 mb-1">₹{parseFloat(order.total_amount).toLocaleString()}</p>
+                          <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${order.status === 'delivered' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                              order.status === 'cancelled' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                            }`}>
+                            {order.status}
+                          </span>
                         </div>
                       </div>
                     ))
@@ -767,7 +766,7 @@ const CustomerProfileModal = ({ customer, isOpen, onClose, apiService }) => {
 
 const Admin = () => {
   const { user, isSignedIn, isLoaded } = useAuth();
-  
+
   // High-priority vault telemetry for auth debugging
   useEffect(() => {
     if (isLoaded && isSignedIn && user) {
@@ -809,8 +808,47 @@ const Admin = () => {
   const [inquiries, setInquiries] = useState([]);
 
   const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-  const isAdmin = (isSignedIn && user?.publicMetadata?.role === 'admin') || isLocalhost;
-  
+
+  // Use backend API to check admin status (fetches live data from Clerk)
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      if (!isLoaded) return;
+
+      // Allow localhost without authentication
+      if (isLocalhost) {
+        setIsAdmin(true);
+        setLoading(false);
+        return;
+      }
+
+      if (!isSignedIn) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5001/api'}/users/check-admin`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('clerk-token')}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        const data = await response.json();
+        setIsAdmin(data.isAdmin || false);
+        console.log('Admin check result:', data);
+      } catch (error) {
+        console.error('Error checking admin status:', error);
+        setIsAdmin(false);
+      }
+
+      setLoading(false);
+    };
+
+    checkAdminStatus();
+  }, [isLoaded, isSignedIn, isLocalhost]);
+
   useEffect(() => {
     if (!isLoaded) return;
 
@@ -943,7 +981,7 @@ const Admin = () => {
             Your current identity lacks the <span className="text-amber-400">'admin'</span> claim. This vault is reserved for elite curators.
           </p>
           <div className="flex flex-col gap-4">
-            <button 
+            <button
               onClick={() => {
                 // We'll use the logout from useAuth
                 window.location.href = window.location.origin;
@@ -1024,15 +1062,15 @@ const Admin = () => {
     product.sku?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     product.category?.toLowerCase().includes(searchQuery.toLowerCase())
   );
-  
+
   const filteredOrders = orders.filter(order =>
     order.displayId?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     order.customer?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const filteredCustomers = customers.filter(customer =>
-     customer.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-     customer.email?.toLowerCase().includes(searchQuery.toLowerCase())
+    customer.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    customer.email?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   // Product Management Functions
@@ -1161,7 +1199,7 @@ const Admin = () => {
         tracking_number,
         shipping_carrier
       });
-      
+
       const displayStatus = status.charAt(0).toUpperCase() + status.slice(1);
       const updatedOrder = {
         ...orders.find(o => o.id === orderId),
@@ -1171,7 +1209,7 @@ const Admin = () => {
       };
 
       setOrders(orders.map(order => order.id === orderId ? updatedOrder : order));
-      
+
       if (showOrderDetails && showOrderDetails.id === orderId) {
         setShowOrderDetails(updatedOrder);
       }
@@ -1207,7 +1245,7 @@ const Admin = () => {
         alert('This collection still holds pieces. Redistribute or remove pieces before dissolving the realm.');
         return false;
       }
-      
+
       await apiService.deleteCategory(id);
       setCategories(categories.filter(c => c.id !== id));
       return true;
@@ -2017,7 +2055,7 @@ const Admin = () => {
                       {new Date(review.createdAt || review.created_at).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
-                       <button className="p-2 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100">
+                      <button className="p-2 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100">
                         <TrashIcon className="h-4 w-4" />
                       </button>
                     </td>
@@ -2317,7 +2355,7 @@ const Admin = () => {
       </div>
 
       {/* Standalone Modals */}
-      <AddEditProductModal 
+      <AddEditProductModal
         isOpen={showAddProduct || !!editingProduct}
         editingProduct={editingProduct}
         showAddProduct={showAddProduct}
@@ -2328,39 +2366,39 @@ const Admin = () => {
         products={products}
       />
 
-      <AddEditCategoryModal 
+      <AddEditCategoryModal
         isOpen={showAddCategory || !!editingCategory}
         editingCategory={editingCategory}
         onClose={() => { setShowAddCategory(false); setEditingCategory(null); }}
         apiService={apiService}
         setCategories={setCategories}
       />
-      
-      <OrderDetailsModal 
-        order={showOrderDetails} 
-        isOpen={!!showOrderDetails} 
-        onClose={() => setShowOrderDetails(null)} 
-        apiService={apiService} 
+
+      <OrderDetailsModal
+        order={showOrderDetails}
+        isOpen={!!showOrderDetails}
+        onClose={() => setShowOrderDetails(null)}
+        apiService={apiService}
         onUpdateOrderStatus={updateOrderStatus}
       />
 
-      <CustomerProfileModal 
-        customer={showCustomerProfile} 
-        isOpen={!!showCustomerProfile} 
-        onClose={() => setShowCustomerProfile(null)} 
-        apiService={apiService} 
+      <CustomerProfileModal
+        customer={showCustomerProfile}
+        isOpen={!!showCustomerProfile}
+        onClose={() => setShowCustomerProfile(null)}
+        apiService={apiService}
       />
-      <BulkStockUpdateModal 
-        isOpen={showBulkStockUpdate} 
-        onClose={() => setShowBulkStockUpdate(false)} 
-        products={products} 
-        updateBulkStock={updateProductStock} 
-        getStockStatus={getStockStatus} 
-        setZoomedImage={setZoomedImage} 
+      <BulkStockUpdateModal
+        isOpen={showBulkStockUpdate}
+        onClose={() => setShowBulkStockUpdate(false)}
+        products={products}
+        updateBulkStock={updateProductStock}
+        getStockStatus={getStockStatus}
+        setZoomedImage={setZoomedImage}
       />
-      <ImageZoomModal 
-        zoomedImage={zoomedImage} 
-        setZoomedImage={setZoomedImage} 
+      <ImageZoomModal
+        zoomedImage={zoomedImage}
+        setZoomedImage={setZoomedImage}
       />
     </div>
   );

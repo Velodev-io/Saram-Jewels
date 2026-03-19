@@ -6,6 +6,9 @@ const clerkAuth = require('../middleware/clerkAuth');
 // Get current user profile (requires authentication)
 router.get('/profile', clerkAuth, userController.getCurrentUser);
 
+// Check if current user is admin (uses live Clerk API)
+router.get('/check-admin', clerkAuth, userController.checkAdminStatus);
+
 // Update current user profile (requires authentication)
 router.put('/profile', clerkAuth, userController.updateCurrentUser);
 
