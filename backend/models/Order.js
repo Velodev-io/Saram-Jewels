@@ -9,7 +9,7 @@ const Order = sequelize.define('Order', {
   },
   user_id: {
     type: DataTypes.UUID,
-    allowNull: false,
+    allowNull: true,
     references: {
       model: 'users',
       key: 'id'
@@ -27,12 +27,28 @@ const Order = sequelize.define('Order', {
     type: DataTypes.STRING,
     allowNull: true
   },
+  payment_method: {
+    type: DataTypes.ENUM('razorpay', 'upi', 'card', 'cod'),
+    defaultValue: 'cod'
+  },
+  payment_status: {
+    type: DataTypes.ENUM('pending', 'completed', 'failed'),
+    defaultValue: 'pending'
+  },
   razorpay_order_id: {
     type: DataTypes.STRING,
     allowNull: true
   },
   shipping_address: {
     type: DataTypes.JSON,
+    allowNull: true
+  },
+  tracking_number: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  shipping_carrier: {
+    type: DataTypes.STRING,
     allowNull: true
   },
   created_at: {
@@ -47,7 +63,12 @@ const Order = sequelize.define('Order', {
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at',
-  tableName: 'orders'
+  tableName: 'orders',
+  indexes: [
+    { fields: ['user_id'] },
+    { fields: ['status'] },
+    { fields: ['created_at'] }
+  ]
 });
 
 module.exports = Order;

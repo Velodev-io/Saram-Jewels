@@ -19,6 +19,14 @@ const Product = sequelize.define('Product', {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: false
   },
+  original_price: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true
+  },
+  sku: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
   category_id: {
     type: DataTypes.UUID,
     allowNull: false,
@@ -28,8 +36,20 @@ const Product = sequelize.define('Product', {
     }
   },
   images: {
-    type: DataTypes.ARRAY(DataTypes.STRING),
+    type: DataTypes.JSON,
     defaultValue: []
+  },
+  specifications: {
+    type: DataTypes.JSON,
+    defaultValue: {}
+  },
+  rating: {
+    type: DataTypes.DECIMAL(3, 1),
+    defaultValue: 0
+  },
+  reviews_count: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0
   },
   stock: {
     type: DataTypes.INTEGER,
@@ -39,6 +59,10 @@ const Product = sequelize.define('Product', {
   is_featured: {
     type: DataTypes.BOOLEAN,
     defaultValue: false
+  },
+  status: {
+    type: DataTypes.ENUM('active', 'inactive'),
+    defaultValue: 'active'
   },
   created_at: {
     type: DataTypes.DATE,
@@ -52,7 +76,13 @@ const Product = sequelize.define('Product', {
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at',
-  tableName: 'products'
+  tableName: 'products',
+  indexes: [
+    { fields: ['sku'] },
+    { fields: ['category_id'] },
+    { fields: ['status'] },
+    { fields: ['is_featured'] }
+  ]
 });
 
 module.exports = Product;

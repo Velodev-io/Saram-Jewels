@@ -40,7 +40,12 @@ const Cart = sequelize.define('Cart', {
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at',
-  tableName: 'cart'
+  tableName: 'cart',
+  indexes: [
+    { fields: ['user_id'] },
+    { fields: ['product_id'] },
+    { fields: ['created_at'] }
+  ]
 });
 
 module.exports = Cart;

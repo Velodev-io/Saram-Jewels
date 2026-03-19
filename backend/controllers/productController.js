@@ -1,11 +1,12 @@
-const { Product, Category } = require('../models');
+const { Product, Category, OrderItem, Cart, Review } = require('../models');
 const { Op } = require('sequelize');
+const { processJewelryImage } = require('../utils/imageProcessor');
 
 // Get all products with pagination
 exports.getProducts = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
+    const limit = parseInt(req.query.limit) || 100;
     const offset = (page - 1) * limit;
     
     const { count, rows } = await Product.findAndCountAll({
@@ -81,15 +82,28 @@ exports.getProductsByCategory = async (req, res) => {
 // Create new product (admin only)
 exports.createProduct = async (req, res) => {
   try {
-    const { name, description, price, category_id, images, stock } = req.body;
+    const { name, description, price, originalPrice, category_id, stock, sku, is_featured, status, specifications, rating, reviews_count } = req.body;
+    let { images } = req.body;
+    
+    // Fix all images: center, square, and optimize
+    if (images && Array.isArray(images)) {
+      images = await Promise.all(images.map(img => processJewelryImage(img)));
+    }
     
     const product = await Product.create({
       name,
       description,
       price,
+      original_price: originalPrice,
       category_id,
       images,
-      stock
+      stock,
+      sku,
+      is_featured,
+      status: status || 'active',
+      specifications,
+      rating,
+      reviews_count
     });
     
     res.status(201).json(product);
@@ -102,21 +116,33 @@ exports.createProduct = async (req, res) => {
 // Update product (admin only)
 exports.updateProduct = async (req, res) => {
   try {
-    const { name, description, price, category_id, images, stock } = req.body;
+    const { name, description, price, originalPrice, category_id, stock, sku, is_featured, status, specifications, rating, reviews_count } = req.body;
+    let { images } = req.body;
     const product = await Product.findByPk(req.params.id);
     
     if (!product) {
       return res.status(404).json({ message: 'Product not found' });
     }
     
-    await product.update({
-      name,
-      description,
-      price,
-      category_id,
-      images,
-      stock
+    // Process images if changed
+    if (images && Array.isArray(images)) {
+      images = await Promise.all(images.map(img => processJewelryImage(img)));
+    }
+
+    const updateData = {};
+    const fields = [
+      'name', 'description', 'price', 'category_id', 'stock', 'sku', 
+      'is_featured', 'status', 'specifications', 'rating', 'reviews_count'
+    ];
+
+    fields.forEach(field => {
+      if (req.body[field] !== undefined) updateData[field] = req.body[field];
     });
+
+    if (originalPrice !== undefined) updateData.original_price = originalPrice;
+    if (images !== undefined) updateData.images = images;
+
+    await product.update(updateData);
     
     res.json(product);
   } catch (error) {
@@ -127,17 +153,48 @@ exports.updateProduct = async (req, res) => {
 
 // Delete product (admin only)
 exports.deleteProduct = async (req, res) => {
+  const sequelize = require('../config/database');
+  const transaction = await sequelize.transaction();
+
   try {
-    const product = await Product.findByPk(req.params.id);
-    
+    const product = await Product.findByPk(req.params.id, { transaction });
+
     if (!product) {
+      await transaction.rollback();
       return res.status(404).json({ message: 'Product not found' });
     }
-    
-    await product.destroy();
-    
+
+    // 1. Remove all cart entries referencing this product
+    await Cart.destroy({ where: { product_id: product.id }, transaction });
+
+    // 2. Remove all reviews for this product
+    await Review.destroy({ where: { product_id: product.id }, transaction });
+
+    // 3. Ensure the order_items.product_id column accepts NULL
+    //    (in case DB schema hasn't been migrated yet via alter:true)
+    try {
+      await sequelize.query(
+        `ALTER TABLE order_items ALTER COLUMN product_id DROP NOT NULL;`,
+        { transaction }
+      );
+    } catch (alterErr) {
+      // Already nullable or constraint doesn't exist — safe to continue
+    }
+
+    // 4. Nullify product_id in order items to preserve order history (price, quantity stay intact)
+    await OrderItem.update(
+      { product_id: null },
+      { where: { product_id: product.id }, transaction }
+    );
+
+    // 5. Now safely delete the product
+    await product.destroy({ transaction });
+
+    await transaction.commit();
+
     res.json({ message: 'Product deleted successfully' });
   } catch (error) {
+    await transaction.rollback();
     console.error('Error deleting product:', error);
     res.status(500).json({ message: 'Error deleting product', error: error.message });
   }
@@ -154,8 +211,8 @@ exports.searchProducts = async (req, res) => {
     const { count, rows } = await Product.findAndCountAll({
       where: {
         [Op.or]: [
-          { name: { [Op.iLike]: `%${query}%` } },
-          { description: { [Op.iLike]: `%${query}%` } }
+          { name: { [Op.like]: `%${query}%` } },
+          { description: { [Op.like]: `%${query}%` } }
         ]
       },
       limit,

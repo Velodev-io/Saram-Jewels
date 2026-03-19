@@ -12,13 +12,12 @@ const seedProducts = async () => {
     
     // Sample products data
     const productsData = [
-      // Rings
       {
         name: 'Classic Solitaire Ring',
         description: 'A timeless solitaire American Diamond ring that never goes out of style. Anti-tarnish and perfect for everyday wear.',
         price: 599,
         category_id: categoryMap['Rings'],
-        images: ['ring1.jpg', 'ring1-2.jpg', 'ring1-3.jpg'],
+        images: ['https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&q=80&w=800'],
         stock: 15,
         is_featured: true
       },
@@ -27,16 +26,8 @@ const seedProducts = async () => {
         description: 'Beautiful princess cut American Diamond with halo setting. Anti-tarnish and perfect for engagements.',
         price: 899,
         category_id: categoryMap['Rings'],
-        images: ['ring2.jpg', 'ring2-2.jpg'],
+        images: ['https://images.unsplash.com/photo-1544733422-251e539ca221?auto=format&fit=crop&q=80&w=800'],
         stock: 10
-      },
-      {
-        name: 'Elegant Band Ring',
-        description: 'Simple yet elegant American Diamond band ring. Anti-tarnish and perfect for everyday wear.',
-        price: 299,
-        category_id: categoryMap['Rings'],
-        images: ['ring3.jpg'],
-        stock: 20
       },
       
       // Necklaces
@@ -45,17 +36,9 @@ const seedProducts = async () => {
         description: 'Elegant American Diamond pendant necklace with a simple chain. Anti-tarnish and perfect for any occasion.',
         price: 1499,
         category_id: categoryMap['Necklace'],
-        images: ['necklace1.jpg', 'necklace1-2.jpg'],
+        images: ['https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&q=80&w=800'],
         stock: 8,
         is_featured: true
-      },
-      {
-        name: 'Statement Collar Necklace',
-        description: 'Bold and beautiful American Diamond collar necklace. Anti-tarnish and perfect for special occasions.',
-        price: 3499,
-        category_id: categoryMap['Necklace'],
-        images: ['necklace2.jpg'],
-        stock: 5
       },
       
       // Earrings
@@ -64,17 +47,9 @@ const seedProducts = async () => {
         description: 'Classic American Diamond stud earrings. Anti-tarnish and perfect for everyday wear.',
         price: 399,
         category_id: categoryMap['Earrings'],
-        images: ['earring1.jpg', 'earring1-2.jpg'],
+        images: ['https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?auto=format&fit=crop&q=80&w=800'],
         stock: 25,
         is_featured: true
-      },
-      {
-        name: 'Drop Earrings',
-        description: 'Elegant American Diamond drop earrings. Anti-tarnish and perfect for special occasions.',
-        price: 899,
-        category_id: categoryMap['Earrings'],
-        images: ['earring2.jpg'],
-        stock: 12
       },
       
       // Chains
@@ -83,17 +58,9 @@ const seedProducts = async () => {
         description: 'Classic American Diamond tennis chain. Anti-tarnish and perfect for any outfit.',
         price: 1299,
         category_id: categoryMap['Chains'],
-        images: ['chain1.jpg', 'chain1-2.jpg'],
+        images: ['https://images.unsplash.com/photo-1620960308432-3adad55030e4?auto=format&fit=crop&q=80&w=800'],
         stock: 7,
         is_featured: true
-      },
-      {
-        name: 'Cuban Link Chain',
-        description: 'Bold American Diamond Cuban link chain. Anti-tarnish and perfect for a statement look.',
-        price: 1699,
-        category_id: categoryMap['Chains'],
-        images: ['chain2.jpg'],
-        stock: 9
       },
       
       // Bracelets
@@ -102,17 +69,9 @@ const seedProducts = async () => {
         description: 'Classic American Diamond tennis bracelet. Anti-tarnish and perfect for any occasion.',
         price: 899,
         category_id: categoryMap['Bracelets'],
-        images: ['bracelet1.jpg', 'bracelet1-2.jpg'],
+        images: ['https://images.unsplash.com/photo-1611591437281-460bfbe1220a?auto=format&fit=crop&q=80&w=800'],
         stock: 10,
         is_featured: true
-      },
-      {
-        name: 'Bangle Bracelet',
-        description: 'Elegant American Diamond bangle bracelet. Anti-tarnish and perfect for special occasions.',
-        price: 699,
-        category_id: categoryMap['Bracelets'],
-        images: ['bracelet2.jpg'],
-        stock: 15
       },
       
       // Necklace Sets
@@ -121,17 +80,9 @@ const seedProducts = async () => {
         description: 'Complete American Diamond bridal necklace set including necklace, earrings, and maang tikka. Anti-tarnish and perfect for weddings.',
         price: 4999,
         category_id: categoryMap['Necklace Set'],
-        images: ['necklaceset1.jpg', 'necklaceset1-2.jpg'],
+        images: ['https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?auto=format&fit=crop&q=80&w=800'],
         stock: 3,
         is_featured: true
-      },
-      {
-        name: 'Party Necklace Set',
-        description: 'Beautiful American Diamond party necklace set including necklace and earrings. Anti-tarnish and perfect for parties.',
-        price: 2499,
-        category_id: categoryMap['Necklace Set'],
-        images: ['necklaceset2.jpg'],
-        stock: 7
       },
       
       // Gift Box Sets
@@ -140,17 +91,9 @@ const seedProducts = async () => {
         description: 'Special American Diamond Anniversary Gift Box including necklace and earrings. Anti-tarnish and perfect for anniversary gifts.',
         price: 1000,
         category_id: categoryMap['Gift Box Set'],
-        images: ['giftbox1.jpg', 'giftbox1-2.jpg'],
+        images: ['https://images.unsplash.com/photo-1549439602-43ebca2327af?auto=format&fit=crop&q=80&w=800'],
         stock: 20,
         is_featured: true
-      },
-      {
-        name: 'Birthday Gift Box',
-        description: 'Special American Diamond Birthday Gift Box including necklace and earrings. Anti-tarnish and perfect for birthday gifts.',
-        price: 1000,
-        category_id: categoryMap['Gift Box Set'],
-        images: ['giftbox2.jpg'],
-        stock: 20
       }
     ];
     
