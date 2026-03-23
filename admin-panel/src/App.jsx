@@ -125,6 +125,50 @@ const ImageZoomModal = ({ zoomedImage, setZoomedImage }) => {
 const AddEditProductModal = ({ isOpen, editingProduct, showAddProduct, onClose, categories, apiService, setProducts, products }) => {
   const [productImages, setProductImages] = useState([]);
   const [selectedImages, setSelectedImages] = useState([]);
+  const [productColors, setProductColors] = useState(editingProduct?.colors || []);
+  const [productSizes, setProductSizes] = useState(editingProduct?.sizes || []);
+  const [productVideoBase64, setProductVideoBase64] = useState(editingProduct?.video || '');
+  const [isUploadingVideo, setIsUploadingVideo] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const uploadToCloudinary = async (file, resourceType = 'video') => {
+    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+    const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+
+    if (!cloudName || !uploadPreset) {
+      alert("⚠️ Cloudinary is not configured! Please add VITE_CLOUDINARY_CLOUD_NAME and VITE_CLOUDINARY_UPLOAD_PRESET to your admin-panel/.env file.");
+      throw new Error("Missing Cloudinary config");
+    }
+
+    const data = new FormData();
+    data.append('file', file);
+    data.append('upload_preset', uploadPreset);
+
+    const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`, {
+      method: 'POST',
+      body: data,
+    });
+
+    const json = await response.json();
+    if (!response.ok) {
+      throw new Error(json.error?.message || 'Upload failed');
+    }
+    return json.secure_url;
+  };
+
+  const handleVideoSelect = async (file) => {
+    if (!file) return;
+    try {
+      setIsUploadingVideo(true);
+      const url = await uploadToCloudinary(file, 'video');
+      setProductVideoBase64(url);
+    } catch (e) {
+      console.error(e);
+      // Fallback or just show error
+    } finally {
+      setIsUploadingVideo(false);
+    }
+  };
 
   useEffect(() => {
     if (editingProduct) {
@@ -172,27 +216,35 @@ const AddEditProductModal = ({ isOpen, editingProduct, showAddProduct, onClose, 
             name: formData.get('name'),
             description: formData.get('description'),
             price: parseFloat(formData.get('price')),
-            category_id: parseInt(formData.get('category')),
+            originalPrice: parseFloat(formData.get('originalPrice') || formData.get('price')),
+            category_id: formData.get('category'),
             sku: formData.get('sku'),
             stock: parseInt(formData.get('stock') || 0),
+            colors: productColors.filter(c => c.name && c.name.trim() !== ''),
+            sizes: productSizes.filter(s => s && s.trim() !== ''),
             status: formData.get('status') || (parseInt(formData.get('stock')) > 0 ? 'active' : 'inactive'),
-            image: productImages[0]?.url || 'https://via.placeholder.com/300'
+            image: productImages[0]?.url || 'https://via.placeholder.com/300',
+            images: productImages.length > 0 ? productImages.map(img => img.url) : ['https://via.placeholder.com/300'],
+            video: productVideoBase64 || formData.get('video') || ''
           };
 
           try {
+            setIsSubmitting(true);
             if (editingProduct) {
               await apiService.updateProduct(editingProduct.id, productData);
               setProducts(products.map(p => p.id === editingProduct.id ? { ...p, ...productData, category: categories.find(c => c.id === productData.category_id)?.name } : p));
             } else {
-              const res = await apiService.addProduct(productData);
-              if (res.success) {
-                setProducts([{ ...res.data, category: categories.find(c => c.id === productData.category_id)?.name }, ...products]);
+              const res = await apiService.createProduct(productData);
+              if (res && res.id) {
+                setProducts([{ ...res, category: categories.find(c => c.id === productData.category_id)?.name }, ...products]);
               }
             }
             onClose();
           } catch (err) {
             console.error('Operation failed:', err);
             alert('The vault registry rejected the entry. Please check data alignment.');
+          } finally {
+            setIsSubmitting(false);
           }
         }} className="space-y-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -233,7 +285,18 @@ const AddEditProductModal = ({ isOpen, editingProduct, showAddProduct, onClose, 
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-silver-dark mb-2">Original Price (₹)</label>
+                  <input
+                    name="originalPrice"
+                    type="number"
+                    step="0.01"
+                    defaultValue={product.original_price || product.originalPrice || product.price}
+                    className="input-dark bg-white/5 border-white/10 w-full"
+                    placeholder="0.00"
+                  />
+                </div>
                 <div>
                   <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-silver-dark mb-2">Valuation (₹)</label>
                   <input
@@ -287,6 +350,112 @@ const AddEditProductModal = ({ isOpen, editingProduct, showAddProduct, onClose, 
             </div>
           </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-8 border-t border-white/10 mb-8 mt-4">
+            <div>
+              <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-silver-dark mb-4">Color Variations</label>
+              <div className="space-y-3">
+                {productColors.map((color, idx) => (
+                  <div key={idx} className="flex items-center gap-3">
+                    <input type="text" placeholder="Color Name" value={color.name} onChange={(e) => {
+                      const newColors = [...productColors];
+                      newColors[idx].name = e.target.value;
+                      setProductColors(newColors);
+                    }} className="input-dark bg-white/5 border-white/10 w-[40%] text-xs py-2" />
+                    <input type="color" value={color.hex || '#ffffff'} onChange={(e) => {
+                      const newColors = [...productColors];
+                      newColors[idx].hex = e.target.value;
+                      setProductColors(newColors);
+                    }} className="w-8 h-8 p-0 border-0 rounded cursor-pointer shrink-0" />
+                    <label className="flex items-center gap-2 text-xs text-silver-dark cursor-pointer shrink-0">
+                      <input type="checkbox" checked={color.outOfStock} onChange={(e) => {
+                        const newColors = [...productColors];
+                        newColors[idx].outOfStock = e.target.checked;
+                        setProductColors(newColors);
+                      }} className="accent-amber-500" />
+                      Out of Stock
+                    </label>
+                    <button type="button" onClick={() => setProductColors(productColors.filter((_, i) => i !== idx))} className="text-red-400 text-xs ml-auto hover:underline shrink-0">Remove</button>
+                  </div>
+                ))}
+                <button type="button" onClick={() => setProductColors([...productColors, { name: '', hex: '#ffffff', outOfStock: false }])} className="text-[10px] font-bold text-gradient-gold uppercase tracking-widest hover:opacity-80 transition-opacity">
+                  + Add Color
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-silver-dark mb-4">Size Variations</label>
+              <div className="space-y-3">
+                {productSizes.map((size, idx) => (
+                  <div key={idx} className="flex items-center gap-3">
+                    <input type="text" placeholder="Size (e.g. S, M, L)" value={size} onChange={(e) => {
+                      const newSizes = [...productSizes];
+                      newSizes[idx] = e.target.value;
+                      setProductSizes(newSizes);
+                    }} className="input-dark bg-white/5 border-white/10 w-2/3 text-xs py-2" />
+                    <button type="button" onClick={() => setProductSizes(productSizes.filter((_, i) => i !== idx))} className="text-red-400 text-xs ml-auto hover:underline">Remove</button>
+                  </div>
+                ))}
+                <button type="button" onClick={() => setProductSizes([...productSizes, ''])} className="text-[10px] font-bold text-gradient-gold uppercase tracking-widest hover:opacity-80 transition-opacity">
+                  + Add Size
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="mb-8">
+            <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-silver-dark mb-4">Video Showcase (MP4 Drop or URL)</label>
+            <div className="flex flex-col gap-4">
+              <input
+                name="video"
+                type="text"
+                value={productVideoBase64.startsWith('http') ? productVideoBase64 : ''}
+                onChange={(e) => setProductVideoBase64(e.target.value)}
+                placeholder="Or paste an MP4 link..."
+                className="input-dark bg-white/5 border-white/10 w-full"
+              />
+              
+              <label 
+                className="w-full h-32 rounded-xl border border-dashed border-white/20 hover:border-gradient-gold hover:bg-white/5 transition-all cursor-pointer flex flex-col items-center justify-center relative overflow-hidden group"
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const file = e.dataTransfer.files[0];
+                  if (file && file.type.startsWith('video/')) {
+                    handleVideoSelect(file);
+                  }
+                }}
+              >
+                {productVideoBase64 ? (
+                   <video src={productVideoBase64} className="absolute inset-0 w-full h-full object-cover opacity-50 pointer-events-none" />
+                ) : null}
+                <div className="relative z-10 flex flex-col items-center justify-center pointer-events-none">
+                   {isUploadingVideo ? (
+                     <div className="w-8 h-8 border-2 border-amber-500/20 border-t-amber-500 rounded-full animate-spin mb-2" />
+                   ) : (
+                     <PlusIcon className="w-6 h-6 text-silver-dark mb-2 group-hover:text-gradient-gold transition-colors" />
+                   )}
+                   <span className="text-[8px] font-black text-silver-dark uppercase tracking-widest text-center px-4">
+                     {isUploadingVideo ? "UPLOADING TO CLOUDINARY..." : "Drop MP4 Video File Here\nOR CLICK TO SELECT"}
+                   </span>
+                </div>
+                <input type="file" accept="video/mp4,video/webm" className="hidden" onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      handleVideoSelect(file);
+                    }
+                }} disabled={isUploadingVideo} />
+              </label>
+              
+              {productVideoBase64 && (
+                <button type="button" onClick={(e) => { e.preventDefault(); setProductVideoBase64(''); }} className="text-[10px] font-bold text-red-400 hover:text-red-300 uppercase tracking-widest text-left">
+                  Remove Attached Video
+                </button>
+              )}
+            </div>
+            <p className="text-[10px] text-silver-dark mt-2 font-medium">Providing a video auto-integrates it to the checkout gallery as a click-to-play element.</p>
+          </div>
+
           <div>
             <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-silver-dark mb-4">Visual Documentation</label>
             <div className="grid grid-cols-4 gap-4">
@@ -316,9 +485,16 @@ const AddEditProductModal = ({ isOpen, editingProduct, showAddProduct, onClose, 
           </div>
 
           <div className="flex justify-between items-center pt-8 border-t border-white/10">
-            <button type="button" onClick={onClose} className="text-[10px] font-black uppercase tracking-[0.2em] text-silver-dark hover:text-white transition-colors">Abort Changes</button>
-            <button type="submit" className="btn-gold py-4 px-12 text-xs font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all">
-              {editingProduct ? 'Submit' : 'Enlist Piece'}
+            <button type="button" onClick={onClose} className="text-[10px] font-black uppercase tracking-[0.2em] text-silver-dark hover:text-white transition-colors" disabled={isSubmitting}>Abort Changes</button>
+            <button type="submit" className="btn-gold py-4 px-12 text-xs font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <div className="w-4 h-4 rounded-full border-2 border-amber-900 border-t-amber-100 animate-spin"></div>
+                  {editingProduct ? 'Updating...' : 'Enlisting...'}
+                </>
+              ) : (
+                editingProduct ? 'Submit' : 'Enlist Piece'
+              )}
             </button>
           </div>
         </form>
@@ -642,6 +818,10 @@ const OrderDetailsModal = ({ order, isOpen, onClose, apiService, onUpdateOrderSt
                       <div key={idx} className="flex justify-between items-center text-sm group">
                         <div className="flex flex-col">
                           <span className="text-amber-100 font-medium group-hover:text-amber-400 transition-colors">{item.product?.name || 'Jewelry Piece'}</span>
+                          <div className="flex gap-2 mt-1 mb-1">
+                            {item.selected_color && <span className="px-1.5 py-0.5 rounded bg-white/10 text-[9px] text-amber-100/90 uppercase tracking-widest">Color: {item.selected_color}</span>}
+                            {item.selected_size && <span className="px-1.5 py-0.5 rounded bg-white/10 text-[9px] text-amber-100/90 uppercase tracking-widest">Size: {item.selected_size}</span>}
+                          </div>
                           <span className="text-[10px] text-amber-200/50 uppercase tracking-[0.1em]">Quantity: {item.quantity}</span>
                         </div>
                         <span className="text-amber-100 font-black">₹{parseFloat(item.price).toLocaleString()}</span>

@@ -91,17 +91,13 @@ const ProductCard = ({ product, viewMode, onAddToCart, onWishlistToggle, inCart,
                 <h3 className="text-[#ffffff] font-semibold mt-0.5 line-clamp-1">{product.name}</h3>
               </div>
               <button
-                onClick={() => onWishlistToggle(product)}
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); onWishlistToggle(product); }}
                 className="text-[#64748b] hover:text-red-400 transition-colors p-1 flex-shrink-0"
               >
                 {inWishlist ? <HeartSolid className="h-5 w-5 text-red-400" /> : <HeartIcon className="h-5 w-5" />}
               </button>
             </div>
             <p className="text-[#64748b] text-sm mt-2 line-clamp-2">{product.description}</p>
-            <div className="flex items-center gap-2 mt-3">
-              <RatingStars rating={product.rating} />
-              <span className="text-[#64748b] text-xs">({product.reviews})</span>
-            </div>
           </div>
           <div className="flex items-center justify-between mt-4 flex-wrap gap-3">
             <div className="flex items-center gap-3">
@@ -160,8 +156,8 @@ const ProductCard = ({ product, viewMode, onAddToCart, onWishlistToggle, inCart,
 
         {/* Wishlist */}
         <button
-          onClick={() => onWishlistToggle(product)}
-          className="absolute top-3 right-3 w-9 h-9 rounded-full glass flex items-center justify-center text-[#64748b] hover:text-red-400 transition-all duration-200 opacity-0 group-hover:opacity-100"
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onWishlistToggle(product); }}
+          className="absolute z-10 top-3 right-3 w-9 h-9 rounded-full glass flex items-center justify-center text-[#64748b] hover:text-red-400 transition-all duration-200 opacity-100 shadow-md"
         >
           {inWishlist ? <HeartSolid className="h-4.5 w-4.5 text-red-400" /> : <HeartIcon className="h-4.5 w-4.5" />}
         </button>
@@ -180,13 +176,9 @@ const ProductCard = ({ product, viewMode, onAddToCart, onWishlistToggle, inCart,
       {/* Product Info */}
       <div className="p-5">
         <span className="text-[#64748b] text-[10px] uppercase tracking-widest">{product.category}</span>
-        <h3 className="text-[#ffffff] font-medium mt-1 mb-2 line-clamp-1 group-hover:text-[#bae6fd] transition-colors duration-200">
+        <h3 className="text-[#ffffff] font-medium mt-1 mb-3 line-clamp-1 group-hover:text-[#bae6fd] transition-colors duration-200">
           {product.name}
         </h3>
-        <div className="flex items-center gap-2 mb-4">
-          <RatingStars rating={product.rating} />
-          <span className="text-[#64748b] text-xs">({product.reviews})</span>
-        </div>
         <div className="flex items-center justify-between">
           <div>
             <span className="text-[#e2e8f0] font-bold text-lg">₹{product.price}</span>
@@ -217,7 +209,7 @@ const ProductList = () => {
   const [sortBy, setSortBy] = useState('featured');
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-  const { addToCart, addToWishlist, isInCart, isInWishlist } = useCart();
+  const { addToCart, addToWishlist, removeFromWishlist, isInCart, isInWishlist } = useCart();
   const location = useLocation();
 
   const [products, setProducts] = useState([]);
@@ -339,6 +331,7 @@ const ProductList = () => {
 
   const handleWishlistToggle = (product) => {
     if (isInWishlist(product.id)) {
+      removeFromWishlist(product.id);
       notify(`${product.name} removed from wishlist`, 'info');
     } else {
       addToWishlist(product);

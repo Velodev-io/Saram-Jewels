@@ -54,7 +54,9 @@ const Cart = () => {
         items: cartItems.map(item => ({
           product_id: item.id,
           quantity: item.quantity,
-          price: item.price
+          price: item.price,
+          selected_color: item.selectedColor || null,
+          selected_size: item.selectedSize || null
         })),
         shipping_address: shippingAddress,
         payment_details: details,
@@ -188,11 +190,18 @@ const Cart = () => {
                 <div className="flex-1 min-w-0 flex flex-col relative z-10">
                   <div className="flex justify-between items-start">
                     <div className="min-w-0">
-                      <p className="text-[#64748b] text-[10px] uppercase tracking-[0.2em] font-bold mb-1">{item.category}</p>
+                      <p className="text-[#64748b] text-[10px] uppercase tracking-[0.2em] font-bold mb-1">
+                        {item.category}
+                        {(item.selectedColor || item.selectedSize) && (
+                          <span className="ml-2 text-[#e2e8f0] font-medium tracking-normal text-[11px] bg-white/5 px-2 py-0.5 rounded-full border border-white/10">
+                             {item.selectedSize} {item.selectedSize && item.selectedColor ? '·' : ''} {item.selectedColor}
+                          </span>
+                        )}
+                      </p>
                       <h3 className="font-display text-2xl font-bold text-[#ffffff] group-hover:text-silver-gradient transition-colors truncate">{item.name}</h3>
                     </div>
                     <button
-                      onClick={() => removeFromCart(item.id)}
+                      onClick={() => removeFromCart(item.id, item.selectedColor, item.selectedSize)}
                       className="w-10 h-10 border border-[rgba(226,232,240,0.1)] rounded-full flex items-center justify-center text-[#64748b] hover:text-red-400 hover:border-red-400/50 transition-all"
                     >
                       <TrashIcon className="h-4 w-4" />
@@ -203,7 +212,7 @@ const Cart = () => {
                     {/* Qty Controls */}
                     <div className="flex items-center bg-[#020617]/40 border border-[#334155]/60 rounded-xl overflow-hidden w-fit">
                       <button
-                        onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                        onClick={() => updateQuantity(item.id, item.quantity - 1, item.selectedColor, item.selectedSize)}
                         disabled={item.quantity <= 1}
                         className="w-10 h-10 flex items-center justify-center text-[#64748b] hover:text-[#e2e8f0] disabled:opacity-30 transition-colors"
                       >
@@ -213,7 +222,7 @@ const Cart = () => {
                         {item.quantity}
                       </span>
                       <button
-                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                        onClick={() => updateQuantity(item.id, item.quantity + 1, item.selectedColor, item.selectedSize)}
                         className="w-10 h-10 flex items-center justify-center text-[#64748b] hover:text-[#e2e8f0] transition-colors"
                       >
                         <PlusIcon className="h-3.5 w-3.5" />

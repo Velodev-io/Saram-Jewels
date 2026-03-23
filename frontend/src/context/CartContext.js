@@ -4,35 +4,45 @@ const CartContext = createContext();
 
 const cartReducer = (state, action) => {
   switch (action.type) {
-    case 'ADD_TO_CART':
-      const existingItem = state.items.find(item => item.id === action.payload.id);
+    case 'ADD_TO_CART': {
+      const { id, selectedColor, selectedSize } = action.payload;
+      const existingItem = state.items.find(item => 
+        item.id === id && (item.selectedColor || null) === (selectedColor || null) && (item.selectedSize || null) === (selectedSize || null)
+      );
       if (existingItem) {
         return {
           ...state,
           items: state.items.map(item =>
-            item.id === action.payload.id
-              ? { ...item, quantity: item.quantity + 1 }
+            (item.id === id && (item.selectedColor || null) === (selectedColor || null) && (item.selectedSize || null) === (selectedSize || null))
+              ? { ...item, quantity: item.quantity + action.payload.quantity }
               : item
           )
         };
       } else {
         return {
           ...state,
-          items: [...state.items, { ...action.payload, quantity: 1 }]
+          items: [...state.items, { ...action.payload }]
         };
       }
+    }
 
     case 'REMOVE_FROM_CART':
       return {
         ...state,
-        items: state.items.filter(item => item.id !== action.payload)
+        items: state.items.filter(item =>
+          !(item.id === action.payload.id &&
+            (item.selectedColor || null) === (action.payload.selectedColor || null) &&
+            (item.selectedSize || null) === (action.payload.selectedSize || null))
+        )
       };
 
     case 'UPDATE_QUANTITY':
       return {
         ...state,
         items: state.items.map(item =>
-          item.id === action.payload.id
+          item.id === action.payload.id &&
+          (item.selectedColor || null) === (action.payload.selectedColor || null) &&
+          (item.selectedSize || null) === (action.payload.selectedSize || null)
             ? { ...item, quantity: action.payload.quantity }
             : item
         )
@@ -88,12 +98,12 @@ export const CartProvider = ({ children }) => {
     dispatch({ type: 'ADD_TO_CART', payload: product });
   };
 
-  const removeFromCart = (productId) => {
-    dispatch({ type: 'REMOVE_FROM_CART', payload: productId });
+  const removeFromCart = (productId, selectedColor = null, selectedSize = null) => {
+    dispatch({ type: 'REMOVE_FROM_CART', payload: { id: productId, selectedColor, selectedSize } });
   };
 
-  const updateQuantity = (productId, quantity) => {
-    dispatch({ type: 'UPDATE_QUANTITY', payload: { id: productId, quantity } });
+  const updateQuantity = (productId, quantity, selectedColor = null, selectedSize = null) => {
+    dispatch({ type: 'UPDATE_QUANTITY', payload: { id: productId, quantity, selectedColor, selectedSize } });
   };
 
   const clearCart = () => {

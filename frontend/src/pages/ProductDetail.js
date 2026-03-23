@@ -8,7 +8,7 @@ import {
   ShieldCheckIcon,
   GiftIcon,
 } from '@heroicons/react/24/outline';
-import { StarIcon as StarSolid, HeartIcon as HeartSolid } from '@heroicons/react/24/solid';
+import { StarIcon as StarSolid, HeartIcon as HeartSolid, PlayIcon } from '@heroicons/react/24/solid';
 import { useCart } from '../context/CartContext';
 import apiService from '../services/api';
 
@@ -41,6 +41,8 @@ const ProductDetail = () => {
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
+  const [selectedColor, setSelectedColor] = useState('');
+  const [selectedSize, setSelectedSize] = useState('');
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [activeTab, setActiveTab] = useState('description');
@@ -50,25 +52,34 @@ const ProductDetail = () => {
 
   // Auto-slide functionality
   useEffect(() => {
-    if (!product || product.images.length <= 1 || !isAutoPlaying) return;
+    if (!product || product.images.length <= 1 || !isAutoPlaying || selectedImage === 'video') return;
 
     const interval = setInterval(() => {
-      setSelectedImage(prev => (prev + 1) % product.images.length);
+      setSelectedImage(prev => typeof prev === 'number' ? (prev + 1) % product.images.length : 0);
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [product, isAutoPlaying]);
+  }, [product, isAutoPlaying, selectedImage]);
 
   const handlePreviousImage = (e) => {
     e?.stopPropagation();
     setIsAutoPlaying(false);
-    setSelectedImage(prev => prev === 0 ? product.images.length - 1 : prev - 1);
+    if (!product) return;
+    setSelectedImage(prev => {
+      if (prev === 'video') return product.images.length - 1;
+      return prev === 0 ? (product.video ? 'video' : product.images.length - 1) : prev - 1;
+    });
   };
 
   const handleNextImage = (e) => {
     e?.stopPropagation();
     setIsAutoPlaying(false);
-    setSelectedImage(prev => (prev + 1) % product.images.length);
+    if (!product) return;
+    setSelectedImage(prev => {
+      if (prev === 'video') return 0;
+      if (prev === product.images.length - 1 && product.video) return 'video';
+      return (prev + 1) % product.images.length;
+    });
   };
 
   useEffect(() => {
@@ -95,11 +106,23 @@ const ProductDetail = () => {
             category: p.category?.name || 'Unassigned',
             images: images,
             specifications: p.specifications || {},
+            colors: Array.isArray(p.colors) ? p.colors : (typeof p.colors === 'string' ? JSON.parse(p.colors) : []),
+            sizes: Array.isArray(p.sizes) ? p.sizes : (typeof p.sizes === 'string' ? JSON.parse(p.sizes) : []),
+            video: p.video || null,
             rating: p.rating || 4.5,
             reviews: p.reviews || 20,
             inStock: (p.stock > 0),
+            stock: parseInt(p.stock) || 0,
             sku: p.sku || `SKU-${p.id?.substring(0, 5) || Math.floor(Math.random() * 10000)}`
           });
+
+          if (Array.isArray(p.colors) && p.colors.length > 0) {
+            const firstAvail = p.colors.find(c => !c.outOfStock);
+            setSelectedColor(firstAvail ? firstAvail.name : p.colors[0].name);
+          }
+          if (Array.isArray(p.sizes) && p.sizes.length > 0) {
+            setSelectedSize(p.sizes[0]);
+          }
 
           // Fetch related products (using category name or ID)
           const categoryFilter = p.category?.id || p.category_id;
@@ -152,12 +175,30 @@ const ProductDetail = () => {
   };
 
   const handleAddToCart = () => {
-    addToCart({ ...product, quantity });
+    if (product.sizes?.length > 0 && !selectedSize) {
+      alert('Please select a size before adding to cart.');
+      return;
+    }
+    if (product.colors?.length > 0 && !selectedColor) {
+      alert('Please select a color before adding to cart.');
+      return;
+    }
+
+    addToCart({ ...product, quantity, selectedColor, selectedSize });
     notify(`${quantity} × ${product.name} added to cart!`);
   };
 
   const handleBuyNow = () => {
-    addToCart({ ...product, quantity });
+    if (product.sizes?.length > 0 && !selectedSize) {
+      alert('Please select a size before buying.');
+      return;
+    }
+    if (product.colors?.length > 0 && !selectedColor) {
+      alert('Please select a color before buying.');
+      return;
+    }
+
+    addToCart({ ...product, quantity, selectedColor, selectedSize });
     navigate('/cart');
   };
 
@@ -210,11 +251,20 @@ const ProductDetail = () => {
               onMouseEnter={() => setIsAutoPlaying(false)}
               onMouseLeave={() => setIsAutoPlaying(true)}
             >
-              <img
-                src={product.images[selectedImage]}
-                alt={product.name}
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 animate-float"
-              />
+              {selectedImage === 'video' ? (
+                <video
+                  src={product.video}
+                  controls
+                  autoPlay
+                  className="w-full h-full object-cover outline-none"
+                />
+              ) : (
+                <img
+                  src={product.images[selectedImage]}
+                  alt={product.name}
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 animate-float"
+                />
+              )}
 
               {/* Sparkles on image */}
               <SparkleStar style={{ top: '15%', left: '20%', width: '20px', height: '20px' }} />
@@ -323,6 +373,20 @@ const ProductDetail = () => {
                   <img src={img} alt={`${product.name} ${i + 1}`} className="w-full h-full object-cover" />
                 </button>
               ))}
+              {product.video && (
+                <button
+                  onClick={() => setSelectedImage('video')}
+                  className={`relative aspect-square rounded-xl overflow-hidden border-2 transition-all duration-200 flex items-center justify-center ${selectedImage === 'video'
+                    ? 'border-[#e2e8f0] shadow-[0_0_12px_rgba(226,232,240,0.3)]'
+                    : 'border-[#334155] hover:border-[rgba(226,232,240,0.4)]'
+                    }`}
+                >
+                  <video src={product.video} className="absolute inset-0 w-full h-full object-cover opacity-40 pointer-events-none" />
+                  <div className="relative z-10 w-8 h-8 rounded-full bg-black/60 shadow-[0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center border border-white/20 backdrop-blur-md">
+                    <PlayIcon className="h-4 w-4 text-white ml-0.5" />
+                  </div>
+                </button>
+              )}
             </div>
           </div>
 
@@ -356,36 +420,66 @@ const ProductDetail = () => {
 
             <div className="divider-silver" />
 
-            {/* Tabs */}
-            <div>
-              <div className="flex gap-1 border-b border-[#334155] mb-5">
-                {['description', 'specifications'].map((tab) => (
-                  <button
-                    key={tab}
-                    onClick={() => setActiveTab(tab)}
-                    className={`px-4 py-2.5 text-sm font-medium capitalize transition-all duration-200 border-b-2 -mb-px ${activeTab === tab
-                      ? 'border-[#e2e8f0] text-[#e2e8f0]'
-                      : 'border-transparent text-[#64748b] hover:text-[#94a3b8]'
-                      }`}
-                  >
-                    {tab}
-                  </button>
-                ))}
-              </div>
-
-              {activeTab === 'description' ? (
-                <p className="text-[#94a3b8] leading-relaxed text-sm">{product.description}</p>
-              ) : (
-                <div className="space-y-3">
-                  {Object.entries(product.specifications).map(([k, v]) => (
-                    <div key={k} className="flex items-center justify-between py-2 border-b border-[#1e293b]">
-                      <span className="text-[#64748b] text-sm">{k}</span>
-                      <span className="text-[#94a3b8] text-sm font-medium">{v}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
+            {/* Description */}
+            <div className="mb-6">
+              <p className="text-[#94a3b8] leading-relaxed text-sm">{product.description}</p>
             </div>
+
+            {/* Variants */}
+            {(product.colors?.length > 0 || product.sizes?.length > 0) && (
+              <div className="space-y-6">
+                {product.colors?.length > 0 && (
+                  <div>
+                    <span className="text-xs text-[#94a3b8] font-semibold uppercase tracking-widest block mb-3">Color: {selectedColor}</span>
+                    <div className="flex flex-wrap gap-3">
+                      {product.colors.map(color => (
+                        <button
+                          key={color.name}
+                          onClick={() => !color.outOfStock && setSelectedColor(color.name)}
+                          disabled={color.outOfStock}
+                          className={`w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all ${
+                            color.outOfStock 
+                              ? 'opacity-30 cursor-not-allowed border-transparent relative overflow-hidden' 
+                              : selectedColor === color.name 
+                                ? 'border-[#e2e8f0]' 
+                                : 'border-transparent hover:border-[#64748b]'
+                          }`}
+                          style={{ backgroundColor: color.hex || '#ccc' }}
+                          title={color.outOfStock ? `${color.name} - Out of Stock` : color.name}
+                        >
+                          {color.outOfStock && (
+                            <div className="absolute inset-0 flex items-center justify-center -rotate-45 text-[#020617] font-bold bg-black/60 w-full h-full text-[8px] uppercase">
+                              Wait
+                            </div>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {product.sizes?.length > 0 && (
+                  <div>
+                    <span className="text-xs text-[#94a3b8] font-semibold uppercase tracking-widest block mb-3">Size: {selectedSize}</span>
+                    <div className="flex flex-wrap gap-3">
+                      {product.sizes.map(size => (
+                        <button
+                          key={size}
+                          onClick={() => setSelectedSize(size)}
+                          className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all ${
+                            selectedSize === size
+                              ? 'border-[#e2e8f0] text-[#e2e8f0] bg-white/5'
+                              : 'border-[#334155] text-[#94a3b8] hover:border-[#64748b] hover:text-[#e2e8f0]'
+                          }`}
+                        >
+                          {size}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Quantity */}
             <div className="flex items-center gap-4">
@@ -401,8 +495,19 @@ const ProductDetail = () => {
                   {quantity}
                 </span>
                 <button
-                  onClick={() => setQuantity(Math.min(10, quantity + 1))}
-                  className="px-4 py-2.5 text-[#64748b] hover:text-[#e2e8f0] hover:bg-[#1e293b] transition-colors"
+                  onClick={() => {
+                    const maxQty = product.stock > 0 ? product.stock : 10;
+                    if (quantity < maxQty) {
+                      setQuantity(quantity + 1);
+                    } else if (product.stock > 0) {
+                      notify(`Maximum vault allowance reached (${product.stock} available)`, 'info');
+                    }
+                  }}
+                  className={`px-4 py-2.5 transition-colors ${
+                    product.stock > 0 && quantity >= product.stock
+                      ? 'text-[#334155] cursor-not-allowed'
+                      : 'text-[#64748b] hover:text-[#e2e8f0] hover:bg-[#1e293b]'
+                  }`}
                 >
                   +
                 </button>
@@ -435,7 +540,7 @@ const ProductDetail = () => {
               {[
                 { Icon: TruckIcon, label: 'Free Delivery', sub: 'Above ₹999' },
                 { Icon: ShieldCheckIcon, label: 'Secure Pay', sub: 'SSL Encrypted' },
-                { Icon: GiftIcon, label: 'Gift Wrap', sub: 'Free on all orders' },
+                { Icon: GiftIcon, label: 'Gift Wrap', sub: '₹500 extra' },
               ].map(({ Icon, label, sub }) => (
                 <div key={label} className="flex flex-col items-center text-center gap-1.5">
                   <Icon className="h-5 w-5 text-[#e2e8f0]" />
@@ -459,7 +564,7 @@ const ProductDetail = () => {
                 Customer Stories
               </h2>
             </div>
-            <button className="btn-outline text-sm">Write a Review</button>
+            <button onClick={() => alert('The review system is temporarily down for maintenance. Please check back later.')} className="btn-outline text-sm">Write a Review</button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {reviews.map((r) => (
