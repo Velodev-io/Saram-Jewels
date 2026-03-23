@@ -27,11 +27,6 @@ app.use(compression());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// Init Cache
-const cache = apicache.middleware;
-const onlyStatus200 = (req, res) => res.statusCode === 200;
-const cacheSuccess = cache('5 minutes', onlyStatus200);
-
 // Import routes
 const productRoutes = require('./routes/productRoutes');
 const userRoutes = require('./routes/userRoutes');
@@ -42,15 +37,28 @@ const categoryRoutes = require('./routes/categoryRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
 const addressRoutes = require('./routes/addressRoutes');
 
-// Use routes
-app.use('/api/products', productRoutes);
+// Init Cache middleware (Only for GET requests)
+const cacheSuccess = (duration) => {
+  const middleware = apicache.middleware(duration, (req, res) => res.statusCode === 200);
+  return (req, res, next) => {
+    if (req.method === 'GET') {
+      return middleware(req, res, next);
+    }
+    next();
+  };
+};
+
+// Use routes with caching for read-heavy operations
+app.use('/api/products', cacheSuccess('15 minutes'), productRoutes);
+app.use('/api/categories', cacheSuccess('30 minutes'), categoryRoutes);
+app.use('/api/reviews', cacheSuccess('10 minutes'), reviewRoutes);
+app.use('/api/addresses', addressRoutes); // No cache here as it's user-specific
+
+// Other routes (no cache)
 app.use('/api/users', userRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/contact', contactRoutes);
-app.use('/api/categories', categoryRoutes);
-app.use('/api/reviews', reviewRoutes);
-app.use('/api/addresses', addressRoutes);
 
 // Root route
 app.get('/', (req, res) => {

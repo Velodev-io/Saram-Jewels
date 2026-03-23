@@ -1539,7 +1539,7 @@ const Admin = () => {
             </div>
             
             <div className="glass p-4 rounded-2xl border border-[rgba(226,232,240,0.1)]">
-               <p className="text-xs font-semibold text-[#f8fafc] mb-1 truncate">{user?.firstName || 'Suryansh'}</p>
+               <p className="text-xs font-semibold text-[#f8fafc] mb-1 truncate">{user?.firstName || 'Curation Team'}</p>
                <p className="text-[10px] text-[#64748b] font-medium uppercase tracking-widest">{user?.email}</p>
             </div>
           </div>

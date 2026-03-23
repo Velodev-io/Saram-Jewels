@@ -26,10 +26,87 @@ api.interceptors.request.use(
 
 // API service class
 class ApiService {
+  constructor() {
+    this.cache = new Map();
+    this.cacheTTL = 600000; // 10 minutes default
+    this.persistedKeyPrefix = 'saram_cache_';
+  }
+
+  getCache(key) {
+    // Check L1 (In-Memory)
+    const item = this.cache.get(key);
+    if (item && Date.now() < item.expiry) {
+      return item.data;
+    }
+
+    // Check L2 (LocalStorage)
+    try {
+      const persisted = localStorage.getItem(this.persistedKeyPrefix + key);
+      if (persisted) {
+        const { data, expiry } = JSON.parse(persisted);
+        if (Date.now() < expiry) {
+          // Hydrate L1
+          this.cache.set(key, { data, expiry });
+          return data;
+        } else {
+          localStorage.removeItem(this.persistedKeyPrefix + key);
+        }
+      }
+    } catch (e) {
+      console.warn('L2 Cache hydration failed for', key);
+    }
+    
+    return null;
+  }
+
+  setCache(key, data, customTTL = null) {
+    const ttl = customTTL || this.cacheTTL;
+    const cacheItem = {
+      data,
+      expiry: Date.now() + ttl
+    };
+
+    // Update L1
+    this.cache.set(key, cacheItem);
+
+    // Update L2 (Public/Read-heavy data only for safety)
+    if (key.startsWith('products') || key.startsWith('categories') || key.startsWith('reviews')) {
+      try {
+        localStorage.setItem(this.persistedKeyPrefix + key, JSON.stringify(cacheItem));
+      } catch (e) {
+        console.warn('L2 Cache storage failed for', key);
+      }
+    }
+  }
+
+  invalidateCache(key) {
+    if (key === 'all') {
+      this.cache.clear();
+      // Clear L2
+      Object.keys(localStorage).forEach(k => {
+        if (k.startsWith(this.persistedKeyPrefix)) localStorage.removeItem(k);
+      });
+      return;
+    }
+    
+    // Support partial matching
+    for (let cacheKey of this.cache.keys()) {
+      if (cacheKey.startsWith(key) || (key === 'products' && cacheKey.startsWith('product_'))) {
+        this.cache.delete(cacheKey);
+        localStorage.removeItem(this.persistedKeyPrefix + cacheKey);
+      }
+    }
+  }
+
   // Product APIs
   async getProducts(params = {}) {
+    const cacheKey = `products_${JSON.stringify(params)}`;
+    const cached = this.getCache(cacheKey);
+    if (cached) return cached;
+
     try {
       const response = await api.get('/products', { params });
+      this.setCache(cacheKey, response.data);
       return response.data;
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -49,8 +126,13 @@ class ApiService {
   }
 
   async getProductById(id) {
+    const cacheKey = `product_${id}`;
+    const cached = this.getCache(cacheKey);
+    if (cached) return cached;
+
     try {
       const response = await api.get(`/products/${id}`);
+      this.setCache(cacheKey, response.data);
       return response.data;
     } catch (error) {
       console.error('Error fetching product by ID:', error);
@@ -60,8 +142,13 @@ class ApiService {
 
   // Category APIs
   async getCategories() {
+    const cacheKey = 'categories';
+    const cached = this.getCache(cacheKey);
+    if (cached) return cached;
+
     try {
       const response = await api.get('/categories');
+      this.setCache(cacheKey, response.data);
       return response.data;
     } catch (error) {
       console.error('Error fetching categories:', error);
@@ -102,8 +189,13 @@ class ApiService {
 
   // Address APIs
   async getAddresses() {
+    const cacheKey = 'addresses';
+    const cached = this.getCache(cacheKey);
+    if (cached) return cached;
+
     try {
       const response = await api.get('/addresses');
+      this.setCache(cacheKey, response.data);
       return response.data;
     } catch (error) {
       console.error('Error fetching addresses:', error);
@@ -114,6 +206,7 @@ class ApiService {
   async addAddress(addressData) {
     try {
       const response = await api.post('/addresses', addressData);
+      this.invalidateCache('addresses');
       return response.data;
     } catch (error) {
       console.error('Error adding address:', error);
@@ -124,6 +217,7 @@ class ApiService {
   async updateAddress(id, addressData) {
     try {
       const response = await api.put(`/addresses/${id}`, addressData);
+      this.invalidateCache('addresses');
       return response.data;
     } catch (error) {
       console.error('Error updating address:', error);
@@ -134,6 +228,7 @@ class ApiService {
   async deleteAddress(id) {
     try {
       const response = await api.delete(`/addresses/${id}`);
+      this.invalidateCache('addresses');
       return response.data;
     } catch (error) {
       console.error('Error deleting address:', error);
@@ -144,6 +239,7 @@ class ApiService {
   async setDefaultAddress(id) {
     try {
       const response = await api.patch(`/addresses/${id}/set-default`);
+      this.invalidateCache('addresses');
       return response.data;
     } catch (error) {
       console.error('Error setting default address:', error);
@@ -165,6 +261,9 @@ class ApiService {
   async createOrder(orderData) {
     try {
       const response = await api.post('/orders/create', orderData);
+      // Invalidate products and categories cache so that stock changes are reflected
+      this.invalidateCache('products');
+      this.invalidateCache('categories');
       return response.data;
     } catch (error) {
       console.error('Error creating order:', error);
@@ -314,10 +413,23 @@ class ApiService {
   }
 
   // Review APIs
-  async getReviews(productId = null) {
+  async getReviews(params = {}) {
+    // Standardize cache key based on params
+    const cacheKey = `reviews_${JSON.stringify(params)}`;
+    const cached = this.getCache(cacheKey);
+    if (cached) return cached;
+
     try {
-      const params = productId ? { product_id: productId } : {};
-      const response = await api.get('/reviews', { params });
+      // params can be a single ID (legacy) or an object { productId, general }
+      const query = typeof params === 'object' ? {
+        product_id: params.productId,
+        general: params.general ? 'true' : undefined
+      } : { product_id: params };
+      
+      const response = await api.get('/reviews', { 
+        params: { ...query, _t: Date.now() } 
+      });
+      this.setCache(cacheKey, response.data);
       return response.data;
     } catch (error) {
       console.error('Error fetching reviews:', error);
@@ -328,6 +440,9 @@ class ApiService {
   async createReview(reviewData) {
     try {
       const response = await api.post('/reviews', reviewData);
+      // Synchronize stories and ledger
+      this.invalidateCache('reviews');
+      this.invalidateCache('products');
       return response.data;
     } catch (error) {
       console.error('Error creating review:', error);
@@ -338,6 +453,9 @@ class ApiService {
   async deleteReview(id) {
     try {
       const response = await api.delete(`/reviews/${id}`);
+      // Synchronize manifest after removal
+      this.invalidateCache('reviews');
+      this.invalidateCache('products');
       return response.data;
     } catch (error) {
       console.error('Error deleting review:', error);

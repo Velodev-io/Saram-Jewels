@@ -48,6 +48,62 @@ const cartReducer = (state, action) => {
         )
       };
 
+    case 'UPDATE_VARIANT': {
+      const { id, oldColor, oldSize, newColor, newSize } = action.payload;
+      
+      // 1. Find the item we are changing
+      const itemToUpdate = state.items.find(item => 
+        item.id === id && 
+        (item.selectedColor || null) === (oldColor || null) && 
+        (item.selectedSize || null) === (oldSize || null)
+      );
+      
+      if (!itemToUpdate) return state;
+
+      // 2. Calculate new price from variants
+      const matchingVariant = itemToUpdate.variants?.find(v => 
+        (v.color === (newColor || itemToUpdate.selectedColor) || !v.color) && 
+        (v.size === (newSize || itemToUpdate.selectedSize) || !v.size)
+      );
+      const newPrice = matchingVariant?.price || itemToUpdate.price;
+
+      // 3. Check if target variant already exists in cart (Merge Logic)
+      const existingTargetItem = state.items.find(item => 
+        item.id === id && 
+        (item.selectedColor || null) === (newColor || itemToUpdate.selectedColor || null) && 
+        (item.selectedSize || null) === (newSize || itemToUpdate.selectedSize || null) &&
+        item !== itemToUpdate
+      );
+
+      if (existingTargetItem) {
+        // Remove old item, add its quantity to existing target
+        return {
+          ...state,
+          items: state.items
+            .filter(item => item !== itemToUpdate)
+            .map(item => item === existingTargetItem 
+              ? { ...item, quantity: item.quantity + itemToUpdate.quantity } 
+              : item
+            )
+        };
+      }
+
+      // 4. Otherwise just update the current item
+      return {
+        ...state,
+        items: state.items.map(item => 
+          item === itemToUpdate 
+            ? { 
+                ...item, 
+                selectedColor: newColor || item.selectedColor, 
+                selectedSize: newSize || item.selectedSize,
+                price: newPrice 
+              } 
+            : item
+        )
+      };
+    }
+
     case 'CLEAR_CART':
       return {
         ...state,
@@ -106,6 +162,10 @@ export const CartProvider = ({ children }) => {
     dispatch({ type: 'UPDATE_QUANTITY', payload: { id: productId, quantity, selectedColor, selectedSize } });
   };
 
+  const updateVariant = (id, oldColor, oldSize, newColor, newSize) => {
+    dispatch({ type: 'UPDATE_VARIANT', payload: { id, oldColor, oldSize, newColor, newSize } });
+  };
+
   const clearCart = () => {
     dispatch({ type: 'CLEAR_CART' });
   };
@@ -144,6 +204,7 @@ export const CartProvider = ({ children }) => {
     addToCart,
     removeFromCart,
     updateQuantity,
+    updateVariant,
     clearCart,
     addToWishlist,
     removeFromWishlist,

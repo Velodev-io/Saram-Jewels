@@ -23,8 +23,12 @@ exports.getProducts = async (req, res) => {
       currentPage: page
     });
   } catch (error) {
-    console.error('Error fetching products:', error);
-    res.status(500).json({ message: 'Error fetching products', error: error.message });
+    console.error('CRITICAL: Error fetching products from NeonDB:', error);
+    res.status(500).json({ 
+      message: 'Error fetching products', 
+      error: error.message,
+      detail: error.original?.message || error.stack
+    });
   }
 };
 
@@ -105,6 +109,7 @@ exports.createProduct = async (req, res) => {
       video,
       colors,
       sizes,
+      variants,
       rating,
       reviews_count
     });
@@ -119,7 +124,7 @@ exports.createProduct = async (req, res) => {
 // Update product (admin only)
 exports.updateProduct = async (req, res) => {
   try {
-    const { name, description, price, originalPrice, category_id, stock, sku, is_featured, status, specifications, rating, reviews_count, colors, sizes, video } = req.body;
+    const { name, description, price, originalPrice, category_id, stock, sku, is_featured, status, specifications, rating, reviews_count, colors, sizes, variants, video } = req.body;
     let { images } = req.body;
     const product = await Product.findByPk(req.params.id);
     
@@ -148,6 +153,7 @@ exports.updateProduct = async (req, res) => {
     // Always set JSON array fields explicitly to force the DB write
     updateData.colors = Array.isArray(colors) ? colors : [];
     updateData.sizes = Array.isArray(sizes) ? sizes : [];
+    updateData.variants = Array.isArray(variants) ? variants : [];
 
     // Use static update which always issues a real SQL UPDATE
     await Product.update(updateData, { where: { id: req.params.id } });

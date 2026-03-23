@@ -129,11 +129,23 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const redactName = (name) => {
+    if (!name) return name;
+    // Redact specific identity
+    if (name.toLowerCase().includes('suryansh')) return 'Patron';
+    return name;
+  };
+
   const logout = async () => {
     try {
       if (clerkAvailable && signOut) {
         await signOut();
       }
+      localStorage.removeItem('clerk-token');
+      // Clear Saram Caches on logout for security
+      Object.keys(localStorage).forEach(k => {
+        if (k.startsWith('saram_cache_')) localStorage.removeItem(k);
+      });
       window.location.href = '/';
     } catch (error) {
       console.error('Logout error:', error);
@@ -141,8 +153,16 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const processedUser = user ? {
+    ...user,
+    firstName: redactName(user.firstName),
+    lastName: redactName(user.lastName),
+    fullName: redactName(user.fullName),
+    username: redactName(user.username)
+  } : null;
+
   const value = {
-    user: user || null,
+    user: processedUser,
     isSignedIn,
     isLoaded: !isLoading,
     clerkAvailable,

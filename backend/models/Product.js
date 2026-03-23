@@ -55,6 +55,10 @@ const Product = sequelize.define('Product', {
     type: DataTypes.JSON,
     defaultValue: [] // Array of 'Small', 'Medium' etc
   },
+  variants: {
+    type: DataTypes.JSON,
+    defaultValue: [] // Array of { color: 'Red', size: 'S', price: 100, stock: 5, sku: '...', imageUrl: '...' }
+  },
   rating: {
     type: DataTypes.DECIMAL(3, 1),
     defaultValue: 0

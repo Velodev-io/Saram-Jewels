@@ -15,6 +15,7 @@ import PaymentGateway from '../components/payment/PaymentGateway';
 import PaymentSuccess from '../components/payment/PaymentSuccess';
 import AddressSelector from '../components/address/AddressSelector';
 import apiService from '../services/api';
+import LoadingButton from '../components/common/LoadingButton';
 
 /* ── Sparkle Component ── */
 const SparkleStar = ({ style }) => (
@@ -24,9 +25,10 @@ const SparkleStar = ({ style }) => (
 );
 
 const Cart = () => {
-  const { cart: cartItems, removeFromCart, updateQuantity, getCartTotal, clearCart } = useCart();
+  const { cart: cartItems, removeFromCart, updateQuantity, updateVariant, getCartTotal, clearCart } = useCart();
   const { user } = useAuth();
   const [checkoutStep, setCheckoutStep] = useState('cart'); // 'cart', 'address', 'payment'
+  const [isNavigating, setIsNavigating] = useState(false);
   const [shippingAddress, setShippingAddress] = useState(null);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [paymentDetails, setPaymentDetails] = useState(null);
@@ -105,6 +107,7 @@ const Cart = () => {
           orderId={`order_${Date.now()}`}
           onPaymentSuccess={handlePaymentSuccess}
           onPaymentFailure={(err) => { alert(`Payment failed: ${err}`); setCheckoutStep('cart'); }}
+          onBack={() => setCheckoutStep('address')}
         />
       </div>
     );
@@ -190,14 +193,34 @@ const Cart = () => {
                 <div className="flex-1 min-w-0 flex flex-col relative z-10">
                   <div className="flex justify-between items-start">
                     <div className="min-w-0">
-                      <p className="text-[#64748b] text-[10px] uppercase tracking-[0.2em] font-bold mb-1">
-                        {item.category}
-                        {(item.selectedColor || item.selectedSize) && (
-                          <span className="ml-2 text-[#e2e8f0] font-medium tracking-normal text-[11px] bg-white/5 px-2 py-0.5 rounded-full border border-white/10">
-                             {item.selectedSize} {item.selectedSize && item.selectedColor ? '·' : ''} {item.selectedColor}
+                      <p className="text-[#64748b] text-[10px] uppercase tracking-[0.2em] font-bold mb-2">{item.category}</p>
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
+                        {item.selectedColor && (
+                          <span className="text-[#e2e8f0] font-medium text-[11px] bg-white/5 px-2 py-0.5 rounded-full border border-white/10 uppercase">
+                             Color: {item.selectedColor}
                           </span>
                         )}
-                      </p>
+                        {item.sizes?.length > 0 && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-[#64748b] text-[10px] font-bold uppercase tracking-widest">Size:</span>
+                            <select 
+                              value={item.selectedSize || ''} 
+                              onChange={(e) => updateVariant(item.id, item.selectedColor, item.selectedSize, item.selectedColor, e.target.value)}
+                              className="bg-[#0f172a] border border-white/10 text-[#e2e8f0] text-[11px] rounded px-1.5 py-0.5 outline-none focus:border-gold-light/50"
+                            >
+                              <option value="" disabled>Choose size</option>
+                              {item.sizes.map(s => (
+                                <option key={s} value={s}>{s}</option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                        {item.selectedSize && !item.sizes?.length && (
+                          <span className="text-[#e2e8f0] font-medium text-[11px] bg-white/5 px-2 py-0.5 rounded-full border border-white/10 uppercase">
+                             Size: {item.selectedSize}
+                          </span>
+                        )}
+                      </div>
                       <h3 className="font-display text-2xl font-bold text-[#ffffff] group-hover:text-silver-gradient transition-colors truncate">{item.name}</h3>
                     </div>
                     <button
@@ -222,7 +245,20 @@ const Cart = () => {
                         {item.quantity}
                       </span>
                       <button
-                        onClick={() => updateQuantity(item.id, item.quantity + 1, item.selectedColor, item.selectedSize)}
+                        onClick={() => {
+                          const activeVariant = item.variants?.find(v => 
+                            (v.color === item.selectedColor || !v.color) && 
+                            (v.size === item.selectedSize || !v.size)
+                          );
+                          const currentStock = activeVariant?.stock ?? item.stock;
+                          if (item.quantity < currentStock) {
+                            updateQuantity(item.id, item.quantity + 1, item.selectedColor, item.selectedSize);
+                          } else {
+                            window.dispatchEvent(new CustomEvent('showNotification', { 
+                              detail: { message: `Only ${currentStock} pieces available in the vault.`, type: 'info' } 
+                            }));
+                          }
+                        }}
                         className="w-10 h-10 flex items-center justify-center text-[#64748b] hover:text-[#e2e8f0] transition-colors"
                       >
                         <PlusIcon className="h-3.5 w-3.5" />
@@ -300,16 +336,21 @@ const Cart = () => {
               </div>
 
               <div className="space-y-4">
-                <button
-                  onClick={() => setCheckoutStep('address')}
-                  className="btn-silver w-full py-5 rounded-2xl relative overflow-hidden group/btn"
+                <LoadingButton
+                  onClick={() => {
+                    setIsNavigating(true);
+                    setTimeout(() => {
+                      setCheckoutStep('address');
+                      setIsNavigating(false);
+                    }, 800);
+                  }}
+                  loading={isNavigating}
+                  className="w-full py-5 rounded-2xl"
+                  variant="silver"
                 >
-                  <span className="relative z-10 flex items-center justify-center gap-3">
-                    Proceed to Payment
-                    <ArrowRightIcon className="h-4 w-4 transform group-hover/btn:translate-x-1 transition-transform" />
-                  </span>
-                  <SparkleStar style={{ top: '20%', right: '10%', width: '15px', height: '15px' }} />
-                </button>
+                  Proceed to Payment
+                  <ArrowRightIcon className="h-4 w-4" />
+                </LoadingButton>
 
                 <div className="glass bg-[#e2e8f0]/3 border border-[rgba(226,232,240,0.08)] rounded-2xl p-4 flex items-center gap-4">
                    <div className="w-10 h-10 rounded-xl bg-[#020617] flex items-center justify-center border border-[rgba(226,232,240,0.1)]">

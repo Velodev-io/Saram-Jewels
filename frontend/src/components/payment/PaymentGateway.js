@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { 
   CreditCardIcon, 
   BanknotesIcon, 
@@ -17,10 +16,9 @@ const SparkleStar = ({ style }) => (
   </svg>
 );
 
-const PaymentGateway = ({ amount, orderId, onPaymentSuccess, onPaymentFailure }) => {
+const PaymentGateway = ({ amount, orderId, onPaymentSuccess, onPaymentFailure, onBack }) => {
   const [paymentMethod, setPaymentMethod] = useState('cod');
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
 
   const paymentMethods = [
     {
@@ -133,7 +131,7 @@ const PaymentGateway = ({ amount, orderId, onPaymentSuccess, onPaymentFailure })
         </button>
 
         <button
-          onClick={() => navigate('/cart')}
+          onClick={onBack}
           className="btn-outline w-full py-3 rounded-2xl text-[10px] font-bold uppercase tracking-widest text-[#64748b] hover:text-[#f8fafc]"
         >
           Return to Selection

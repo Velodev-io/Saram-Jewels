@@ -12,6 +12,7 @@ import {
   EnvelopeIcon,
   ClockIcon,
 } from '@heroicons/react/24/outline';
+import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
 
 /* ── Small reusable diamond separator ── */
 const SilverDivider = () => (
@@ -92,11 +93,18 @@ const ReviewModal = ({ isOpen, onClose, onSubmit }) => {
             <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Rating</label>
             <div className="flex gap-2">
               {[1, 2, 3, 4, 5].map((s) => (
-                <StarIcon 
-                  key={s} 
+                <button
+                  key={s}
+                  type="button"
                   onClick={() => setRating(s)}
-                  className={`h-8 w-8 cursor-pointer transition-all ${s <= rating ? 'text-[#e2e8f0] fill-[#e2e8f0]' : 'text-slate-700 hover:text-slate-500'}`} 
-                />
+                  className="p-1 transition-transform hover:scale-110"
+                >
+                  {s <= rating ? (
+                    <StarSolid className="h-8 w-8 text-[#e2e8f0]" />
+                  ) : (
+                    <StarIcon className="h-8 w-8 text-slate-700" />
+                  )}
+                </button>
               ))}
             </div>
           </div>
@@ -132,7 +140,7 @@ const Home = () => {
     const fetchHomeData = async () => {
       try {
         const [reviewsResult, categoriesResult] = await Promise.allSettled([
-          apiService.getReviews(),
+          apiService.getReviews({ general: true }),
           apiService.getCategories()
         ]);
 
@@ -165,7 +173,7 @@ const Home = () => {
     try {
       await apiService.createReview(data);
       setIsReviewOpen(false);
-      const updated = await apiService.getReviews();
+      const updated = await apiService.getReviews({ general: true });
       setReviews(updated);
       window.dispatchEvent(new CustomEvent('showNotification', { 
         detail: { message: 'Thank you for your review!', type: 'success' } 

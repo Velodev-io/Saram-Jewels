@@ -2,6 +2,7 @@ const { Order, OrderItem, Cart, Product, User } = require('../models');
 const Razorpay = require('razorpay');
 const sequelize = require('../config/database');
 const { sendOrderConfirmationEmail, sendAdminOrderNotification } = require('../services/emailService');
+const apicache = require('apicache');
 
 // Initialize Razorpay only if credentials are provided
 let razorpay = null;
@@ -78,23 +79,50 @@ exports.createOrder = async (req, res) => {
     // 4. Create Order Items
     console.log('💍 Mapping Pieces to Order...');
     await Promise.all(processedItems.map(async (item) => {
-      if (!item.product_id) throw new Error('Product ID missing for item');
+      const prodId = item.product_id || item.id;
+      if (!prodId) throw new Error('Product ID missing for item');
       
-      // Check if product exists in this database
-      const product = await Product.findByPk(item.product_id, { transaction });
+      const product = await Product.findByPk(prodId, { transaction });
       if (!product) {
-        const err = new Error('MIGRATION_ERROR');
-        err.detail = `Item ID ${item.product_id} is from our old system and no longer exists.`;
+        const err = new Error('PRODUCT_NOT_FOUND');
+        err.detail = `Item ID ${prodId} no longer exists.`;
         throw err;
       }
 
+      // Stock Management Engine
+      const itemQty = parseInt(item.quantity || 1);
+      
+      // 1. Degrade Global Stock
+      let newGlobalStock = Math.max(0, (parseInt(product.stock) || 0) - itemQty);
+      
+      // 2. Degrade Specific Variant Stock (if applicable)
+      let newVariants = [...(product.variants || [])];
+      let variantMatched = false;
+      if (newVariants.length > 0) {
+        newVariants = newVariants.map(v => {
+          const colorMatch = (!v.color && !item.selected_color) || (v.color === item.selected_color);
+          const sizeMatch = (!v.size && !item.selected_size) || (v.size === item.selected_size);
+          if (colorMatch && sizeMatch) {
+            variantMatched = true;
+            return { ...v, stock: Math.max(0, (parseInt(v.stock) || 0) - itemQty) };
+          }
+          return v;
+        });
+      }
+
+      // Update the product record in the vault
+      await product.update({
+        stock: newGlobalStock,
+        variants: newVariants
+      }, { transaction });
+
       return OrderItem.create({
         order_id: order.id,
-        product_id: item.product_id,
-        quantity: item.quantity || 1,
+        product_id: prodId,
+        quantity: itemQty,
         price: item.price || 0,
-        selected_color: item.selected_color || null,
-        selected_size: item.selected_size || null
+        selected_color: item.selected_color || item.color || null,
+        selected_size: item.selected_size || item.size || null
       }, { transaction });
     }));
     
@@ -105,6 +133,10 @@ exports.createOrder = async (req, res) => {
     
     await transaction.commit();
     console.log('🎯 Order Successfully Finalized:', order.id);
+
+    // Synchronize Real-time Stock: Clear cache to reflect accurate inventory
+    apicache.clear();
+    console.log('⚡ API Cache Purged to synchronize inventory manifests.');
 
     // 6. Response
     res.status(201).json({
@@ -117,18 +149,30 @@ exports.createOrder = async (req, res) => {
     // 7. Background Notifications
     const customerEmail = user_email || (internal_user_id ? (await User.findByPk(internal_user_id))?.email : null);
     if (customerEmail) {
+      // Fetch full order with items for email details
+      const fullOrder = await Order.findByPk(order.id, {
+        include: [{ 
+          model: OrderItem, 
+          as: 'items',
+          include: [{ model: Product, as: 'product' }]
+        }]
+      });
+
       sendOrderConfirmationEmail({
         order_id: order.id,
         total_amount: total_amount,
-        payment_method: 'cod'
+        items: fullOrder.items,
+        shipping_address: shipping_address
       }, customerEmail).catch(e => console.error('Confirmation email failed:', e));
 
       sendAdminOrderNotification({
         order_id: order.id,
         total_amount: total_amount,
-        customer_name: first_name ? `${first_name} ${last_name}` : 'Valued Customer',
+        customer_name: first_name ? `${first_name} ${last_name}` : (shipping_address?.first_name ? `${shipping_address.first_name} ${shipping_address.last_name || ''}` : 'Valued Customer'),
         customer_email: customerEmail,
-        payment_method: 'cod'
+        payment_method: payment_method,
+        items: fullOrder.items,
+        shipping_address: shipping_address
       }).catch(e => console.error('Admin notification failed:', e));
     }
 
@@ -264,15 +308,33 @@ exports.getAllOrders = async (req, res) => {
     const orders = await Order.findAll({
       attributes: ['id', 'user_id', 'total_amount', 'status', 'payment_method', 'payment_status', 'shipping_address', 'tracking_number', 'shipping_carrier', 'created_at'],
       include: [
-        { model: User, as: 'user', attributes: ['first_name', 'last_name', 'email'] }
+        { model: User, as: 'user', attributes: ['first_name', 'last_name', 'email'] },
+        { 
+          model: OrderItem, 
+          as: 'items',
+          include: [{ model: Product, as: 'product', attributes: ['name', 'sku', 'images'] }]
+        }
       ],
       order: [['created_at', 'DESC']]
     });
     
-    const ordersWithNumber = orders.map(o => ({
-      ...o.toJSON(),
-      order_number: o.id.slice(-8).toUpperCase()
-    }));
+    const ordersWithNumber = orders.map(o => {
+      const orderData = o.toJSON();
+      
+      // Fallback for curator name (Guest orders)
+      const firstName = orderData.user?.first_name || orderData.shipping_address?.first_name || 'Guest';
+      const lastName = orderData.user?.last_name || orderData.shipping_address?.last_name || '';
+      const email = orderData.user?.email || orderData.shipping_address?.email || 'Walk-in';
+
+      return {
+        ...orderData,
+        order_number: o.id.slice(-8).toUpperCase(),
+        curator: {
+          name: `${firstName} ${lastName}`.trim(),
+          email: email
+        }
+      };
+    });
     
     res.json(ordersWithNumber);
   } catch (error) {

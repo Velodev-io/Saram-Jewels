@@ -7,10 +7,14 @@ import {
   TruckIcon,
   ShieldCheckIcon,
   GiftIcon,
+  StarIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid, HeartIcon as HeartSolid, PlayIcon } from '@heroicons/react/24/solid';
 import { useCart } from '../context/CartContext';
 import apiService from '../services/api';
+import PremiumLoader from '../components/common/PremiumLoader';
+import LoadingButton from '../components/common/LoadingButton';
 
 /* ── Sparkle Component ── */
 const SparkleStar = ({ style }) => (
@@ -47,8 +51,11 @@ const ProductDetail = () => {
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [activeTab, setActiveTab] = useState('description');
   const [relatedProducts, setRelatedProducts] = useState([]);
-  const [reviews] = useState([]);
+  const [reviews, setReviews] = useState([]);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const [isBuyingNow, setIsBuyingNow] = useState(false);
 
   // Auto-slide functionality
   useEffect(() => {
@@ -108,6 +115,7 @@ const ProductDetail = () => {
             specifications: p.specifications || {},
             colors: Array.isArray(p.colors) ? p.colors : (typeof p.colors === 'string' ? JSON.parse(p.colors) : []),
             sizes: Array.isArray(p.sizes) ? p.sizes : (typeof p.sizes === 'string' ? JSON.parse(p.sizes) : []),
+            variants: Array.isArray(p.variants) ? p.variants : (typeof p.variants === 'string' ? JSON.parse(p.variants) : []),
             video: p.video || null,
             rating: p.rating || 4.5,
             reviews: p.reviews || 20,
@@ -116,15 +124,16 @@ const ProductDetail = () => {
             sku: p.sku || `SKU-${p.id?.substring(0, 5) || Math.floor(Math.random() * 10000)}`
           });
 
-          if (Array.isArray(p.colors) && p.colors.length > 0) {
-            const firstAvail = p.colors.find(c => !c.outOfStock);
-            setSelectedColor(firstAvail ? firstAvail.name : p.colors[0].name);
-          }
-          if (Array.isArray(p.sizes) && p.sizes.length > 0) {
-            setSelectedSize(p.sizes[0]);
-          }
+          // Do not auto-select color/size anymore to force user choice
+          // if (Array.isArray(p.colors) && p.colors.length > 0) {
+          //   const firstAvail = p.colors.find(c => !c.outOfStock);
+          //   setSelectedColor(firstAvail ? firstAvail.name : p.colors[0].name);
+          // }
+          // if (Array.isArray(p.sizes) && p.sizes.length > 0) {
+          //   setSelectedSize(p.sizes[0]);
+          // }
 
-          // Fetch related products (using category name or ID)
+          // Fetch Related Products
           const categoryFilter = p.category?.id || p.category_id;
           if (categoryFilter) {
             const relRes = await apiService.getProducts({
@@ -132,7 +141,6 @@ const ProductDetail = () => {
               limit: 8
             });
             const relData = relRes?.products || relRes || [];
-            // ONLY SHOW ACTIVE RELATED PRODUCTS
             setRelatedProducts(relData
               .filter(rp => rp.id !== p.id && rp.status === 'active')
               .slice(0, 4)
@@ -143,6 +151,23 @@ const ProductDetail = () => {
                 image: Array.isArray(rp.images) ? rp.images[0] : rp.images || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=800&h=800&fit=crop',
                 rating: rp.rating || 4.5
               })));
+          }
+
+          // Fetch Reviews
+          try {
+            const revRes = await apiService.getReviews(id);
+            if (Array.isArray(revRes)) {
+              setReviews(revRes.map(r => ({
+                id: r.id,
+                user: r.user_name || 'Anonymous',
+                rating: r.rating || 5,
+                comment: r.comment || '',
+                date: new Date(r.created_at).toLocaleDateString(),
+                city: 'Verified Patron'
+              })));
+            }
+          } catch (err) {
+            console.error("Error fetching reviews:", err);
           }
         } else {
           setProduct(null);
@@ -163,7 +188,7 @@ const ProductDetail = () => {
   }, [product, isInWishlist]);
 
   if (loading) {
-    return <div className="min-h-screen bg-[#020617] text-[#e2e8f0] flex justify-center items-center pt-28 pb-16">Loading product...</div>;
+    return <PremiumLoader fullScreen message="Reveling the piece..." />;
   }
 
   if (!product) {
@@ -176,30 +201,52 @@ const ProductDetail = () => {
 
   const handleAddToCart = () => {
     if (product.sizes?.length > 0 && !selectedSize) {
-      alert('Please select a size before adding to cart.');
+      alert('🔒 Please select your size to continue.');
       return;
     }
     if (product.colors?.length > 0 && !selectedColor) {
-      alert('Please select a color before adding to cart.');
+      alert('🎨 Please select a color to continue.');
       return;
     }
 
-    addToCart({ ...product, quantity, selectedColor, selectedSize });
-    notify(`${quantity} × ${product.name} added to cart!`);
+    const activeVariant = product.variants?.find(v => 
+      (v.color === selectedColor || !v.color) && 
+      (v.size === selectedSize || !v.size)
+    );
+    const finalPrice = activeVariant?.price || product.price;
+    const finalSku = activeVariant?.sku || product.sku;
+
+    setIsAddingToCart(true);
+    setTimeout(() => {
+      addToCart({ ...product, price: finalPrice, sku: finalSku, quantity, selectedColor, selectedSize });
+      setIsAddingToCart(false);
+      notify(`${quantity} × ${product.name} added to cart!`);
+    }, 600);
   };
 
   const handleBuyNow = () => {
     if (product.sizes?.length > 0 && !selectedSize) {
-      alert('Please select a size before buying.');
+      alert('🔒 Please select your size to continue.');
       return;
     }
     if (product.colors?.length > 0 && !selectedColor) {
-      alert('Please select a color before buying.');
+      alert('🎨 Please select a color to continue.');
       return;
     }
 
-    addToCart({ ...product, quantity, selectedColor, selectedSize });
-    navigate('/cart');
+    const activeVariant = product.variants?.find(v => 
+      (v.color === selectedColor || !v.color) && 
+      (v.size === selectedSize || !v.size)
+    );
+    const finalPrice = activeVariant?.price || product.price;
+    const finalSku = activeVariant?.sku || product.sku;
+
+    setIsBuyingNow(true);
+    setTimeout(() => {
+      addToCart({ ...product, price: finalPrice, sku: finalSku, quantity, selectedColor, selectedSize });
+      setIsBuyingNow(false);
+      navigate('/cart');
+    }, 600);
   };
 
   const handleWishlistToggle = () => {
@@ -408,14 +455,30 @@ const ProductDetail = () => {
               {/* Price */}
               <div className="flex items-baseline gap-4 mb-2">
                 <span className="font-display text-4xl font-bold text-[#e2e8f0]">
-                  ₹{product.price}
+                  ₹{product.variants?.find(v => 
+                    (v.color === selectedColor || !v.color) && 
+                    (v.size === selectedSize || !v.size)
+                  )?.price || product.price}
                 </span>
                 <span className="text-[#64748b] text-xl line-through">
                   ₹{product.originalPrice}
                 </span>
                 <span className="badge-silver">{product.discount}% OFF</span>
               </div>
-              <p className="text-green-400 text-sm mb-6">✓ In Stock — Ships within 2–4 business days</p>
+              <p className={`text-sm mb-6 ${
+                (product.variants?.find(v => 
+                  (v.color === selectedColor || !v.color) && 
+                  (v.size === selectedSize || !v.size)
+                )?.stock ?? product.stock) > 0 ? 'text-green-400' : 'text-red-400'
+              }`}>
+                {(product.variants?.find(v => 
+                  (v.color === selectedColor || !v.color) && 
+                  (v.size === selectedSize || !v.size)
+                )?.stock ?? product.stock) > 0 
+                  ? `✓ In Stock — Ships within 2–4 business days`
+                  : '✕ Out of stock'
+                }
+              </p>
             </div>
 
             <div className="divider-silver" />
@@ -435,7 +498,35 @@ const ProductDetail = () => {
                       {product.colors.map(color => (
                         <button
                           key={color.name}
-                          onClick={() => !color.outOfStock && setSelectedColor(color.name)}
+                          onClick={() => {
+                            if (color.outOfStock) return;
+                            setSelectedColor(color.name);
+                            setIsAutoPlaying(false);
+                            
+                            // 1. Try mapping by precise index (Preferred)
+                            if (color.imageIndex !== undefined && product.images[color.imageIndex]) {
+                              setSelectedImage(color.imageIndex);
+                              return;
+                            }
+                            
+                            // 2. Try mapping by variant index
+                            const activeVariant = product.variants?.find(v => 
+                              (v.color === color.name) && 
+                              (!selectedSize || v.size === selectedSize || !v.size)
+                            );
+                            if (activeVariant?.imageIndex !== undefined && product.images[activeVariant.imageIndex]) {
+                              setSelectedImage(activeVariant.imageIndex);
+                              return;
+                            }
+
+                            // 3. Fallback: Robust Image Matching by URL
+                            if (color.imageUrl) {
+                              const matchIndex = product.images.findIndex(img => img === color.imageUrl);
+                              if (matchIndex !== -1) {
+                                setSelectedImage(matchIndex);
+                              }
+                            }
+                          }}
                           disabled={color.outOfStock}
                           className={`w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all ${
                             color.outOfStock 
@@ -461,15 +552,15 @@ const ProductDetail = () => {
                 {product.sizes?.length > 0 && (
                   <div>
                     <span className="text-xs text-[#94a3b8] font-semibold uppercase tracking-widest block mb-3">Size: {selectedSize}</span>
-                    <div className="flex flex-wrap gap-3">
+                    <div className="flex flex-wrap gap-4">
                       {product.sizes.map(size => (
                         <button
                           key={size}
                           onClick={() => setSelectedSize(size)}
-                          className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all ${
+                          className={`w-12 h-12 rounded-full border-2 flex items-center justify-center text-xs font-black tracking-tight transition-all duration-300 ${
                             selectedSize === size
-                              ? 'border-[#e2e8f0] text-[#e2e8f0] bg-white/5'
-                              : 'border-[#334155] text-[#94a3b8] hover:border-[#64748b] hover:text-[#e2e8f0]'
+                              ? 'border-[#e2e8f0] text-gold-light bg-white/10 shadow-[0_0_15px_rgba(226,232,240,0.2)] scale-110'
+                              : 'border-[#334155] text-silver-dark hover:border-gold-light/40 hover:text-white'
                           }`}
                         >
                           {size}
@@ -517,22 +608,38 @@ const ProductDetail = () => {
 
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-3">
-              <button
-                onClick={handleAddToCart}
-                className={`flex-1 flex items-center justify-center gap-2 py-4 px-6 rounded-xl font-semibold text-sm transition-all duration-200 ${isInCart(product.id)
-                  ? 'bg-[rgba(226,232,240,0.15)] border border-[#e2e8f0] text-[#e2e8f0]'
-                  : 'btn-silver'
-                  }`}
-              >
-                <ShoppingCartIcon className="h-5 w-5" />
-                {isInCart(product.id) ? 'Added to Cart ✓' : 'Add to Cart'}
-              </button>
-              <button
-                onClick={handleBuyNow}
-                className="flex-1 btn-outline py-4 px-6"
-              >
-                Buy Now
-              </button>
+              {(() => {
+                const activeVariant = product.variants?.find(v => 
+                  (v.color === selectedColor || !v.color) && 
+                  (v.size === selectedSize || !v.size)
+                );
+                const currentStock = activeVariant?.stock ?? product.stock;
+                const outOfStock = currentStock <= 0;
+
+                return (
+                  <>
+                    <LoadingButton
+                      onClick={handleAddToCart}
+                      loading={isAddingToCart}
+                      disabled={outOfStock}
+                      className="flex-1 py-4 px-6 rounded-xl font-semibold text-sm"
+                      variant={isInCart(product.id) ? "outline" : "silver"}
+                    >
+                      <ShoppingCartIcon className="h-5 w-5" />
+                      {outOfStock ? 'Out of Stock' : isInCart(product.id) ? 'Added to Cart ✓' : 'Add to Cart'}
+                    </LoadingButton>
+                    <LoadingButton
+                      onClick={handleBuyNow}
+                      loading={isBuyingNow}
+                      disabled={outOfStock}
+                      className="flex-1 py-4 px-6 rounded-xl font-semibold text-sm"
+                      variant="outline"
+                    >
+                      Buy Now
+                    </LoadingButton>
+                  </>
+                );
+              })()}
             </div>
 
             {/* Trust indicators */}
@@ -564,7 +671,12 @@ const ProductDetail = () => {
                 Customer Stories
               </h2>
             </div>
-            <button onClick={() => alert('The review system is temporarily down for maintenance. Please check back later.')} className="btn-outline text-sm">Write a Review</button>
+            <button 
+              onClick={() => setIsReviewModalOpen(true)} 
+              className="btn-outline text-sm"
+            >
+              Write a Review
+            </button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {reviews.map((r) => (
@@ -623,7 +735,121 @@ const ProductDetail = () => {
             ))}
           </div>
         </div>
+      </div>
 
+      <ReviewModal 
+        isOpen={isReviewModalOpen} 
+        onClose={() => setIsReviewModalOpen(false)}
+        productId={id}
+        onSubmit={async (reviewData) => {
+          const res = await apiService.createReview(reviewData);
+          if (res) {
+            // OPTIMISTIC UPDATE: Hydrate new review into the list locally
+            setReviews(prev => [{
+              id: res.id,
+              user: res.user_name,
+              rating: res.rating,
+              comment: res.comment,
+              date: 'Just now',
+              city: 'Verified Patron'
+            }, ...prev]);
+          }
+        }}
+      />
+    </div>
+  );
+};
+
+/* ── Review Modal Component ── */
+const ReviewModal = ({ isOpen, onClose, onSubmit, productId }) => {
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState('');
+  const [userName, setUserName] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      await onSubmit({ product_id: productId, rating, comment, user_name: userName });
+      onClose();
+      // Reset form
+      setRating(0);
+      setComment('');
+      setUserName('');
+    } catch (error) {
+      console.error("Review submission error:", error);
+      alert('Failed to submit review. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#020617]/90 backdrop-blur-md animate-premium-in">
+      <div className="glass-card w-full max-w-lg p-8 border-[rgba(226,232,240,0.1)] shadow-2xl">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="font-display text-2xl font-bold text-[#e2e8f0]">Write a Review</h2>
+          <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full transition-colors">
+            <XMarkIcon className="h-6 w-6 text-[#64748b]" />
+          </button>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="space-y-6 text-left">
+          <div>
+            <label className="block text-xs font-bold text-[#64748b] uppercase tracking-widest mb-2">Your Identity</label>
+            <input 
+              type="text" 
+              required
+              value={userName}
+              onChange={(e) => setUserName(e.target.value)}
+              placeholder="e.g. Mahira K."
+              className="glass-input w-full px-4 py-3"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-xs font-bold text-[#64748b] uppercase tracking-widest mb-2">Rating</label>
+            <div className="flex gap-2">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  type="button"
+                  onClick={() => setRating(star)}
+                  className="p-1 transition-transform hover:scale-110"
+                >
+                  {star <= rating ? (
+                    <StarSolid className="h-8 w-8 text-[#e2e8f0]" />
+                  ) : (
+                    <StarIcon className="h-8 w-8 text-[#1e293b]" />
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+          
+          <div>
+            <label className="block text-xs font-bold text-[#64748b] uppercase tracking-widest mb-2">Your Story</label>
+            <textarea 
+              required
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              placeholder="Tell us about your experience with this piece..."
+              className="glass-input w-full px-4 py-3 min-h-[120px] resize-none"
+            />
+          </div>
+          
+          <LoadingButton
+            type="submit"
+            loading={isSubmitting}
+            className="w-full py-4 text-xs font-black uppercase tracking-[0.2em]"
+            variant="silver"
+          >
+            Publish Review
+          </LoadingButton>
+        </form>
       </div>
     </div>
   );

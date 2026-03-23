@@ -14,6 +14,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useAuth as useClerkAuth } from '@clerk/clerk-react';
 import apiService from '../../services/api';
+import PremiumLoader from '../common/PremiumLoader';
 
 const LABEL_ICONS = {
   Home: HomeIcon,
@@ -45,7 +46,16 @@ const AddressSelector = ({ onComplete, onBack, user, mode = 'checkout' }) => {
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
-    loadAddresses();
+    const init = async () => {
+      try {
+        const token = await getToken();
+        if (token) localStorage.setItem('clerk-token', token);
+        await loadAddresses();
+      } catch (err) {
+        console.error('Initialization error in AddressSelector:', err);
+      }
+    };
+    init();
   }, []);
 
   const loadAddresses = async () => {
@@ -58,8 +68,9 @@ const AddressSelector = ({ onComplete, onBack, user, mode = 'checkout' }) => {
       const def = addrs.find(a => a.is_default);
       if (def) setSelectedId(def.id);
       else if (addrs.length > 0) setSelectedId(addrs[0].id);
-    } catch {
-      // setShowForm(true); // Don't auto-show form as modal anymore
+    } catch (error) {
+      console.error('Failed to load saved addresses:', error.message);
+      // alert('Connection to saved addresses vault interrupted. Please refresh or try again.');
     } finally {
       setLoading(false);
     }
@@ -166,7 +177,7 @@ const AddressSelector = ({ onComplete, onBack, user, mode = 'checkout' }) => {
 
   if (loading) return (
     <div className="flex items-center justify-center min-h-[50vh]">
-      <div className="w-8 h-8 border-2 border-[#334155] border-t-[#e2e8f0] rounded-full animate-spin" />
+      <PremiumLoader message="Fetching Registry..." />
     </div>
   );
 

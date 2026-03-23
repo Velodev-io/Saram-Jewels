@@ -12,15 +12,23 @@ import {
 } from '@heroicons/react/24/outline';
 import apiService from '../services/api';
 import AddressSelector from '../components/address/AddressSelector';
+import PremiumLoader from '../components/common/PremiumLoader';
 
 export default function Profile() {
   const { user, isSignedIn, getToken } = useAuth();
   const location = useLocation();
-  const [activeTab, setActiveTab] = useState(() => {
-    const params = new URLSearchParams(window.location.search);
+  const [activeTab, setActiveTab] = useState('profile');
+
+  // Handle URL query parameters for active tab
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
     const tab = params.get('tab');
-    return ['profile', 'orders', 'wishlist', 'settings'].includes(tab) ? tab : 'profile';
-  });
+    if (tab && ['profile', 'orders', 'wishlist', 'settings'].includes(tab)) {
+      setActiveTab(tab);
+    } else {
+      setActiveTab('profile');
+    }
+  }, [location.search]);
   const [orders, setOrders] = useState([]);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showNotificationModal, setShowNotificationModal] = useState(false);
@@ -90,7 +98,7 @@ export default function Profile() {
       }
     };
     fetchProfileData();
-  }, [isSignedIn]);
+  }, [isSignedIn, activeTab]);
 
   // Persist user communication preferences to backend
 
@@ -228,8 +236,8 @@ export default function Profile() {
   const renderOrdersTab = () => (
     <div className="space-y-6">
       {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#e2e8f0]"></div>
+        <div className="flex items-center justify-center py-20">
+          <PremiumLoader message="Syncing Order Chronicle..." />
         </div>
       ) : orders.length === 0 ? (
         <div className="text-center py-16 bg-[#1e293b] rounded-2xl border border-[rgba(226,232,240,0.1)]">
