@@ -82,7 +82,7 @@ exports.getProductsByCategory = async (req, res) => {
 // Create new product (admin only)
 exports.createProduct = async (req, res) => {
   try {
-    const { name, description, price, originalPrice, category_id, stock, sku, is_featured, status, specifications, rating, reviews_count } = req.body;
+    const { name, description, price, originalPrice, category_id, stock, sku, is_featured, status, specifications, rating, reviews_count, colors, sizes, video } = req.body;
     let { images } = req.body;
     
     // Fix all images: center, square, and optimize
@@ -102,6 +102,9 @@ exports.createProduct = async (req, res) => {
       is_featured,
       status: status || 'active',
       specifications,
+      video,
+      colors,
+      sizes,
       rating,
       reviews_count
     });
@@ -116,7 +119,7 @@ exports.createProduct = async (req, res) => {
 // Update product (admin only)
 exports.updateProduct = async (req, res) => {
   try {
-    const { name, description, price, originalPrice, category_id, stock, sku, is_featured, status, specifications, rating, reviews_count } = req.body;
+    const { name, description, price, originalPrice, category_id, stock, sku, is_featured, status, specifications, rating, reviews_count, colors, sizes, video } = req.body;
     let { images } = req.body;
     const product = await Product.findByPk(req.params.id);
     
@@ -132,7 +135,7 @@ exports.updateProduct = async (req, res) => {
     const updateData = {};
     const fields = [
       'name', 'description', 'price', 'category_id', 'stock', 'sku', 
-      'is_featured', 'status', 'specifications', 'rating', 'reviews_count'
+      'is_featured', 'status', 'specifications', 'video', 'rating', 'reviews_count'
     ];
 
     fields.forEach(field => {
@@ -142,9 +145,15 @@ exports.updateProduct = async (req, res) => {
     if (originalPrice !== undefined) updateData.original_price = originalPrice;
     if (images !== undefined) updateData.images = images;
 
-    await product.update(updateData);
-    
-    res.json(product);
+    // Always set JSON array fields explicitly to force the DB write
+    updateData.colors = Array.isArray(colors) ? colors : [];
+    updateData.sizes = Array.isArray(sizes) ? sizes : [];
+
+    // Use static update which always issues a real SQL UPDATE
+    await Product.update(updateData, { where: { id: req.params.id } });
+
+    const updated = await Product.findByPk(req.params.id);
+    res.json(updated);
   } catch (error) {
     console.error('Error updating product:', error);
     res.status(500).json({ message: 'Error updating product', error: error.message });

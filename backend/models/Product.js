@@ -43,6 +43,18 @@ const Product = sequelize.define('Product', {
     type: DataTypes.JSON,
     defaultValue: {}
   },
+  video: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+  colors: {
+    type: DataTypes.JSON,
+    defaultValue: [] // Array of { name: 'Red', hex: '#FF0000', outOfStock: false }
+  },
+  sizes: {
+    type: DataTypes.JSON,
+    defaultValue: [] // Array of 'Small', 'Medium' etc
+  },
   rating: {
     type: DataTypes.DECIMAL(3, 1),
     defaultValue: 0

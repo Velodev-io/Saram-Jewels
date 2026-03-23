@@ -31,6 +31,14 @@ const OrderItem = sequelize.define('OrderItem', {
   price: {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: false
+  },
+  selected_color: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  selected_size: {
+    type: DataTypes.STRING,
+    allowNull: true
   }
 }, {
   timestamps: true,

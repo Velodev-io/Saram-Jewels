@@ -92,7 +92,9 @@ exports.createOrder = async (req, res) => {
         order_id: order.id,
         product_id: item.product_id,
         quantity: item.quantity || 1,
-        price: item.price || 0
+        price: item.price || 0,
+        selected_color: item.selected_color || null,
+        selected_size: item.selected_size || null
       }, { transaction });
     }));
     
