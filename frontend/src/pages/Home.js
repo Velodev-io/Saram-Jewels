@@ -609,8 +609,8 @@ const Home = () => {
               {/* Social */}
               <div className="flex gap-3 pt-2">
                 {[
-                  { id: 'FB', href: 'https://facebook.com/sarojram_g' },
-                  { id: 'IG', href: 'https://www.instagram.com/sarojram_g/' },
+                  { id: 'FB', href: 'https://www.facebook.com/profile.php?id=61573928366337' },
+                  { id: 'IG', href: 'https://www.instagram.com/saram.jewellery_store/' },
                   { id: 'YT', href: 'https://youtube.com/@sarojram_g' }
                 ].map((s) => (
                   <a

@@ -258,8 +258,8 @@ const Contact = () => {
                 {/* Social buttons */}
                 <div className="grid grid-cols-3 gap-3">
                   {[
-                    { label: 'Instagram', href: 'https://www.instagram.com/sarojram_g/' },
-                    { label: 'Facebook', href: 'https://facebook.com/sarojram_g' },
+                    { label: 'Instagram', href: 'https://www.instagram.com/saram.jewellery_store/' },
+                    { label: 'Facebook', href: 'https://www.facebook.com/profile.php?id=61573928366337' },
                     { label: 'YouTube', href: 'https://youtube.com/@sarojram_g' },
                   ].map((s) => (
                     <a
