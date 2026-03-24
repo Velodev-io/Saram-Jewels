@@ -17,7 +17,7 @@ const OrderItem = sequelize.define('OrderItem', {
   },
   product_id: {
     type: DataTypes.UUID,
-    allowNull: false,
+    allowNull: true,
     references: {
       model: 'products',
       key: 'id'
@@ -31,12 +31,25 @@ const OrderItem = sequelize.define('OrderItem', {
   price: {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: false
+  },
+  selected_color: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  selected_size: {
+    type: DataTypes.STRING,
+    allowNull: true
   }
 }, {
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at',
-  tableName: 'order_items'
+  tableName: 'order_items',
+  indexes: [
+    { fields: ['order_id'] },
+    { fields: ['product_id'] },
+    { fields: ['created_at'] }
+  ]
 });
 
 module.exports = OrderItem;

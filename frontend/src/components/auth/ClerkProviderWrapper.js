@@ -1,10 +1,19 @@
 import React from 'react';
 import { ClerkProvider } from '@clerk/clerk-react';
 
-const clerkKey = process.env.REACT_APP_CLERK_PUBLISHABLE_KEY;
+const ClerkProviderWrapper = ({ children }) => {
+  const clerkPublishableKey = process.env.REACT_APP_CLERK_PUBLISHABLE_KEY;
+  
+  if (!clerkPublishableKey) {
+    console.warn('Clerk publishable key not found. Please set REACT_APP_CLERK_PUBLISHABLE_KEY in your .env file');
+    return <>{children}</>;
+  }
 
-const ClerkProviderWrapper = ({ children }) => (
-  <ClerkProvider publishableKey={clerkKey}>{children}</ClerkProvider>
-);
+  return (
+    <ClerkProvider publishableKey={clerkPublishableKey}>
+      {children}
+    </ClerkProvider>
+  );
+};
 
 export default ClerkProviderWrapper;

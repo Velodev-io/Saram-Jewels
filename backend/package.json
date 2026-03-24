@@ -11,20 +11,27 @@
   "keywords": [
     "express",
     "postgresql",
+    "neondb",
     "api",
     "ecommerce"
   ],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@clerk/backend": "^1.0.0",
     "@clerk/clerk-sdk-node": "^4.13.4",
+    "apicache": "^1.6.3",
+    "compression": "^1.8.1",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
+    "jimp": "^1.6.0",
+    "nodemailer": "^7.0.5",
     "pg": "^8.11.3",
     "pg-hstore": "^2.3.4",
     "razorpay": "^2.9.2",
-    "sequelize": "^6.35.2"
+    "sequelize": "^6.37.8",
+    "slugify": "^1.6.8"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"

@@ -1,0 +1,92 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --silver:          #e2e8f0;
+    --silver-light:    #bae6fd;
+    --silver-dark:     #94a3b8;
+    --bg:            #020617;
+    --bg-surface:    #0f172a;
+    --bg-card:       #1e293b;
+    --border:        #334155;
+    --text-primary:  #ffffff;
+    --text-secondary:#94a3b8;
+  }
+
+  body {
+    @apply bg-[#020617] text-[#ffffff] antialiased;
+    font-family: 'Inter', sans-serif;
+  }
+
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-[#020617];
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-[#94a3b8] rounded-full hover:bg-[#e2e8f0] transition-colors;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-[#1e293b]/50 backdrop-blur-xl border border-[#e2e8f0]/10 shadow-2xl shadow-black/60;
+  }
+  
+  .glass-input {
+    @apply bg-[#0f172a]/80 border border-[#334155] text-white rounded-xl focus:ring-2 focus:ring-[#e2e8f0]/20 focus:border-[#e2e8f0]/40 transition-all placeholder-[#64748b];
+  }
+
+  .btn-primary {
+    @apply bg-gradient-to-br from-[#94a3b8] via-[#e2e8f0] to-[#bae6fd] text-[#020617] font-bold px-6 py-2.5 rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-white/10 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply bg-[#1e293b]/40 border border-[#334155] text-[#e2e8f0] font-semibold px-6 py-2.5 rounded-xl hover:bg-[#1e293b]/60 transition-all;
+  }
+
+  .sidebar-link {
+    @apply flex items-center px-4 py-3 rounded-xl transition-all duration-300;
+  }
+
+  .sidebar-link-active {
+    @apply bg-[#e2e8f0] text-[#020617] shadow-xl shadow-white/5 font-bold scale-[1.05];
+  }
+
+  .sidebar-link-inactive {
+    @apply text-[#94a3b8] hover:bg-[#1e293b]/50 hover:text-[#f8fafc] hover:translate-x-1;
+  }
+
+  .input-dark {
+    @apply bg-slate-900/50 border border-slate-700/50 text-white placeholder-slate-500 px-5 py-3 rounded-xl outline-none focus:border-amber-500/30 focus:ring-1 focus:ring-amber-500/20 transition-all duration-300;
+  }
+}
+
+@layer utilities {
+  .animate-premium-in {
+    animation: premiumIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  
+  .text-gradient-silver {
+    @apply bg-gradient-to-r from-[#bae6fd] via-[#e2e8f0] to-[#94a3b8] bg-clip-text text-transparent;
+  }
+
+  .glass-effect {
+    @apply bg-white/5 backdrop-blur-md border border-white/10;
+  }
+}
+
+@keyframes premiumIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}

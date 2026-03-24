@@ -1,0 +1,18 @@
+{
+  "projects": {
+    "Deployment": "gym-buddies-bc353"
+  },
+  "targets": {
+    "gym-buddies-bc353": {
+      "hosting": {
+        "saram-frontend": [
+          "gym-buddies-bc353"
+        ],
+        "saram-admin": [
+          "gym-buddies-admin"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}
