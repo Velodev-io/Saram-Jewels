@@ -1,6 +1,7 @@
 const { Category, Product } = require('../models');
 const slugify = require('slugify');
 const { processJewelryImage } = require('../utils/imageProcessor');
+const apicache = require('apicache');
 
 // Get all categories
 exports.getCategories = async (req, res) => {
@@ -62,6 +63,11 @@ exports.createCategory = async (req, res) => {
       image,
       status: status || 'active'
     });
+    
+    // Invalidate caches to reflect new category
+    apicache.clear();
+    console.log('⚡ API Cache Purged after new category creation.');
+
     res.status(201).json(category);
   } catch (error) {
     console.error('CRITICAL: category creation failed:', error);
@@ -97,6 +103,10 @@ exports.updateCategory = async (req, res) => {
     
     await category.update(updateData);
     
+    // Invalidate caches to reflect category update
+    apicache.clear();
+    console.log('⚡ API Cache Purged after category update.');
+
     res.json(category);
   } catch (error) {
     console.error('CRITICAL: category update failed:', error);
@@ -116,7 +126,22 @@ exports.deleteCategory = async (req, res) => {
       return res.status(404).json({ message: 'Category not found' });
     }
     
+    // Check if category has any products
+    const productCount = await Product.count({ where: { category_id: id } });
+    if (productCount > 0) {
+      return res.status(400).json({ 
+        message: 'Impossible to delete collection: it still contains treasures.', 
+        error: `Cannot delete category with ${productCount} active products. Please move or delete the products first.`,
+        productCount
+      });
+    }
+
     await category.destroy();
+    
+    // Invalidate caches to reflect category deletion
+    apicache.clear();
+    console.log('⚡ API Cache Purged after category removal.');
+
     res.json({ message: 'Category deleted successfully' });
   } catch (error) {
     console.error('Error deleting category:', error);

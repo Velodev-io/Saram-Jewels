@@ -259,8 +259,8 @@ const AddEditProductModal = ({ isOpen, editingProduct, showAddProduct, onClose, 
             }
             onClose();
           } catch (err) {
-            console.error('Operation failed:', err);
-            alert('The vault registry rejected the entry. Please check data alignment.');
+            const msg = err.response?.data?.message || 'The vault registry rejected the entry. Please check data alignment.';
+            alert(msg);
           } finally {
             setIsSubmitting(false);
           }
@@ -1575,8 +1575,13 @@ const Admin = () => {
       try {
         await apiService.deleteProduct(productId);
         setProducts(products.filter(product => product.id !== productId));
+        window.dispatchEvent(new CustomEvent('showNotification', {
+          detail: { message: 'Piece has been struck from the registry.', type: 'success' }
+        }));
       } catch (e) {
         console.error(e);
+        const msg = e.response?.data?.message || 'Failed to remove the piece from the vault.';
+        alert(msg);
       }
     }
   };
@@ -1641,7 +1646,8 @@ const Admin = () => {
       return true;
     } catch (e) {
       console.error(e);
-      alert('Failed to dissolve the collection.');
+      const msg = e.response?.data?.message || 'Failed to dissolve the collection.';
+      alert(msg);
       return false;
     }
   };

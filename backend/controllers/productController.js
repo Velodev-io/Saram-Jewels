@@ -1,6 +1,7 @@
 const { Product, Category, OrderItem, Cart, Review } = require('../models');
 const { Op } = require('sequelize');
 const { processJewelryImage } = require('../utils/imageProcessor');
+const apicache = require('apicache');
 
 // Get all products with pagination
 exports.getProducts = async (req, res) => {
@@ -114,6 +115,10 @@ exports.createProduct = async (req, res) => {
       reviews_count
     });
     
+    // Invalidate caches to reflect new product
+    apicache.clear();
+    console.log('⚡ API Cache Purged after product creation.');
+
     res.status(201).json(product);
   } catch (error) {
     console.error('Error creating product:', error);
@@ -159,6 +164,11 @@ exports.updateProduct = async (req, res) => {
     await Product.update(updateData, { where: { id: req.params.id } });
 
     const updated = await Product.findByPk(req.params.id);
+    
+    // Invalidate caches to reflect product update
+    apicache.clear();
+    console.log('⚡ API Cache Purged after product update.');
+
     res.json(updated);
   } catch (error) {
     console.error('Error updating product:', error);
@@ -206,6 +216,10 @@ exports.deleteProduct = async (req, res) => {
     await product.destroy({ transaction });
 
     await transaction.commit();
+    
+    // Invalidate caches to reflect product deletion
+    apicache.clear();
+    console.log('⚡ API Cache Purged after product removal.');
 
     res.json({ message: 'Product deleted successfully' });
   } catch (error) {
